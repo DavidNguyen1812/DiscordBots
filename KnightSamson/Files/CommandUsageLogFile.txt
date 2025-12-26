@@ -1,0 +1,516 @@
+Wed Jul 30 11:55:46 2025
+boringdavid used command /chatgpt Hello gpt-4.1 Futuristic
+Command Status: Approved
+
+Wed Jul 30 11:56:15 2025
+boringdavid used command /chatgpt Hi gpt-4.1-mini Romantic
+Command Status: Approved
+
+Wed Jul 30 11:59:13 2025
+boringdavid used command /chatgpt Hello o1 Military
+Command Status: Approved
+
+Wed Jul 30 12:00:27 2025
+boringdavid used command /chatgpt Hello o4-mini Medieval
+Command Status: Approved
+
+Wed Jul 30 12:00:59 2025
+boringdavid used command /chatgpt Hello o3-mini Modern Day
+Command Status: Approved
+
+Wed Jul 30 12:06:50 2025
+boringdavid used command /chatgpt Hello gpt-4o-mini Horror
+Command Status: Approved
+
+Wed Jul 30 12:07:37 2025
+boringdavid used command /chatgpt Hello gpt-4o-mini Gangster
+Command Status: Approved
+
+Wed Jul 30 12:08:03 2025
+boringdavid used command /chatgpt Fuck you o1 Gangster
+Command Status: Denied/User requested inappropriate prompt
+
+Wed Jul 30 12:14:00 2025
+boringdavid used command /direct_message boringdavid You a piece of shit!
+Command Status: Denied/User requested inappropriate prompt
+
+Wed Jul 30 13:09:40 2025
+sirdavidnguyen2 used command /clear_last_message 3
+Command Status: Approved
+
+Wed Jul 30 13:10:02 2025
+sirdavidnguyen2 used command /clear_last_message 2
+Command Status: Approved
+
+Wed Jul 30 13:10:17 2025
+sirdavidnguyen2 used command /clear_last_message 2
+Command Status: Approved
+
+Wed Jul 30 13:10:47 2025
+sirdavidnguyen2 used command /clear_all_message
+Command Status: Approved
+
+Wed Jul 30 13:11:12 2025
+sirdavidnguyen2 used command /add_command sirdavidnguyen2 100
+Command Status: Denied/Command runs by unauthorized personnel
+
+Wed Jul 30 13:13:55 2025
+boringdavid used command /add_command sirdavidnguyen2 100
+Command Status: Approved
+
+Wed Jul 30 13:20:00 2025
+sirdavidnguyen2 used command /clear_user_message boringdavid
+Command Status: Approved
+
+Wed Jul 30 13:21:14 2025
+sirdavidnguyen2 used command /samson
+Command Status: Approved
+
+Wed Jul 30 13:21:40 2025
+sirdavidnguyen2 used command /react Knight Samson#3513 1 React ['🤪']
+Command Status: Approved
+
+Wed Jul 30 13:25:28 2025
+boringdavid used command /clear_all_message
+Command Status: Denied/Command runs in DM channel
+
+Wed Jul 30 13:25:40 2025
+sirdavidnguyen2 used command /clear_all_message
+Command Status: Approved
+
+Wed Jul 30 13:28:40 2025
+boringdavid used command /clear_last_message 12
+Command Status: Approved
+
+Wed Jul 30 13:28:58 2025
+boringdavid used command /clear_last_message 2
+Command Status: Approved
+
+Wed Jul 30 13:30:04 2025
+sirdavidnguyen2 used command /clear_last_message 1
+Command Status: Approved
+
+Wed Jul 30 13:30:13 2025
+sirdavidnguyen2 used command /clear_last_message 1
+Command Status: Denied/User reached daily limit usage
+
+Wed Jul 30 13:30:53 2025
+sirdavidnguyen2 used command /clear_all_message
+Command Status: Approved
+
+Wed Jul 30 13:34:56 2025
+sirdavidnguyen2 used command /clear_all_message
+Command Status: Approved
+
+Wed Jul 30 13:50:10 2025
+boringdavid used command /clear_all_message
+Command Status: Approved
+
+Thu Jul 31 21:51:51 2025
+boringdavid used command /clear_all_message
+Command Status: Approved
+
+Sun Aug  3 17:20:15 2025
+boringdavid used command /google_gemini Hello gemini-1.5-flash Gangster
+Command Status: Approved
+
+Sun Aug  3 17:21:09 2025
+boringdavid used command /chatgpt What's up! gpt-4o-mini Gangster
+Command Status: Approved
+
+Sun Aug  3 17:21:46 2025
+boringdavid used command /google_gemini What's an A? gemini-1.5-flash Futuristic
+Command Status: Approved
+
+Sun Aug  3 17:22:10 2025
+boringdavid used command /google_geminiLet have sex gemini-1.5-flash Romantic
+Command Status: Denied/User requested inappropriate prompt
+
+Sun Aug  3 17:24:21 2025
+boringdavid used command /google_gemini Who is Gorilla Man? gemini-2.0-flash Romantic
+Command Status: Approved
+
+Sun Aug  3 17:26:00 2025
+boringdavid used command /google_gemini Who is Bishesh the gnome? gemini-2.0-flash Horror
+Command Status: Approved
+
+Sun Aug  3 17:26:58 2025
+boringdavid used command /google_gemini Bahador Dodge  is a creepy teacher, write a poem about him! gemini-2.0-flash Horror
+Command Status: Approved
+
+Sun Aug  3 17:27:28 2025
+boringdavid used command /samson
+Command Status: Approved
+
+Sun Aug  3 17:27:47 2025
+boringdavid used command /direct_message kam39 Let have sex
+Command Status: Denied/User requested inappropriate prompt
+
+Sun Aug  3 17:28:02 2025
+boringdavid used command /direct_message kam39 What's up?
+Command Status: Approved
+
+Mon Aug  4 11:38:57 2025
+boringdavid used command /chatgpt Hello Friend gpt-4o-mini Romantic
+Command Status: Approved
+
+Mon Aug  4 11:39:48 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4o-mini Romantic
+Command Status: Approved
+
+Mon Aug  4 11:47:35 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4.1 Medieval
+Command Status: Approved
+
+Mon Aug  4 11:47:56 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4.1-mini Futuristic
+Command Status: Approved
+
+Mon Aug  4 11:48:04 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4.1-nano Romantic
+Command Status: Approved
+
+Mon Aug  4 11:48:24 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4o Modern Day
+Command Status: Approved
+
+Mon Aug  4 11:49:03 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? gpt-4o-mini Military
+Command Status: Approved
+
+Mon Aug  4 11:49:28 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? o1 Horror
+Command Status: Approved
+
+Mon Aug  4 11:51:08 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? o4-mini Gangster
+Command Status: Approved
+
+Mon Aug  4 11:52:04 2025
+boringdavid used command /chatgpt What song shall I sing to the young maiden? o3-mini Medieval
+Command Status: Approved
+
+Mon Aug  4 12:19:40 2025
+boringdavid used command /samson
+Command Status: Approved
+
+Mon Aug  4 15:32:40 2025
+boringdavid used command /google_gemini Hello friend! gemini-1.5-flash Futuristic
+Command Status: Approved
+
+Mon Aug  4 15:58:51 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402017960620589179/encrypted_image.qcow2?ex=6892627a&is=689110fa&hm=f38f5b471d77d3f102026682de2580378ca57c07aed2f4a26e9053a1e7a3aec4&
+Command Status: Denied/Attachment not a zip file!
+
+Mon Aug  4 17:18:24 2025
+boringdavid used command /clear_last_message 12
+Command Status: Approved
+
+Mon Aug  4 17:48:59 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402045669463560313/Archive_4.zip?ex=68927c48&is=68912ac8&hm=0207a131875a4baf84c62321cba49e455753bd458ab301207b828b94874443e5&
+Command Status: Approved
+
+Mon Aug  4 17:51:55 2025
+boringdavid used command /clear_last_message 6
+Command Status: Approved
+
+Mon Aug  4 17:52:17 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402046502192283839/Archive_4.zip?ex=68927d0e&is=68912b8e&hm=d03b2f48c39ee42a36e1e876bad6c42ab90a3d127f9e3fd181a376834096d637&
+Command Status: Approved
+
+Mon Aug  4 17:52:47 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402046628361273517/Archive.zip?ex=68927d2c&is=68912bac&hm=9f307ff12a94c6ccc25a3df4f82b5e8f8447bc1ae5d818927bbbd7574dd6ed30&
+Command Status: Approved
+
+Mon Aug  4 17:54:38 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402047097842303098/untitled_text.sh.zip?ex=68927d9c&is=68912c1c&hm=578e9f2ead9c9d12b0ec55d3b3ce62703e661facf12e3380e306ed864e7347a6&
+Command Status: Denied/Zip Attachment does not have any PNG frames!
+
+Mon Aug  4 17:55:04 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402047203526054080/Archive_4.zip?ex=68927db6&is=68912c36&hm=98ced2586c09a87f49231e96d3ff6914c953dbcc98d761fb285e9713fe0b2c7f&
+Command Status: Approved
+
+Mon Aug  4 19:35:08 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Mon Aug  4 19:39:32 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 10:52:09 2025
+boringdavid used command /get_user_list_of_permissions boringdavid
+Command Status: Approved
+
+Tue Aug  5 10:54:39 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:04:42 2025
+boringdavid used command /react kam39 1 React ['💯']
+Command Status: Approved
+
+Tue Aug  5 11:04:57 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:05:29 2025
+boringdavid used command /react kam39 1 React ['💪', '👍']
+Command Status: Approved
+
+Tue Aug  5 11:06:22 2025
+boringdavid used command /google_gemini You have a brother name The Professor gemini-1.5-flash Romantic
+Command Status: Approved
+
+Tue Aug  5 11:09:29 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:14:35 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:18:18 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:22:12 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:24:44 2025
+boringdavid used command /chatgpt W gpt-4o Military
+Command Status: Denied/Command runs in DM channel
+
+Tue Aug  5 11:25:48 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:28:18 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:30:19 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:32:36 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Tue Aug  5 11:33:06 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Wed Aug  6 11:35:51 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402676549911842866/ChrisIsADictator.zip?ex=6894c7d5&is=68937655&hm=14cc76b74a87f89ee18732e32396f0e7a0c2b03edfae0734bb5c87863abad12b&
+Command Status: Denied/Zip Attachment does not have any PNG frames!
+
+Wed Aug  6 11:36:40 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1402676755147391067/nestedZipBomb.zip?ex=6894c806&is=68937686&hm=54f5826da3415072b79a6670a63690092c148f073cec137d20881c2c51197111&
+Command Status: Denied/Zip Attachment does not have any PNG frames!
+
+Thu Aug  7 18:30:26 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403143264097275904/Archive.zip?ex=68967a7f&is=689528ff&hm=8dade24f500ac2e9409364dfec0cd2dce0de98915d209d94134585127926e8a6&
+Command Status: Approved
+
+Thu Aug  7 18:31:33 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403143554007568505/Archive_2.zip?ex=68967ac4&is=68952944&hm=bd56d6af14391d7a73feb23c74329251e6910a954fa28148364d66cf9587a1d4&
+Command Status: Approved
+
+Thu Aug  7 18:35:05 2025
+kam39 used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403144440477909173/mayo_university1.zip?ex=68967b97&is=68952a17&hm=ec69da980a630431f1ac7376f2dcc06b111621e0e1c71dd344830a4c7fbe4ab0&
+Command Status: Approved
+
+Thu Aug  7 18:50:32 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403148312223420487/Archive.zip?ex=68967f32&is=68952db2&hm=4a0b6cd4f6918c173f11bcf315939dd305880e41446edbdce401ad48b4b09004&
+Command Status: Approved
+
+Thu Aug  7 18:51:23 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403148522638938292/Archive.zip?ex=68967f65&is=68952de5&hm=a546b895daf3f6c61615f45b6a22c694468107c63b68b4545c4f53fca0da6d2d&
+Command Status: Approved
+
+Thu Aug  7 18:52:31 2025
+boringdavid used command /customized_gif_generator https://cdn.discordapp.com/ephemeral-attachments/1402017249820410027/1403148813585092648/Archive.zip?ex=68967faa&is=68952e2a&hm=516b5d50fe694c2206a5bbfa4846ce619911478faf064290d3e649779a1734f6&
+Command Status: Approved
+
+Tue Aug 12 13:23:21 2025
+boringdavid used command /chatgpt Hello gpt-4o-mini Gangster
+Command Status: Approved
+
+Tue Aug 12 13:24:03 2025
+boringdavid used command /chatgpt Explain trickledown economic gpt-4.1 Gangster
+Command Status: Approved
+
+Tue Aug 12 13:24:57 2025
+boringdavid used command /chatgpt You piece of shit, fuck you! gpt-4.1 Medieval
+Command Status: Denied/User requested inappropriate prompt
+
+Mon Nov  3 17:15:56 2025
+boringdavid used command /google_gemini MacOS vs Windows, which one better? gemini-2.0-flash Military
+Command Status: Approved
+
+Mon Nov  3 17:28:30 2025
+boringdavid used command /clear_last_message 2
+Command Status: Approved
+
+Mon Nov  3 17:29:29 2025
+boringdavid used command /clear_last_message 2
+Command Status: Approved
+
+Mon Nov  3 17:29:50 2025
+boringdavid used command /clear_last_message 3
+Command Status: Approved
+
+Mon Nov  3 17:30:28 2025
+boringdavid used command /clear_last_message 2
+Command Status: Approved
+
+Mon Nov  3 17:30:52 2025
+boringdavid used command /clear_last_message 4
+Command Status: Approved
+
+Mon Nov  3 17:31:19 2025
+boringdavid used command /clear_last_message 4
+Command Status: Approved
+
+Mon Nov  3 17:31:29 2025
+boringdavid used command /clear_last_message 4
+Command Status: Approved
+
+Mon Nov  3 17:31:39 2025
+boringdavid used command /clear_user_message boringdavid
+Command Status: Approved
+
+Mon Nov  3 17:35:16 2025
+boringdavid used command /react TheProf#1398 3 React ['😂']
+Command Status: Approved
+
+Mon Nov  3 17:35:46 2025
+boringdavid used command /react kam39 1 React ['💩']
+Command Status: Approved
+
+Mon Nov  3 17:36:20 2025
+boringdavid used command /react kam39 1 React ['🙊']
+Command Status: Approved
+
+Thu Dec 11 14:46:32 2025
+boringdavid used command /chatgpt What is ZTA? gpt-5 Fitness Coach
+Command Status: Approved
+
+Thu Dec 11 14:47:37 2025
+boringdavid used command /chatgpt What is ZTA in Cybersecurity? gpt-5 Viking
+Command Status: Approved
+
+Thu Dec 11 14:50:40 2025
+boringdavid used command /chatgpt Who are you? gpt-4o Viking
+Command Status: Approved
+
+Thu Dec 11 14:50:56 2025
+boringdavid used command /chatgpt Who are you? o1 Samurai
+Command Status: Approved
+
+Thu Dec 11 14:51:30 2025
+boringdavid used command /chatgpt Who are you? gpt-4o Fitness Coach
+Command Status: Approved
+
+Thu Dec 11 14:51:44 2025
+boringdavid used command /chatgpt Who are you? gpt-4.1-nano Military
+Command Status: Approved
+
+Thu Dec 11 14:51:58 2025
+boringdavid used command /chatgpt Who are you? o3-mini Romantic
+Command Status: Approved
+
+Thu Dec 11 14:54:20 2025
+boringdavid used command /chatgpt Who are you? o4-mini Medieval
+Command Status: Approved
+
+Thu Dec 11 14:54:40 2025
+boringdavid used command /chatgpt Who are you? gpt-5 Horror
+Command Status: Approved
+
+Thu Dec 11 15:40:52 2025
+boringdavid used command /chatgpt What is this image? gpt-5 Viking
+Command Status: Approved
+
+Thu Dec 11 15:43:01 2025
+boringdavid used command /chatgpt veve gpt-5 Samurai
+Command Status: Approved
+
+Thu Dec 11 15:46:28 2025
+kam39 used command /chatgpt write a poem about a hardware and CPS class named the memes architecture class gpt-5 Military
+Command Status: Approved
+
+Thu Dec 11 15:51:07 2025
+boringdavid used command /chatgpt What is this image? gpt-5 Military
+Command Status: Approved
+
+Thu Dec 11 16:25:08 2025
+boringdavid used command /chatgpt What is this image? gpt-5 Romantic
+Command Status: Approved
+
+Thu Dec 11 16:51:40 2025
+boringdavid used command /chatgpt Summarize this PDF content! gpt-5 Medieval
+Command Status: Approved
+
+Thu Dec 11 16:56:55 2025
+boringdavid used command /chatgpt Summarize this PDF content! gpt-4o Modern Day
+Command Status: Approved
+
+Mon Dec 15 12:53:32 2025
+boringdavid used command /chatgpt Hello gpt-5.2
+Command Status: Approved
+
+Mon Dec 15 12:55:13 2025
+boringdavid used command /roleplay Samurai
+Command Status: Approved
+
+Mon Dec 15 12:56:51 2025
+boringdavid used command /chatgpt What is love? gpt-5.2
+Command Status: Approved
+
+Mon Dec 15 12:57:24 2025
+boringdavid used command /roleplay Viking
+Command Status: Approved
+
+Mon Dec 15 12:57:58 2025
+boringdavid used command /roleplay Viking
+Command Status: Denied/Samson already configured to the selected roleplay!
+
+Mon Dec 15 12:59:10 2025
+boringdavid used command /clear_samson_dm_messages
+Command Status: Approved
+
+Mon Dec 15 13:03:35 2025
+boringdavid used command /chatgpt What is this picture? gpt-5.2
+Command Status: Approved
+
+Mon Dec 15 13:05:10 2025
+boringdavid used command /chatgpt What is this picture? o1
+Command Status: Approved
+
+Mon Dec 15 14:40:39 2025
+boringdavid used command /google_gemini What is this image? gemini-2.5-flash Yes
+Command Status: Approved
+
+Mon Dec 15 14:41:58 2025
+boringdavid used command /google_gemini Who are you? gemini-2.5-flash Yes
+Command Status: Approved
+
+Mon Dec 15 14:42:35 2025
+boringdavid used command /roleplay Military
+Command Status: Approved
+
+Mon Dec 15 14:43:14 2025
+boringdavid used command /google_gemini Who are you? gemini-2.5-flash Yes
+Command Status: Approved
+
+Mon Dec 15 14:51:13 2025
+boringdavid used command /roleplay Gangster
+Command Status: Approved
+
+Mon Dec 15 14:55:58 2025
+boringdavid used command /roleplay Comedian
+Command Status: Approved
+

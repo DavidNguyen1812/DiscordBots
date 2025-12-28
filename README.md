@@ -17,6 +17,9 @@ pip install python-magic==0.4.27
 pip install rarfile==4.2
 pip install requests==2.32.4
 pip install scikit-learn==1.7.1
+Discord API key
+OpenAI API key
+Tenor API key
 
 **Knight Nexus**
 Main functionality is integrating Cryptography command to Discord using Open-Source Python Crypto Library pycryptodome
@@ -26,6 +29,7 @@ pip install dotenv==0.9.0
 pip install discord-py==2.5.2
 pip install pycryptodome==3.23.0
 pip install vingere==1.1.0
+Discord API key
 
 **Knight Samson**
 Main functionality is integrating OpenAI and Google Gemini models to Discord
@@ -36,3 +40,6 @@ pip install requests==2.32.4
 pip install discord-py==2.5.2
 pip install openai==2.12.0
 pip install google-genai==1.55.0
+Discord API key
+OpenAI API key
+Google Gemini API key

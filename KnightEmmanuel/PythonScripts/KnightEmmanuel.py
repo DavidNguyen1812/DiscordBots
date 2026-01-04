@@ -890,8 +890,8 @@ async def AdvanceBackTrackMessageScan(message):
 async def emmanuel(ctx):
     await ctx.response.send_message("I'm a knight designed by Sir David Nguyen with a purpose of scanning message, audio, "
                                     "photo, gif, and video attachment in Server Channel that I am authorized to detect "
-                                    "inappropriate content, delete them, and annoy you with a DM warning to stop sending"
-                                    " NSFW content! I won't response to any Direct Messages!!!\n"
+                                    "inappropriate content using OpenAI LLMs, delete them, and annoy you with a DM warning"
+                                    " to stop sending NSFW content! I won't response to any Direct Messages!!!\n"
                                     "If you like to delete DM messages from me, use the command /clear_emmanuel_dm_messages.\n"
                                     "I have limitation to certain file formats that I am capable of scanning. The list can be checked "
                                     "by the command /list_supported_file.")
@@ -1055,7 +1055,12 @@ async def uncensored_members(ctx):
             members = ""
             for memberID in configuration[str(ctx.guild.id)]["Uncensored-members"]:
                 member = Emmanuel.get_user(memberID)
-                members += f"Member ID: {member.id}\tMember name: {member.name}\n"
+                if member:
+                    members += f"Member ID: {member.id}\tMember name: {member.name}\n"
+                else:
+                    configuration[str(ctx.guild.id)]["Uncensored-channels"].remove(memberID)
+                    with open(EMMANUELCONFIG, "w") as file:
+                        json.dump(configuration, file, indent=4)
             await ctx.followup.send(f"Uncensored members for server {ctx.guild.name} ID {ctx.guild.id}:\n{members}")
         else:
             await ctx.followup.send("You're not the Server Owner, this command is for the Owner ONLY!")
@@ -1075,7 +1080,12 @@ async def uncensored_channels(ctx):
             channels = ""
             for channelID in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
                 channel = Emmanuel.get_channel(channelID)
-                channels += f"Channel ID: {channel.id}\tChannel name: {channel.name}\n"
+                if channel:
+                    channels += f"Channel ID: {channel.id}\tChannel name: {channel.name}\n"
+                else:
+                    configuration[str(ctx.guild.id)]["Uncensored-channels"].remove(channelID)
+                    with open(EMMANUELCONFIG, "w") as file:
+                        json.dump(configuration, file, indent=4)
             await ctx.followup.send(f"Uncensored channels for server {ctx.guild.name} ID {ctx.guild.id}:\n{channels}")
         else:
             await ctx.followup.send("You're not the Server Owner, this command is for the Owner ONLY!")
@@ -1121,7 +1131,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                 if len(MultipleURLCheck) > 1:  # If there are more than one Hyper link, then it's not allow!
                     try:
                         await after.author.send("Please send a message with one hyperlink at a time!")
-                    except Exception:
+                    except discord.Forbidden:
                         await after.reply(f"{after.author.mention}, Please send a message with one hyperlink at a time!")
                     logUserAction += f"\nReedited-Message was deleted for having more than one URL!\n\n"
                     writingLog(logUserAction)
@@ -1140,7 +1150,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                 if "../" in URL:
                     try:
                         await after.author.send(f"URL {URL} hinted a potential ../ attack!")
-                    except Exception:
+                    except discord.Forbidden:
                         await after.reply(f"{after.author.mention}, URL {URL} hinted a potential ../ attack!")
                     logUserAction += "\nReedited-Message is deleted for having a URL hinted potential directory transversal attack!!\n\n"
                     writingLog(logUserAction)
@@ -1164,7 +1174,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                         try:
                             await after.author.send(
                                 f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                        except Exception:
+                        except discord.Forbidden:
                             await after.reply(
                                 f"{after.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                         await after.delete()
@@ -1182,7 +1192,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                             AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
                             try:
                                 await after.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
-                            except Exception:
+                            except discord.Forbidden:
                                 await after.reply(f"{after.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
                             await after.delete()
                             logUserAction += f"\nReedited-Message was deleted for having URL name hinted NSFW!\n\n"
@@ -1207,7 +1217,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             try:
                                                 await after.author.send(
                                                     f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
-                                            except Exception:
+                                            except discord.Forbidden:
                                                 await after.reply(
                                                     f"{after.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
                                             await after.delete()
@@ -1223,7 +1233,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                         print(f"Tenor gif URL {URL} is not a valid tenor gif!")
                                         try:
                                             await after.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
-                                        except Exception:
+                                        except discord.Forbidden:
                                             await after.reply(f"{after.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                         await after.delete()
                                         logUserAction += f"\nReedited Message was deleted for having invalid Tenor Gif URL!\n\n"
@@ -1250,7 +1260,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
                                             try:
                                                 await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            except Exception:
+                                            except discord.Forbidden:
                                                 await after.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
                                             await after.delete()
                                             logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
@@ -1275,7 +1285,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             if UrlContentNSFWResult:
                                                 try:
                                                     await after.author.send(UrlContentNSFWResultDetails)
-                                                except Exception:
+                                                except discord.Forbidden:
                                                     await after.reply(f"{after.author.mention}, {UrlContentNSFWResultDetails}")
                                                 await after.delete()
                                                 logUserAction += f"\nRe-edited Message was deleted for having NSFW URL content\n\n"
@@ -1288,7 +1298,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
                                     try:
                                         await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                    except Exception:
+                                    except discord.Forbidden:
                                         await after.reply(f"{after.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     await after.delete()
                                     logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
@@ -1304,7 +1314,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                             if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                 try:
                                     await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                except Exception:
+                                except discord.Forbidden:
                                     await after.reply(f"{after.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                 await after.delete()
                                 logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
@@ -1326,7 +1336,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                 if scanResult:
                     try:
                         await after.author.send(scanResultDetails)
-                    except Exception:
+                    except discord.Forbidden:
                         await after.reply(f"{after.author.mention}, {scanResultDetails}")
                     await after.delete()
                     logUserAction += f"\nReedited Message was deleted for having NSFW text content!\n\n"
@@ -1384,7 +1394,7 @@ async def on_message(message):
                 if len(MultipleURLCheck) > 1:  # If there are more than one Hyper link, then it's not allow!
                     try:
                         await message.author.send("Please send a message with one hyperlink at a time!")
-                    except Exception:
+                    except discord.Forbidden:
                         await message.reply(f"{message.author.mention}, Please send a message with one hyperlink at a time!")
                     logUserAction += "\nMessage was deleted for having more than one URL!\n\n"
                     writingLog(logUserAction)
@@ -1427,7 +1437,7 @@ async def on_message(message):
                     if BasedURLToSave in NSFWData.keys():
                         try:
                             await message.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                        except Exception:
+                        except discord.Forbidden:
                             await message.reply(f"{message.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                         await message.delete()
                         logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
@@ -1444,7 +1454,7 @@ async def on_message(message):
                             AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
                             try:
                                 await message.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
-                            except Exception:
+                            except discord.Forbidden:
                                 await message.reply(f"{message.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
                             await message.delete()
                             logUserAction += f"\nMessage was deleted for having URL name hinted NSFW!\n\n"
@@ -1468,7 +1478,7 @@ async def on_message(message):
                                         if scanResult:
                                             try:
                                                 await message.author.send(f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
-                                            except Exception:
+                                            except discord.Forbidden:
                                                 await message.reply(f"{message.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
                                             await message.delete()
                                             logUserAction += f"\nMessage was deleted for having Tenor Gif URL with NSFW content!\n\n"
@@ -1483,7 +1493,7 @@ async def on_message(message):
                                         print(f"Tenor gif URL {URL} is not a valid tenor gif!")
                                         try:
                                             await message.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
-                                        except Exception:
+                                        except discord.Forbidden:
                                             await message.reply(f"{message.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                         await message.delete()
                                         logUserAction += f"\nMessage was deleted for having invalid Tenor Gif URL!\n\n"
@@ -1511,7 +1521,7 @@ async def on_message(message):
                                             AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
                                             try:
                                                 await message.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            except Exception:
+                                            except discord.Forbidden:
                                                 await message.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
                                             await message.delete()
                                             logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
@@ -1536,7 +1546,7 @@ async def on_message(message):
                                             if URLContentNSFWResult:
                                                 try:
                                                     await message.author.send(UrlContentNSFWResultDetails)
-                                                except Exception:
+                                                except discord.Forbidden:
                                                     await message.reply(f"{message.author.mention}, {UrlContentNSFWResultDetails}")
                                                 await message.delete()
                                                 logUserAction += f"\nMessage was deleted for having NSFW URL content\n\n"
@@ -1549,7 +1559,7 @@ async def on_message(message):
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                     try:
                                         await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                    except Exception:
+                                    except discord.Forbidden:
                                         await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     await message.delete()
                                     logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
@@ -1567,7 +1577,7 @@ async def on_message(message):
                                 try:
                                     await message.author.send(
                                         f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                except Exception:
+                                except discord.Forbidden:
                                     await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                 await message.delete()
                                 logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
@@ -1589,7 +1599,7 @@ async def on_message(message):
                 if scanResult:
                     try:
                         await message.author.send(scanResultDetails)
-                    except Exception:
+                    except discord.Forbidden:
                         await message.reply(f"{message.author.mention}, {scanResultDetails}")
                     await message.delete()
                     logUserAction += "\nMessage was deleted for having NSFW text content!\n\n"
@@ -1608,7 +1618,7 @@ async def on_message(message):
                 if "../" in attachment.filename:
                     try:
                         await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
-                    except Exception:
+                    except discord.Forbidden:
                         await message.reply(f"{message.author.mention}, attachment {attachment.filename} hinted a potential ../ attack!")
                     await message.delete()
                     logUserAction += "\nMessage is deleted for having at least 1 attachment with potential directory transversal attack!!\n\n"
@@ -1631,7 +1641,7 @@ async def on_message(message):
                         print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
                         try:
                             await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
-                        except Exception:
+                        except discord.Forbidden:
                             await message.reply(f"{message.author.mention}, the attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
                         await message.delete()
                         logUserAction += "\nMessage was deleted for having attachment content already flagged NSFW!\n\n"
@@ -1657,7 +1667,7 @@ async def on_message(message):
                         if attachmentNSFWResult:
                             try:
                                 await message.author.send(attachmentNSFWResultDetails)
-                            except Exception:
+                            except discord.Forbidden:
                                 await message.reply(f"{message.author.mention}, {attachmentNSFWResultDetails}")
                             await message.delete()
                             logUserAction += "\nMessage is deleted for having at least 1 NSFW attachment!\n\n"

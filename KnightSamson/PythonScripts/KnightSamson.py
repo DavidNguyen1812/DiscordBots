@@ -514,8 +514,7 @@ async def clear_user_message(ctx, user: discord.User, messagenum: int):  # Bishe
     userinput="Select 'React' for Samson to react, Select 'Remove' to clear all reactions",
     emote="Make sure to select a valid emote, NOTE: Custom emoji will not work! "
 )
-async def react(ctx, username: discord.User, num: int, userinput: Literal["React", "Remove"],
-                emote: str):
+async def react(ctx, username: discord.User, num: int, userinput: Literal["React", "Remove"],emote: str):
     await ctx.response.defer(ephemeral=True)  # Prevent interaction from timing out
     if not isDMChannel(ctx.channel):
         counter = 0
@@ -555,34 +554,23 @@ async def react(ctx, username: discord.User, num: int, userinput: Literal["React
     message="Your message to be delivered by Knight Samson."
 )
 async def direct_message(ctx, member: discord.User, message: str):
-    try:
-        await ctx.response.defer(ephemeral=True)  # Prevent interaction from timing out
-        if not isDMChannel(ctx.channel):
-            inappropriateCheck = gpt(f'Is this request "{message}" contains any vulgar language? Just say yes or no!',
-                                     ctx.user.name, "gpt-4o-mini", "You're a text message NSFW scanner!")
-            if inappropriateCheck.startswith(("Yes", "yes")):
-                LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User requested inappropriate prompt")
-                await ctx.followup.send("I shall not fulfill any inappropriate prompt!")
-            else:
-                if CheckingUserCurrentCommandUsage(ctx.user.id):
-                    try:
-                        await member.send(f"User {ctx.user.name} want me to send you message:\n{message}")
-                        await ctx.channel.purge(limit=1)  # Delete the command prompt for confidential
-                        LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Approved")
-                    except discord.Forbidden:
-                        LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
-                        await ctx.followup.send(f"I can't DM {member.name}. User might have DMs disabled.")
-                    except Exception as e:
-                        LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
-                        await ctx.followup.send(f"An error occurred: {e}")
-                else:
-                    LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
-                    await ctx.followup.send(f"You have reached the daily maximum command usage!")
+    await ctx.response.defer(ephemeral=True)  # Prevent interaction from timing out
+    if not isDMChannel(ctx.channel):
+        if CheckingUserCurrentCommandUsage(ctx.user.id):
+            try:
+                await member.send(f"User {ctx.user.name} want me to send you message:\n{message}")
+                LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Approved")
+            except discord.Forbidden:
+                LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
+                await ctx.followup.send(f"I can't DM {member.name}. User might have DMs disabled.")
+            except Exception as e:
+                LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
+                await ctx.followup.send(f"An error occurred: {e}")
         else:
-            LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
-            await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
-    except Exception:
-        LoggingCommandBeingExecuted(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
+            LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
+            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+    else:
+        LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 

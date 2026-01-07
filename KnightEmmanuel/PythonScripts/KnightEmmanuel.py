@@ -1119,183 +1119,181 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
 
             """Logging user message"""
             logUserAction = f"User: {after.author.name} re-edited message '{before.content}' to new message '{after.content}' in channel '{after.channel.name}' - ID {after.channel.id} in Server '{after.guild.name}' - ID {after.guild.id}"
-
-            URL = ''
+            textContent = after.content
 
             """Checking if a URL in a message and make sure only one URL"""
             if "https://" in after.content or "http://" in after.content:
-                print("Re-Edited Message contains hyperlink! Checking if only one URL in message...")
-                MultipleURLCheck = re.findall(r'https?://', after.content)
-                URLs = re.findall(r'https?://[^\s]+', after.content)
+                print("Re-Edited Message contains URL link(s)! Checking all the URL(s)...")
+                URLs = re.findall(r'https?://(?:(?!https?://)\S)+', after.content)
 
-                if len(MultipleURLCheck) > 1:  # If there are more than one Hyper link, then it's not allow!
-                    try:
-                        await after.author.send("Please send a message with one hyperlink at a time!")
-                    except discord.Forbidden:
-                        await after.reply(f"{after.author.mention}, Please send a message with one hyperlink at a time!")
-                    logUserAction += f"\nReedited-Message was deleted for having more than one URL!\n\n"
-                    writingLog(logUserAction)
-                    await after.delete()
-                    # Advance scan previous message for profanity!
-                    await AdvanceBackTrackMessageScan(after)
-                    print("Message contains more than 1 hyperlink. Terminating Scan Process...\n\n")
-                    return
-
-                """Extracting single URL"""
-                if URLs:
-                    URL = URLs[0]
-
-                print(f"Extracting {URL} from message {after.content}")
-
-                if "../" in URL:
-                    try:
-                        await after.author.send(f"URL {URL} hinted a potential ../ attack!")
-                    except discord.Forbidden:
-                        await after.reply(f"{after.author.mention}, URL {URL} hinted a potential ../ attack!")
-                    logUserAction += "\nReedited-Message is deleted for having a URL hinted potential directory transversal attack!!\n\n"
-                    writingLog(logUserAction)
-                    # Advance scan previous message for profanity!
-                    await after.delete()
-                    await AdvanceBackTrackMessageScan(after)
-                    print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
-                    return
-
-                """Checking if URl is in the clean list or already flagged NSFW"""
-
-                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                    BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
-                else:
-                    BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
-                print(f"URL in SHA512 format: {BasedURLToSave}")
-                if BasedURLToSave in CLEANData.keys():
-                    print("The URL already passed the check as clean!\n\n")
-                else:
-                    if BasedURLToSave in NSFWData.keys():
+                for URL in URLs:
+                    print(f"Extracting {URL} from message {after.content}")
+                    textContent = textContent.replace(URL, '')
+                    if "../" in URL:
                         try:
-                            await after.author.send(
-                                f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
+                            await after.author.send(f"URL {URL} hinted a potential ../ attack!")
                         except discord.Forbidden:
-                            await after.reply(
-                                f"{after.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                        await after.delete()
-                        logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
+                            await after.reply(f"{after.author.mention}, URL {URL} hinted a potential ../ attack!")
+                        logUserAction += "\nReedited-Message is deleted for having a URL hinted potential directory transversal attack!!\n\n"
                         writingLog(logUserAction)
                         # Advance scan previous message for profanity!
+                        await after.delete()
                         await AdvanceBackTrackMessageScan(after)
-                        print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
+                        print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         return
+
+                    """Checking if URl is in the clean list or already flagged NSFW"""
+
+                    if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
+                        BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
                     else:
-                        """Checking any NSFW hint in the URL query"""
-                        print("Checking any hinted NSFW in URL name...")
-                        scanResult, scanResultDetails = await NSFWscanMessage(URL, True)
-                        if scanResult:
-                            AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
+                        BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
+                    print(f"URL in SHA512 format: {BasedURLToSave}")
+                    if BasedURLToSave in CLEANData.keys():
+                        print("The URL already passed the check as clean!\n\n")
+                    else:
+                        if BasedURLToSave in NSFWData.keys():
                             try:
-                                await after.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await after.author.send(
+                                    f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             except discord.Forbidden:
-                                await after.reply(f"{after.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await after.reply(
+                                    f"{after.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             await after.delete()
-                            logUserAction += f"\nReedited-Message was deleted for having URL name hinted NSFW!\n\n"
+                            logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(after)
-                            print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                            print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
                             return
-                        """Checking if URL is valid!"""
-                        try:
-                            response = requests.get(URL, headers=MAINHEADERS)
-                            if response.status_code == 200:
-                                print(f"URL is valid!")
-                                """Checking Tenor Gif"""
-                                if URL.startswith("https://tenor.com/view"):
-                                    print("URL appear to be a Tenor Gif, checking if Tenor gif is valid...")
-                                    TenorURL = isTenorURLValid(URL)
-                                    if TenorURL != "Invalid":
-                                        print("Tenor gif URL is valid!")
-                                        scanResult, scanResultDetails = await ScanningMedia(f"{os.path.basename(TenorURL).split('?')[0]}.gif", TenorURL, BasedURLToSave)
-                                        if scanResult:
+                        else:
+                            """Checking any NSFW hint in the URL query"""
+                            print("Checking any hinted NSFW in URL name...")
+                            scanResult, scanResultDetails = await NSFWscanMessage(URL, True)
+                            if scanResult:
+                                AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
+                                try:
+                                    await after.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                except discord.Forbidden:
+                                    await after.reply(f"{after.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await after.delete()
+                                logUserAction += f"\nReedited-Message was deleted for having URL name hinted NSFW!\n\n"
+                                writingLog(logUserAction)
+                                # Advance scan previous message for profanity!
+                                await AdvanceBackTrackMessageScan(after)
+                                print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                                return
+                            """Checking if URL is valid!"""
+                            try:
+                                response = requests.get(URL, headers=MAINHEADERS)
+                                if response.status_code == 200:
+                                    print(f"URL is valid!")
+                                    """Checking Tenor Gif"""
+                                    if URL.startswith("https://tenor.com/view"):
+                                        print("URL appear to be a Tenor Gif, checking if Tenor gif is valid...")
+                                        TenorURL = isTenorURLValid(URL)
+                                        if TenorURL != "Invalid":
+                                            print("Tenor gif URL is valid!")
+                                            scanResult, scanResultDetails = await ScanningMedia(f"{os.path.basename(TenorURL).split('?')[0]}.gif", TenorURL, BasedURLToSave)
+                                            if scanResult:
+                                                try:
+                                                    await after.author.send(
+                                                        f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                except discord.Forbidden:
+                                                    await after.reply(
+                                                        f"{after.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await after.delete()
+                                                logUserAction += f"\nReedited Message was deleted for having Tenor Gif URL with NSFW content!\n\n"
+                                                writingLog(logUserAction)
+                                                # Advance scan previous message for profanity!
+                                                await AdvanceBackTrackMessageScan(after)
+                                                print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                                return
+                                            else:
+                                                print("Tenor Gif content is clean!")
+                                        else:
+                                            print(f"Tenor gif URL {URL} is not a valid tenor gif!")
                                             try:
-                                                await after.author.send(
-                                                    f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await after.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                             except discord.Forbidden:
-                                                await after.reply(
-                                                    f"{after.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await after.reply(f"{after.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                             await after.delete()
-                                            logUserAction += f"\nReedited Message was deleted for having Tenor Gif URL with NSFW content!\n\n"
+                                            logUserAction += f"\nReedited Message was deleted for having invalid Tenor Gif URL!\n\n"
                                             writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(after)
                                             print("Re-Edit Message Content Scan Process Finished!\n\n")
                                             return
-                                        else:
-                                            print("Tenor Gif content is clean!")
                                     else:
-                                        print(f"Tenor gif URL {URL} is not a valid tenor gif!")
+                                        """Analyzing if URL content is an image, video, audio, or archive file"""
+                                        """Checking if URL content already been scanned"""
+                                        hashedURLContent = hashlib.sha512(response.content).hexdigest()
+                                        print(f"URL Content in SHA512: {hashedURLContent}")
+                                        print(f"Checking if URL content is already in a clean list...")
+                                        if hashedURLContent in CLEANData.keys():
+                                            print("URL content already pass the scan!")
+                                            print("Adding based URL to clean data!")
+                                            AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
+                                        else:
+                                            print(f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
+                                            if hashedURLContent in NSFWData.keys():
+                                                print("URL content already flagged NSFW!")
+                                                print(f"Adding based URL to NSFW data!")
+                                                AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
+                                                try:
+                                                    await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
+                                                except discord.Forbidden:
+                                                    await after.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
+                                                await after.delete()
+                                                logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
+                                                writingLog(logUserAction)
+                                                # Advance scan previous message for profanity!
+                                                await AdvanceBackTrackMessageScan(after)
+                                                print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                                return
+                                            else:
+                                                URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
+                                                URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                                if URLContentName.endswith(ALLSCANNABLEFILEFORMATS):
+                                                    if URLContentExt.endswith(ARCHIVEFORMATS):
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    else:
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                else:
+                                                    UrlContentNSFWResult = False
+                                                    UrlContentNSFWResultDetails = ""
+                                                    AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
+                                                print("Scan Process Finished!\n\n")
+                                                if UrlContentNSFWResult:
+                                                    try:
+                                                        await after.author.send(UrlContentNSFWResultDetails)
+                                                    except discord.Forbidden:
+                                                        await after.reply(f"{after.author.mention}, {UrlContentNSFWResultDetails}")
+                                                    await after.delete()
+                                                    logUserAction += f"\nRe-edited Message was deleted for having NSFW URL content\n\n"
+                                                    writingLog(logUserAction)
+                                                    # Advance scan previous message for profanity!
+                                                    await AdvanceBackTrackMessageScan(after)
+                                                    return
+                                else:
+                                    print(f"URL is invalid with status code {response.status_code}!")
+                                    if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
                                         try:
-                                            await after.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
+                                            await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         except discord.Forbidden:
-                                            await after.reply(f"{after.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
+                                            await after.reply(f"{after.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         await after.delete()
-                                        logUserAction += f"\nReedited Message was deleted for having invalid Tenor Gif URL!\n\n"
+                                        logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
                                         writingLog(logUserAction)
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(after)
                                         print("Re-Edit Message Content Scan Process Finished!\n\n")
                                         return
-                                else:
-                                    """Analyzing if URL content is an image, video, audio, or archive file"""
-                                    """Checking if URL content already been scanned"""
-                                    hashedURLContent = hashlib.sha512(response.content).hexdigest()
-                                    print(f"URL Content in SHA512: {hashedURLContent}")
-                                    print(f"Checking if URL content is already in a clean list...")
-                                    if hashedURLContent in CLEANData.keys():
-                                        print("URL content already pass the scan!")
-                                        print("Adding based URL to clean data!")
-                                        AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
                                     else:
-                                        print(f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
-                                        if hashedURLContent in NSFWData.keys():
-                                            print("URL content already flagged NSFW!")
-                                            print(f"Adding based URL to NSFW data!")
-                                            AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
-                                            try:
-                                                await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            except discord.Forbidden:
-                                                await after.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            await after.delete()
-                                            logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
-                                            writingLog(logUserAction)
-                                            # Advance scan previous message for profanity!
-                                            await AdvanceBackTrackMessageScan(after)
-                                            print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                            return
-                                        else:
-                                            URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
-                                            URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
-                                            if URLContentName.endswith(ALLSCANNABLEFILEFORMATS):
-                                                if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
-                                                else:
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
-                                            else:
-                                                UrlContentNSFWResult = False
-                                                UrlContentNSFWResultDetails = ""
-                                                AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
-                                            print("Scan Process Finished!\n\n")
-                                            if UrlContentNSFWResult:
-                                                try:
-                                                    await after.author.send(UrlContentNSFWResultDetails)
-                                                except discord.Forbidden:
-                                                    await after.reply(f"{after.author.mention}, {UrlContentNSFWResultDetails}")
-                                                await after.delete()
-                                                logUserAction += f"\nRe-edited Message was deleted for having NSFW URL content\n\n"
-                                                writingLog(logUserAction)
-                                                # Advance scan previous message for profanity!
-                                                await AdvanceBackTrackMessageScan(after)
-                                                return
-                            else:
-                                print(f"URL is invalid with status code {response.status_code}!")
-                                if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
+                                        logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
+                            except Exception as URLQueryError:
+                                print(f"Error getting URL: {URLQueryError}.")
+                                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                     try:
                                         await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     except discord.Forbidden:
@@ -1309,26 +1307,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
-                        except Exception as URLQueryError:
-                            print(f"Error getting URL: {URLQueryError}.")
-                            if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                                try:
-                                    await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                except discord.Forbidden:
-                                    await after.reply(f"{after.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                await after.delete()
-                                logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
-                                writingLog(logUserAction)
-                                # Advance scan previous message for profanity!
-                                await AdvanceBackTrackMessageScan(after)
-                                print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                return
-                            else:
-                                logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
 
             """Scanning message text content with hyperlink removed"""
-            textContent = after.content  # Prevent edit on message object that trigger false re-edit message event!
-            textContent = textContent.replace(URL, '')
             if textContent:
                 print(f"Scanning text content with URL already filtered...")
                 print(f"Text content: {textContent}")
@@ -1383,182 +1363,183 @@ async def on_message(message):
             return
 
         if message.content:
-            URL = ''
-            """Checking if a URL in a message and make sure only one URL"""
-
+            textContent = message.content
             """Checking if a URL in a message and make sure only one URL"""
             if "https://" in message.content or "http://" in message.content:
-                print("Message contains hyperlink! Checking if only one URL in message...")
-                MultipleURLCheck = re.findall(r'https?://', message.content)
-                URLs = re.findall(r'https?://[^\s]+', message.content)
-                if len(MultipleURLCheck) > 1:  # If there are more than one Hyper link, then it's not allow!
-                    try:
-                        await message.author.send("Please send a message with one hyperlink at a time!")
-                    except discord.Forbidden:
-                        await message.reply(f"{message.author.mention}, Please send a message with one hyperlink at a time!")
-                    logUserAction += "\nMessage was deleted for having more than one URL!\n\n"
-                    writingLog(logUserAction)
-                    await message.delete()
-                    # Advance scan previous message for profanity!
-                    await AdvanceBackTrackMessageScan(message)
-                    print("Message contains more than 1 hyperlink. Terminating Scan Process...\n\n")
-                    return
+                print("Message contains URL link(s)! Checking all the URL(s)...")
+                URLs = re.findall(r'https?://(?:(?!https?://)\S)+', message.content)
 
-                """Extracting single URL"""
-                if URLs:
-                    URL = URLs[0]
+                for URL in URLs:
+                    textContent = textContent.replace(URL, '')
+                    print(f"Extracting {URL} from message {message.content}")
 
-                print(f"Extracting {URL} from message {message.content}")
-
-                if "../" in URL:
-                    print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
-                    try:
-                        await message.author.send(f"URL {URL} hinted a potential ../ attack!")
-                    except Exception as error:
-                        print(f"Discord Error: {error}")
-                    logUserAction += "\nMessage is deleted for having a URL hinted potential directory transversal attack!!\n\n"
-                    writingLog(logUserAction)
-                    await message.delete()
-                    # Advance scan previous message for profanity!
-                    await AdvanceBackTrackMessageScan(message)
-                    return
-
-
-                """Checking if URl is in the clean list or already flagged NSFW"""
-
-                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                    BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
-                else:
-                    BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
-                print(f"URL in SHA512 format: {BasedURLToSave}")
-                if BasedURLToSave in CLEANData.keys():
-                    print("The URL already passed the check as clean!")
-                else:
-                    if BasedURLToSave in NSFWData.keys():
+                    if "../" in URL:
+                        print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         try:
-                            await message.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                        except discord.Forbidden:
-                            await message.reply(f"{message.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                        await message.delete()
-                        logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
+                            await message.author.send(f"URL {URL} hinted a potential ../ attack!")
+                        except Exception as error:
+                            print(f"Discord Error: {error}")
+                        logUserAction += "\nMessage is deleted for having a URL hinted potential directory transversal attack!!\n\n"
                         writingLog(logUserAction)
+                        await message.delete()
                         # Advance scan previous message for profanity!
                         await AdvanceBackTrackMessageScan(message)
-                        print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
                         return
+
+
+                    """Checking if URl is in the clean list or already flagged NSFW"""
+
+                    if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
+                        BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
                     else:
-                        """Checking any NSFW hint in the URL query"""
-                        print("Checking any hinted NSFW in URL name...")
-                        scanResult, scanResultDetails = await NSFWscanMessage(URL, True)
-                        if scanResult:
-                            AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
+                        BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
+                    print(f"URL in SHA512 format: {BasedURLToSave}")
+                    if BasedURLToSave in CLEANData.keys():
+                        print("The URL already passed the check as clean!")
+                    else:
+                        if BasedURLToSave in NSFWData.keys():
                             try:
-                                await message.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await message.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             except discord.Forbidden:
-                                await message.reply(f"{message.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await message.reply(f"{message.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             await message.delete()
-                            logUserAction += f"\nMessage was deleted for having URL name hinted NSFW!\n\n"
+                            logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
-                            print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                            print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
                             return
-                        """Checking if URL is valid!"""
-                        try:
-                            response = requests.get(URL, headers=MAINHEADERS)
-                            if response.status_code == 200:
-                                print(f"URL is valid!")
-                                """Checking Tenor Gif"""
-                                if URL.startswith("https://tenor.com/view"):
-                                    print("URL appear to be a Tenor Gif, checking if Tenor gif is valid...")
-                                    TenorURL = isTenorURLValid(URL)
-                                    if TenorURL != "Invalid":
-                                        print("Tenor gif URL is valid!")
-                                        scanResult, scanResultDetails = await ScanningMedia(f"{os.path.basename(TenorURL).split('?')[0]}.gif", TenorURL, BasedURLToSave)
-                                        if scanResult:
+                        else:
+                            """Checking any NSFW hint in the URL query"""
+                            print("Checking any hinted NSFW in URL name...")
+                            scanResult, scanResultDetails = await NSFWscanMessage(URL, True)
+                            if scanResult:
+                                AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
+                                try:
+                                    await message.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                except discord.Forbidden:
+                                    await message.reply(f"{message.author.mention}, The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
+                                await message.delete()
+                                logUserAction += f"\nMessage was deleted for having URL name hinted NSFW!\n\n"
+                                writingLog(logUserAction)
+                                # Advance scan previous message for profanity!
+                                await AdvanceBackTrackMessageScan(message)
+                                print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                                return
+                            """Checking if URL is valid!"""
+                            try:
+                                response = requests.get(URL, headers=MAINHEADERS)
+                                if response.status_code == 200:
+                                    print(f"URL is valid!")
+                                    """Checking Tenor Gif"""
+                                    if URL.startswith("https://tenor.com/view"):
+                                        print("URL appear to be a Tenor Gif, checking if Tenor gif is valid...")
+                                        TenorURL = isTenorURLValid(URL)
+                                        if TenorURL != "Invalid":
+                                            print("Tenor gif URL is valid!")
+                                            scanResult, scanResultDetails = await ScanningMedia(f"{os.path.basename(TenorURL).split('?')[0]}.gif", TenorURL, BasedURLToSave)
+                                            if scanResult:
+                                                try:
+                                                    await message.author.send(f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                except discord.Forbidden:
+                                                    await message.reply(f"{message.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await message.delete()
+                                                logUserAction += f"\nMessage was deleted for having Tenor Gif URL with NSFW content!\n\n"
+                                                writingLog(logUserAction)
+                                                # Advance scan previous message for profanity!
+                                                await AdvanceBackTrackMessageScan(message)
+                                                print("Message Content Scan Process Finished!\n\n")
+                                                return
+                                            else:
+                                                print("Tenor Gif Content is clean!")
+                                        else:
+                                            print(f"Tenor gif URL {URL} is not a valid tenor gif!")
                                             try:
-                                                await message.author.send(f"Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await message.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                             except discord.Forbidden:
-                                                await message.reply(f"{message.author.mention}, Tenor URL <{URL}> content flagged NSFW - {scanResultDetails}")
+                                                await message.reply(f"{message.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
                                             await message.delete()
-                                            logUserAction += f"\nMessage was deleted for having Tenor Gif URL with NSFW content!\n\n"
+                                            logUserAction += f"\nMessage was deleted for having invalid Tenor Gif URL!\n\n"
                                             writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(message)
                                             print("Message Content Scan Process Finished!\n\n")
                                             return
-                                        else:
-                                            print("Tenor Gif Content is clean!")
                                     else:
-                                        print(f"Tenor gif URL {URL} is not a valid tenor gif!")
+                                        """Analyzing if URL content is an image, video, audio, or archive file"""
+                                        """Checking URL content already been scanned"""
+                                        hashedURLContent = hashlib.sha512(response.content).hexdigest()
+                                        print(f"URL content in SHA512: {hashedURLContent}")
+                                        print(f"Checking if URL content is already in a clean list...")
+                                        if hashedURLContent in CLEANData.keys():
+                                            print("URL content already pass the scan!")
+                                            print(f"Adding based URL to clean data!")
+                                            AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
+                                        else:
+                                            print(
+                                                f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
+                                            if hashedURLContent in NSFWData.keys():
+                                                print("URL content already flagged NSFW!")
+                                                print(f"Adding based URL to NSFW data!")
+                                                AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
+                                                try:
+                                                    await message.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
+                                                except discord.Forbidden:
+                                                    await message.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
+                                                await message.delete()
+                                                logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
+                                                writingLog(logUserAction)
+                                                # Advance scan previous message for profanity!
+                                                await AdvanceBackTrackMessageScan(message)
+                                                print("Message Content Scan Process Finished!\n\n")
+                                                return
+                                            else:
+                                                URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
+                                                URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                                if URLContentExt.endswith(ALLSCANNABLEFILEFORMATS):
+                                                    if URLContentExt.endswith(ARCHIVEFORMATS):
+                                                        URLContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    else:
+                                                        URLContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                else:
+                                                    URLContentNSFWResult = False
+                                                    UrlContentNSFWResultDetails = ""
+                                                    AddingNewCleanData(BasedURLToSave,  "URL link is clean or URL content is not in Emmanuel scannable file formats!")
+                                                print("Scan Process Finished!\n\n")
+                                                if URLContentNSFWResult:
+                                                    try:
+                                                        await message.author.send(UrlContentNSFWResultDetails)
+                                                    except discord.Forbidden:
+                                                        await message.reply(f"{message.author.mention}, {UrlContentNSFWResultDetails}")
+                                                    await message.delete()
+                                                    logUserAction += f"\nMessage was deleted for having NSFW URL content\n\n"
+                                                    writingLog(logUserAction)
+                                                    # Advance scan previous message for profanity!
+                                                    await AdvanceBackTrackMessageScan(message)
+                                                    return
+                                else:
+                                    print(f"URL is invalid with status code: {response.status_code}")
+                                    if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                         try:
-                                            await message.author.send("Your message contains an invalid Tenor URL! Please provide a valid URL!")
+                                            await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         except discord.Forbidden:
-                                            await message.reply(f"{message.author.mention}, Your message contains an invalid Tenor URL! Please provide a valid URL!")
+                                            await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         await message.delete()
-                                        logUserAction += f"\nMessage was deleted for having invalid Tenor Gif URL!\n\n"
+                                        logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
                                         writingLog(logUserAction)
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(message)
                                         print("Message Content Scan Process Finished!\n\n")
                                         return
-                                else:
-                                    """Analyzing if URL content is an image, video, audio, or archive file"""
-                                    """Checking URL content already been scanned"""
-                                    hashedURLContent = hashlib.sha512(response.content).hexdigest()
-                                    print(f"URL content in SHA512: {hashedURLContent}")
-                                    print(f"Checking if URL content is already in a clean list...")
-                                    if hashedURLContent in CLEANData.keys():
-                                        print("URL content already pass the scan!")
-                                        print(f"Adding based URL to clean data!")
-                                        AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
                                     else:
-                                        print(
-                                            f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
-                                        if hashedURLContent in NSFWData.keys():
-                                            print("URL content already flagged NSFW!")
-                                            print(f"Adding based URL to NSFW data!")
-                                            AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
-                                            try:
-                                                await message.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            except discord.Forbidden:
-                                                await message.reply(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            await message.delete()
-                                            logUserAction += f"\nMessage was deleted for having URL content already flagged NSFW!\n\n"
-                                            writingLog(logUserAction)
-                                            # Advance scan previous message for profanity!
-                                            await AdvanceBackTrackMessageScan(message)
-                                            print("Message Content Scan Process Finished!\n\n")
-                                            return
-                                        else:
-                                            URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
-                                            URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
-                                            if URLContentExt.endswith(ALLSCANNABLEFILEFORMATS):
-                                                if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    URLContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
-                                                else:
-                                                    URLContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
-                                            else:
-                                                URLContentNSFWResult = False
-                                                UrlContentNSFWResultDetails = ""
-                                                AddingNewCleanData(BasedURLToSave,  "URL link is clean or URL content is not in Emmanuel scannable file formats!")
-                                            print("Scan Process Finished!\n\n")
-                                            if URLContentNSFWResult:
-                                                try:
-                                                    await message.author.send(UrlContentNSFWResultDetails)
-                                                except discord.Forbidden:
-                                                    await message.reply(f"{message.author.mention}, {UrlContentNSFWResultDetails}")
-                                                await message.delete()
-                                                logUserAction += f"\nMessage was deleted for having NSFW URL content\n\n"
-                                                writingLog(logUserAction)
-                                                # Advance scan previous message for profanity!
-                                                await AdvanceBackTrackMessageScan(message)
-                                                return
-                            else:
-                                print(f"URL is invalid with status code: {response.status_code}")
-                                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
+                                        logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
+
+                            except Exception as URLQueryError:
+                                print(f"Error getting URL: {URLQueryError}.")
+                                if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
                                     try:
-                                        await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
+                                        await message.author.send(
+                                            f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     except discord.Forbidden:
                                         await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     await message.delete()
@@ -1571,27 +1552,7 @@ async def on_message(message):
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
 
-                        except Exception as URLQueryError:
-                            print(f"Error getting URL: {URLQueryError}.")
-                            if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
-                                try:
-                                    await message.author.send(
-                                        f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                except discord.Forbidden:
-                                    await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                await message.delete()
-                                logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!\n\n"
-                                writingLog(logUserAction)
-                                # Advance scan previous message for profanity!
-                                await AdvanceBackTrackMessageScan(message)
-                                print("Message Content Scan Process Finished!\n\n")
-                                return
-                            else:
-                                logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
-
             """Scanning message text content with hyperlink removed"""
-            textContent = message.content  # Prevent edit on message object that trigger false re-edit message event!
-            textContent = textContent.replace(URL, '')
             if textContent:
                 print(f"Scanning text content with URL already filtered...")
                 print(f"Text content: {textContent}")

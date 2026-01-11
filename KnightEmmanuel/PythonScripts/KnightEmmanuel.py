@@ -63,7 +63,9 @@ ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".we
                            ".amr", ".au", ".caf", ".m4b", ".wma", ".opus", ".ogv",
 
                            ".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz",
-                           ".rar", ".bz2", ".xz", ".lzma")
+                           ".rar", ".bz2", ".xz", ".lzma",
+                           
+                           ".txt", ".html", ".json", ".yaml")
 
 
 PICTUREFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns", ".avif",
@@ -77,6 +79,8 @@ AUDIOFORMATS = (".mp3", ".wav", ".oga", ".m4a", ".flac", ".weba", ".aac", ".ac3"
 
 ARCHIVEFORMATS = (".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz", ".rar",
                   ".bz2", ".xz", ".lzma")
+
+DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml")
 
 NSFWFILEPATH = os.environ.get("EMMANUELNSFWDATA")
 CLEANFILEPATH = os.environ.get("EMMANUELCLEANDATA")
@@ -808,7 +812,7 @@ async def NSFWScanAudio(inputPath, delete=True):  # Return True if Audio is NSFW
         return False, f"Clean Audio Transcript - {scanResultDetails}"
 
 
-async def NSFWscanMessage(checkMessage, URL=False):  # Return True if text content is NSFW!
+async def NSFWscanMessage(checkMessage: str, URL=False):  # Return True if text content is NSFW!
     print("Scanning content using Profanity Library...")
     if profanity.contains_profanity(checkMessage):
         print("Profanity Library detected inappropriate message!")
@@ -907,7 +911,8 @@ async def list_supported_file(ctx):
         "Video Formats: .mp4, .mov, .mkv, .avi, .m4v, .flv, .mpeg, mpg, .ts, .wmv, .dv, .mts, .m2ts, .vob, .ogv\n"
         "Audio Formats: .mp3, .wav, .oga, .m4a, .flac, .weba, .aac, .ac3, .aif, .aiff, .aifc, .amr, .au, .caf, .m4a,"
         " .m4b, .wma, .opus, .webm, .ogg\n"
-        "Archive Formats: .zip, .tar, .tar.gz, .tar.bz2, .tar.xz, .tar.lzma, .tgz, .tbz2, .txz, .gz, .rar, .bz2, .xz, .lzma"
+        "Archive Formats: .zip, .tar, .tar.gz, .tar.bz2, .tar.xz, .tar.lzma, .tgz, .tbz2, .txz, .gz, .rar, .bz2, .xz, .lzma\n"
+        "ASCII-based file: .txt, .json, .csv, .yaml, and script files"
     )
 
 
@@ -1154,11 +1159,9 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                     else:
                         if BasedURLToSave in NSFWData.keys():
                             try:
-                                await after.author.send(
-                                    f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
+                                await after.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             except discord.Forbidden:
-                                await after.reply(
-                                    f"{after.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
+                                await after.reply(f"{after.author.mention}, The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                             await after.delete()
                             logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW!\n\n"
                             writingLog(logUserAction)
@@ -1254,14 +1257,23 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             else:
                                                 URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
                                                 URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                                UrlContentNSFWResult = False
+                                                UrlContentNSFWResultDetails = ""
+                                                print(f"URL content extension: {URLContentExt}")
                                                 if URLContentName.endswith(ALLSCANNABLEFILEFORMATS):
                                                     if URLContentExt.endswith(ARCHIVEFORMATS):
                                                         UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    elif URLContentExt.endswith(DOCUMENTFILES):
+                                                        print(f"Scanning ASCII text in URL content...")
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if UrlContentNSFWResult:
+                                                            UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                            AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
+                                                        else:
+                                                            AddingNewCleanData(BasedURLToSave, "Document file text is clean!")
                                                     else:
                                                         UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
                                                 else:
-                                                    UrlContentNSFWResult = False
-                                                    UrlContentNSFWResultDetails = ""
                                                     AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                                 print("Scan Process Finished!\n\n")
                                                 if UrlContentNSFWResult:
@@ -1476,8 +1488,7 @@ async def on_message(message):
                                             print(f"Adding based URL to clean data!")
                                             AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
                                         else:
-                                            print(
-                                                f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
+                                            print(f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
                                             if hashedURLContent in NSFWData.keys():
                                                 print("URL content already flagged NSFW!")
                                                 print(f"Adding based URL to NSFW data!")
@@ -1496,17 +1507,26 @@ async def on_message(message):
                                             else:
                                                 URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
                                                 URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                                UrlContentNSFWResult = False
+                                                UrlContentNSFWResultDetails = ""
+                                                print(f"URL content extension: {URLContentExt}")
                                                 if URLContentExt.endswith(ALLSCANNABLEFILEFORMATS):
                                                     if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                        URLContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    elif URLContentExt.endswith(DOCUMENTFILES):
+                                                        print(f"Scanning ASCII text in URL content...")
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if UrlContentNSFWResult:
+                                                            UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                            AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
+                                                        else:
+                                                            AddingNewCleanData(BasedURLToSave, "Document file text is clean!")
                                                     else:
-                                                        URLContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
                                                 else:
-                                                    URLContentNSFWResult = False
-                                                    UrlContentNSFWResultDetails = ""
                                                     AddingNewCleanData(BasedURLToSave,  "URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                                 print("Scan Process Finished!\n\n")
-                                                if URLContentNSFWResult:
+                                                if UrlContentNSFWResult:
                                                     try:
                                                         await message.author.send(UrlContentNSFWResultDetails)
                                                     except discord.Forbidden:
@@ -1538,8 +1558,7 @@ async def on_message(message):
                                 print(f"Error getting URL: {URLQueryError}.")
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
                                     try:
-                                        await message.author.send(
-                                            f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
+                                        await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     except discord.Forbidden:
                                         await message.reply(f"{message.author.mention}, The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                     await message.delete()
@@ -1615,14 +1634,23 @@ async def on_message(message):
                         print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
                         attachmentFileExt = checkingRealFileExtension(attachment.url, attachment.filename.lower())
                         AttachmentFileName = f"{os.path.basename(attachment.url.split('?')[0]).split('.')[0]}{attachmentFileExt}"
+                        attachmentNSFWResult = False
+                        attachmentNSFWResultDetails = ""
+                        print(f"Attachment file extension: {attachmentFileExt}")
                         if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
                             if attachmentFileExt.endswith(ARCHIVEFORMATS):
                                 attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachment.url, hashedAttachmentContent)
+                            elif attachmentFileExt.endswith(DOCUMENTFILES):
+                                print(f"Scanning ASCII text in file content...")
+                                attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                if attachmentNSFWResult:
+                                    attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
+                                    AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
+                                else:
+                                    AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
                             else:
                                 attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachment.url, hashedAttachmentContent)
                         else:
-                            attachmentNSFWResult = False
-                            attachmentNSFWResultDetails = ""
                             AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
                         print("Scan Process Finished!\n\n")
                         if attachmentNSFWResult:

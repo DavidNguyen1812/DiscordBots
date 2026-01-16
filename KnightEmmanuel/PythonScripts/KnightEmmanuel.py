@@ -812,15 +812,18 @@ async def NSFWScanAudio(inputPath, delete=True):  # Return True if Audio is NSFW
         return False, f"Clean Audio Transcript - {scanResultDetails}"
 
 
-async def NSFWscanMessage(checkMessage: str, URL=False):  # Return True if text content is NSFW!
-    print("Scanning content using Profanity Library...")
-    if profanity.contains_profanity(checkMessage):
-        print("Profanity Library detected inappropriate message!")
-        if URL:
-            return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
-        else:
-            return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
-    print("Profanity Library did not detect, starting GPT scan...")
+async def NSFWscanMessage(checkMessage: str, URL=False, HTML=False):  # Return True if text content is NSFW!
+    if not HTML:
+        print("Scanning content using Profanity Library...")
+        if profanity.contains_profanity(checkMessage):
+            print("Profanity Library detected inappropriate message!")
+            if URL:
+                return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
+            else:
+                return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
+        print("Profanity Library did not detect, starting GPT scan...")
+    else:
+        print("Scanning HTML content using GPT...")
     if not URL:
         DetectedPhrase = ScanningTextOnlyWithGPT(
             f"Analyze the following message and identify any vulgar or inappropriate words.\n"
@@ -1265,7 +1268,10 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                         UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
                                                     elif URLContentExt.endswith(DOCUMENTFILES):
                                                         print(f"Scanning ASCII text in URL content...")
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if URLContentExt.endswith(".html"):
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                        else:
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
                                                         if UrlContentNSFWResult:
                                                             UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
                                                             AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
@@ -1515,7 +1521,10 @@ async def on_message(message):
                                                         UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
                                                     elif URLContentExt.endswith(DOCUMENTFILES):
                                                         print(f"Scanning ASCII text in URL content...")
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if URLContentExt.endswith(".html"):
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                        else:
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
                                                         if UrlContentNSFWResult:
                                                             UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
                                                             AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
@@ -1642,7 +1651,10 @@ async def on_message(message):
                                 attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachment.url, hashedAttachmentContent)
                             elif attachmentFileExt.endswith(DOCUMENTFILES):
                                 print(f"Scanning ASCII text in file content...")
-                                attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                if attachmentFileExt.endswith(".html"):
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                else:
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
                                 if attachmentNSFWResult:
                                     attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
                                     AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)

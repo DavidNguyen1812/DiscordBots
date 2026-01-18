@@ -374,3 +374,39 @@ def AES_OCBOperation(text, key, encrypt):
         except ValueError:
             return "#1738175319"
         return plaintext.decode('utf-8')
+
+
+def  squareCode(text, key, encrypt):
+    if encrypt:
+        plaintText = text.replace(" ", "")
+        temp = []
+        char = ""
+        for i in range(len(plaintText)):
+            if (i + 1) % key == 0:
+                char += plaintText[i]
+                temp.append(char)
+                char = ""
+            else:
+                char += plaintText[i]
+        if char:
+            temp.append(char)
+        cipherText= ""
+        for col in range(key):
+            for row in range(len(temp)):
+                try:
+                    cipherText += temp[row][col]
+                except IndexError:
+                    break
+            cipherText += " "
+        return cipherText
+    else:
+        cipherText = text.split(" ")
+        plainText = ""
+        for col in range(len(cipherText[0])):
+            for row in range(key):
+                try:
+                    plainText += cipherText[row][col]
+                except IndexError:
+                    break
+        return plainText
+

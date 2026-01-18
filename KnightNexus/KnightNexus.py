@@ -62,6 +62,7 @@ async def Nexus(ctx):
          "/rail_fence_cipher\n"
          "/random_string_subs_cipher\n"
          "/vigenere_cipher\n"
+         "/square_code\n"
          "/text_book_rsa_key_generation\n"
          "/textbook_rsa_cipher\n"
          "/crypto_rsa_key_generation\n"
@@ -137,11 +138,11 @@ async def rc4(ctx, i: int, j: int, userinput: str, operation: Literal["encrypt",
     await ctx.response.defer(ephemeral=True)
     try:
         if operation == "encrypt":
-            await ctx.followup.send(f"Your Cipher Text in Hex Format is: {RC4(True, i, j, userinput)}.\n"
-                                    f"Your key is: i = {i} and j = {j}.")
+            await ctx.followup.send(f"Your Cipher Text in Hex Format is: {RC4(True, i, j, userinput)}\n"
+                                    f"Your key is: i = {i} and j = {j}")
         else:
             userinput = ''.join(userinput.split(" ")).split("0x")[1::]
-            await ctx.followup.send(f"Your Text is: {RC4(False, i, j, userinput)}.")
+            await ctx.followup.send(f"Your Text is: {RC4(False, i, j, userinput)}")
     except Exception as error:
         await ctx.followup.send(f"Error processing your request: {error}\nSome of the input format could be not "
                                 f"correct!")
@@ -187,7 +188,7 @@ async def hash_func(ctx,
         hashText = hashlib.blake2s(input_text.encode()).hexdigest()
     elif hash_type == "md5":
         hashText = hashlib.md5(input_text.encode()).hexdigest()
-    await ctx.followup.send(f"Your hashed text using {hash_type} is: {hashText}.")
+    await ctx.followup.send(f"Your hashed text using {hash_type} is: {hashText}")
 
 
 @client.tree.command(
@@ -244,7 +245,7 @@ async def tap_code_decode(ctx, tap_code: str):
             if len(temp[0]) > 5 or len(temp[1]) > 5:
                 await ctx.followup.send("INVALID INPUT! YOU CAN ONLY USE 5 DOTS IN REPETITION!")
                 return
-    await ctx.followup.send(f"The message is {tapCodeDecoder(tap_code.split('  '))}.")
+    await ctx.followup.send(f"The message is {tapCodeDecoder(tap_code.split('  '))}")
 
 
 @client.tree.command(
@@ -294,9 +295,9 @@ async def random_string_subs_cipher(ctx, message: str, operation: Literal["encry
         await ctx.followup.send("ERROR: KEY STRING MUST HAVE ALL THE ENGLISH ALPHABET LETTERS")
         return
     if operation == "encrypt":
-        await ctx.followup.send(f"The cipher text is {randomSubstitutionCipher(keyString, message, True)}.")
+        await ctx.followup.send(f"The cipher text is {randomSubstitutionCipher(keyString, message, True)}")
     else:
-        await ctx.followup.send(f"The plain text is {randomSubstitutionCipher(keyString, message, False)}.")
+        await ctx.followup.send(f"The plain text is {randomSubstitutionCipher(keyString, message, False)}")
 
 
 @client.tree.command(
@@ -311,10 +312,29 @@ async def random_string_subs_cipher(ctx, message: str, operation: Literal["encry
 async def vigenere_cipher(ctx, message: str, operation: Literal["encrypt", "decrypt"], key: str):
     await ctx.response.defer(ephemeral=True)
     if operation == "encrypt":
-        await ctx.followup.send(f"The cipher text is {vigenere.encrypt(message, key, False)}.\n"
+        await ctx.followup.send(f"The cipher text is {vigenere.encrypt(message, key, False)}\n"
                                 f"The key is {key}")
     else:
-        await ctx.followup.send(f"The plain text is {vigenere.decrypt(message, key, False)}.")
+        await ctx.followup.send(f"The plain text is {vigenere.decrypt(message, key, False)}")
+
+
+@client.tree.command(
+    name="square_code",
+    description="A symmetric cryptographic stream cipher (Not cryptographically secure)."
+)
+@app_commands.describe(
+    message="Provide a plain text OR cipher text",
+    operation="Select encrypt OR decrypt operations",
+    key="Provide a key to encrypt or decrypt"
+)
+async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "decrypt"], key: int):
+    await ctx.response.defer(ephemeral=True)
+    if operation == "encrypt":
+        cipherText = squareCode(message, key, True)
+        await ctx.followup.send(f"The cipher text is {cipherText}\nThe key is {key}")
+    else:
+        plainText = squareCode(message, key, False)
+        await ctx.followup.send(f"The plain text is {plainText}")
 
 
 @client.tree.command(
@@ -463,22 +483,23 @@ async def crypto_pss_rsa_digital_signature(ctx, message: str, operation: Literal
     await ctx.response.defer(ephemeral=True)
     try:
         signerOrVerifierKey = RSA.importKey(await key.read())
+        hashed_msg = SHA256.new(message.encode())
+        if operation == "sign":
+            try:
+                signature = pss.new(signerOrVerifierKey).sign(hashed_msg)
+                await ctx.followup.send(
+                    f"Your RSA Digital Signature is:\n{base64.b64encode(signature).decode('ascii')}")
+            except TypeError:
+                await ctx.followup.send(f"You must provide a private RSA key PEM file to sign!")
+        else:
+            verifier = pss.new(signerOrVerifierKey)
+            try:
+                verifier.verify(hashed_msg, base64.b64decode(signature))
+                await ctx.followup.send(f"The RSA Digital Signature is valid!")
+            except ValueError:
+                await ctx.followup.send(f"The RSA Digital Signature is not valid!")
     except ValueError:
         await ctx.followup.send(f"You must provide an RSA key to sign or verify the message!")
-    hashed_msg = SHA256.new(message.encode())
-    if operation == "sign":
-        try:
-            signature = pss.new(signerOrVerifierKey).sign(hashed_msg)
-            await ctx.followup.send(f"Your RSA Digital Signature is:\n{base64.b64encode(signature).decode('ascii')}")
-        except TypeError:
-            await ctx.followup.send(f"You must provide a private RSA key PEM file to sign!")
-    else:
-        verifier = pss.new(signerOrVerifierKey)
-        try:
-            verifier.verify(hashed_msg, base64.b64decode(signature))
-            await ctx.followup.send(f"The RSA Digital Signature is valid!")
-        except ValueError:
-            await ctx.followup.send(f"The RSA Digital Signature is not valid!")
 
 
 @client.tree.command(
@@ -517,27 +538,27 @@ async def crypto_ecdsa(ctx, message: str, key: discord.Attachment, operation: Li
     await ctx.response.defer(ephemeral=True)
     try:
         signerOrVerifierKey = ECC.import_key(await key.read())
+        hashed_msg = SHA256.new(message.encode())
+        if operation == "sign":
+            try:
+                signature = DSS.new(signerOrVerifierKey, "fips-186-3").sign(hashed_msg)
+                await ctx.followup.send(f"Your ecdsa signature is:\n{base64.b64encode(signature).decode('ascii')}")
+            except TypeError:
+                await ctx.followup.send(f"You must provide an ECC-Nist curve private key PEM file to sign!")
+            except ValueError:
+                await ctx.followup.send(f"ECC key is not on a NIST P curve")
+        else:
+            try:
+                verifier = DSS.new(signerOrVerifierKey, "fips-186-3")
+                try:
+                    verifier.verify(hashed_msg, base64.b64decode(signature))
+                    await ctx.followup.send(f"The ecdsa signature is valid!")
+                except ValueError:
+                    await ctx.followup.send(f"The ecdsa signature is not valid!")
+            except ValueError:
+                await ctx.followup.send(f"ECC key is not on a NIST P curve")
     except ValueError:
         await ctx.followup.send(f"You must provide an ECC with NIST p-curve key to sign or verify the message!")
-    hashed_msg = SHA256.new(message.encode())
-    if operation == "sign":
-        try:
-            signature = DSS.new(signerOrVerifierKey, "fips-186-3").sign(hashed_msg)
-            await ctx.followup.send(f"Your ecdsa signature is:\n{base64.b64encode(signature).decode('ascii')}")
-        except TypeError:
-            await ctx.followup.send(f"You must provide an ECC-Nist curve private key PEM file to sign!")
-        except ValueError:
-            await ctx.followup.send(f"ECC key is not on a NIST P curve")
-    else:
-        try:
-            verifier = DSS.new(signerOrVerifierKey, "fips-186-3")
-            try:
-                verifier.verify(hashed_msg, base64.b64decode(signature))
-                await ctx.followup.send(f"The ecdsa signature is valid!")
-            except ValueError:
-                await ctx.followup.send(f"The ecdsa signature is not valid!")
-        except ValueError:
-            await ctx.followup.send(f"ECC key is not on a NIST P curve")
 
 
 

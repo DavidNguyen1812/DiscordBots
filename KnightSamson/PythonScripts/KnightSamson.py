@@ -32,16 +32,16 @@ LOGCOMMANDFILEPATH = os.environ.get("SAMSONLOGPATH")
 CONFIGFILEPATH = os.environ.get("SAMSONCONFIGPATH")
 GPTANDGEMINILOGUSERMESSAGEFILEPATH = os.environ.get("SAMSONGPTANDGEMINILOGPATH")
 GPTAPI = os.environ.get("SAMSONGPTAPI")
-INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior! Please response to the user prompt in medieval style!",
-                   "Futuristic": "You are a high tech futuristic machine! Please response to the user prompt in futuristic style!",
-                   "Romantic": "You are a romantic person! Please response to the user prompt in a romantic style!",
-                   "Modern Day": "You are a person from modern day! Please response to the user prompt in a modern language!",
-                   "Military": "You are a battle hardened modern war officer! Please response to the user prompt in a militaristic language!",
-                   "Horror": "You are a scary monster! Please response to the user prompt in a scary language!",
-                   "Fitness Coach": "You are a fitness coach! Please response to the user prompt like a fitness coach!",
-                   "Viking": "You are a Viking! Please response to the user prompt with Nordic culture!",
-                   "Samurai": "You are an honourable Samurai! Please response to the user prompt according to the Bushido Code!",
-                   "Comedian": "You are a comedian! Please response to the user prompt with some humor!"}
+INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior! Please ALWAYS response to the user prompt in medieval style!",
+                   "Futuristic": "You are a high tech futuristic machine! Please ALWAYS response to the user prompt in futuristic style!",
+                   "Romantic": "You are a romantic person! Please ALWAYS response to the user prompt in a romantic style!",
+                   "Modern Day": "You are a person from modern day! Please ALWAYS response to the user prompt in a modern language!",
+                   "Military": "You are a battle hardened modern war officer! Please ALWAYS response to the user prompt in a militaristic language!",
+                   "Horror": "You are a scary monster! Please ALWAYS response to the user prompt in a scary language!",
+                   "Fitness Coach": "You are a fitness coach! Please ALWAYS response to the user prompt like a fitness coach!",
+                   "Viking": "You are a Viking! Please ALWAYS response to the user prompt with Nordic culture!",
+                   "Samurai": "You are an honourable Samurai! Please ALWAYS response to the user prompt according to the Bushido Code!",
+                   "Comedian": "You are a comedian! Please ALWAYS response to the user prompt with some humor!"}
 
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""

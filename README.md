@@ -40,7 +40,7 @@ pip install pillow==11.3.0
 pip install requests==2.32.4
 pip install discord-py==2.5.2
 pip install openai==2.12.0
-pip install google-genai==1.55.0
+pip install google-genai==1.65.0
 Discord API key
 OpenAI API key
 Google Gemini API key

@@ -21,7 +21,7 @@ import subprocess
 from PIL import Image
 from better_profanity import profanity
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 from openai import OpenAI
 from nudenet import NudeDetector
@@ -90,6 +90,8 @@ EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
 HEADERSFORPARTIALCONTENT = {'User-Agent': 'Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 142.0.0.0 Safari / 537.36', "Range": "bytes=0-1000000"}
 MAINHEADERS = {'User-Agent': 'Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 142.0.0.0 Safari / 537.36'}
+DAILYUNCENSORLIMIT = 5
+WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
 
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
@@ -239,11 +241,17 @@ def AddingNewNSFWData(Hash, Reason):
     print(f"NSFW data updated!")
 
 
-def checkServerExistInConfigFile(serverID):
+async def checkServerExistInConfigFile(serverID):
     if configuration.get(serverID) is None:
         configuration[serverID] = {}
-        configuration[serverID]["Uncensored-members"] = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
+        configuration[serverID]["Uncensored-members"] = WHITELISTMEMBERS
         configuration[serverID]["Uncensored-channels"] = []
+        members = {}
+        server = await Emmanuel.fetch_guild(serverID)
+        async for member in server.fetch_members(limit=None):
+            if member.id not in WHITELISTMEMBERS:
+                members[str(member.id)] = DAILYUNCENSORLIMIT
+        configuration[serverID]["User-Uncensor-Limit"] = members
         with open(EMMANUELCONFIG, "w") as file:
             json.dump(configuration, file, indent=4)
         writingLog(f"New server ID {serverID} added to config file!\n\n")
@@ -991,6 +999,18 @@ async def clear_emmanuel_dm_messages(ctx):
     else:
         await ctx.channel.purge(limit=1)
 
+@tasks.loop(hours=24)  # A task every 24 hours
+async def reset_user_uncensor_value():
+    print("\n")
+    for serverID in configuration:
+        server = await Emmanuel.fetch_guild(int(serverID))
+        for member in configuration[serverID]["User-Uncensor-Limit"]:
+            configuration[serverID]["User-Uncensor-Limit"][member] = DAILYUNCENSORLIMIT
+        writingLog(f"Resetting all members daily uncensor value in server {server.name} ID {server.id} - Status: SUCCESS\n\n")
+        print(f"Resetting all members daily uncensor value in server {server.name} ID {server.id} - Status: SUCCESS")
+    with open(EMMANUELCONFIG, "w") as file:
+        json.dump(configuration, file, indent=4)
+
 
 @Emmanuel.event
 async def on_ready():
@@ -1005,7 +1025,37 @@ async def on_ready():
         print(f"Synced command /{cmd.name}")
     print(f"Commands are updated and ready to use!")
     print("\n\n")
+    reset_user_uncensor_value.start()
 
+
+@Emmanuel.event
+async def on_member_join(member):
+    if member.id != WHITELISTMEMBERS:
+        serverID = member.guild.id
+        if configuration.get(str(serverID), ""):
+            if configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), "") == "":
+                configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)] = DAILYUNCENSORLIMIT
+                with open(EMMANUELCONFIG, "w") as file:
+                    json.dump(configuration, file, indent=4)
+                writingLog(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}\n\n")
+                print(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}")
+        else:
+            await checkServerExistInConfigFile(serverID)
+
+
+@Emmanuel.event
+async def on_member_remove(member):
+    if member.id != WHITELISTMEMBERS:
+        serverID = member.guild.id
+        if configuration.get(str(serverID), ""):
+            if configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), ""):
+                del configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)]
+                with open(EMMANUELCONFIG, "w") as file:
+                    json.dump(configuration, file, indent=4)
+                writingLog(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}\n\n")
+                print(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}")
+        else:
+            await checkServerExistInConfigFile(serverID)
 
 # Command for Creator and Server Owner Only!
 @Emmanuel.tree.command(
@@ -1019,7 +1069,7 @@ async def add_uncensored_member(ctx, member: discord.Member):
         await ctx.followup.send("/add_uncensored_member can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             if member.id not in configuration[str(ctx.guild.id)]["Uncensored-members"]:
                 configuration[str(ctx.guild.id)]["Uncensored-members"].append(member.id)
                 with open(EMMANUELCONFIG, "w") as file:
@@ -1044,7 +1094,7 @@ async def remove_uncensored_member(ctx, member: discord.Member):
         await ctx.followup.send("/remove_uncensored_member can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             if member.id not in configuration[str(ctx.guild.id)]["Uncensored-members"]:
                 await ctx.followup.send(f"{member.name} already removed from the white list!")
             else:
@@ -1068,7 +1118,7 @@ async def add_uncensored_channel(ctx):
         await ctx.followup.send("/add_uncensored_channel can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             if ctx.channel.id in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
                 await ctx.followup.send(f"{ctx.channel.name} already added to the uncensored list!")
             else:
@@ -1092,7 +1142,7 @@ async def remove_uncensored_channel(ctx):
         await ctx.followup.send("/remove_uncensored_channel can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             if ctx.channel.id not in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
                 await ctx.followup.send(f"{ctx.channel.name} already removed from the uncensored list!")
             else:
@@ -1115,7 +1165,7 @@ async def uncensored_members(ctx):
         await ctx.followup.send("/uncensored_members can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             members = ""
             for memberID in configuration[str(ctx.guild.id)]["Uncensored-members"]:
                 member = Emmanuel.get_user(memberID)
@@ -1140,7 +1190,7 @@ async def uncensored_channels(ctx):
         await ctx.followup.send("/uncensored_channels can only be used in server channels!")
     else:
         if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
-            checkServerExistInConfigFile(str(ctx.guild.id))
+            await checkServerExistInConfigFile(str(ctx.guild.id))
             channels = ""
             for channelID in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
                 channel = Emmanuel.get_channel(channelID)
@@ -1162,7 +1212,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
 
     # Add new server to the configuration file!
     try:
-        checkServerExistInConfigFile(str(after.guild.id))
+        await checkServerExistInConfigFile(str(after.guild.id))
     except AttributeError:
         pass
 
@@ -1309,21 +1359,33 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             UrlContentNSFWResultDetails = ""
                                             print(f"URL content extension: {URLContentExt}")
                                             if URLContentName.endswith(ALLSCANNABLEFILEFORMATS):
-                                                if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
-                                                elif URLContentExt.endswith(DOCUMENTFILES):
-                                                    print(f"Scanning ASCII text in URL content...")
-                                                    if URLContentExt.endswith(".html"):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                scanContent = True
+                                                if configuration.get(str(after.guild.id), ""):
+                                                    if configuration[str(after.guild.id)]["User-Uncensor-Limit"].get(str(after.author.id), ""):
+                                                        if configuration[str(after.guild.id)]["User-Uncensor-Limit"][
+                                                            str(after.author.id)] > 0:
+                                                            scanContent = False
+                                                            logUserAction += f"\nUser {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!"
+                                                            print(f"User {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!")
+                                                            configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] -= 1
+                                                            with open(EMMANUELCONFIG, "w") as file:
+                                                                json.dump(configuration, file, indent=4)
+                                                if scanContent:
+                                                    if URLContentExt.endswith(ARCHIVEFORMATS):
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    elif URLContentExt.endswith(DOCUMENTFILES):
+                                                        print(f"Scanning ASCII text in URL content...")
+                                                        if URLContentExt.endswith(".html"):
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                        else:
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if UrlContentNSFWResult:
+                                                            UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                            AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
+                                                        else:
+                                                            AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
                                                     else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
-                                                    if UrlContentNSFWResult:
-                                                        UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
-                                                        AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
-                                                    else:
-                                                        AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
-                                                else:
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
                                             else:
                                                 AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                             print("Scan Process Finished!\n\n")
@@ -1401,7 +1463,7 @@ async def on_message(message):
 
     # Add new server to the configuration file!
     try:
-        checkServerExistInConfigFile(str(message.guild.id))
+        await checkServerExistInConfigFile(str(message.guild.id))
     except AttributeError:
         pass
 
@@ -1549,21 +1611,32 @@ async def on_message(message):
                                             UrlContentNSFWResultDetails = ""
                                             print(f"URL content extension: {URLContentExt}")
                                             if URLContentExt.endswith(ALLSCANNABLEFILEFORMATS):
-                                                if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
-                                                elif URLContentExt.endswith(DOCUMENTFILES):
-                                                    print(f"Scanning ASCII text in URL content...")
-                                                    if URLContentExt.endswith(".html"):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                scanContent = True
+                                                if configuration.get(str(message.guild.id), ""):
+                                                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), ""):
+                                                        if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
+                                                            scanContent = False
+                                                            logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
+                                                            print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!")
+                                                            configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
+                                                            with open(EMMANUELCONFIG, "w") as file:
+                                                                json.dump(configuration, file, indent=4)
+                                                if scanContent:
+                                                    if URLContentExt.endswith(ARCHIVEFORMATS):
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                    elif URLContentExt.endswith(DOCUMENTFILES):
+                                                        print(f"Scanning ASCII text in URL content...")
+                                                        if URLContentExt.endswith(".html"):
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                        else:
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                        if UrlContentNSFWResult:
+                                                            UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                            AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
+                                                        else:
+                                                            AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
                                                     else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
-                                                    if UrlContentNSFWResult:
-                                                        UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
-                                                        AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
-                                                    else:
-                                                        AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
-                                                else:
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
                                             else:
                                                 AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                             print("Scan Process Finished!\n\n")
@@ -1636,78 +1709,89 @@ async def on_message(message):
         if message.attachments:  # Checking for message attachment content only
             print("Begin Message Attachment Scan!")
             for attachment in message.attachments:
-                if "../" in attachment.filename:
-                    try:
-                        await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
-                    except discord.Forbidden:
-                        await message.reply(f"{message.author.mention}, attachment {attachment.filename} hinted a potential ../ attack!")
-                    await message.delete()
-                    logUserAction += "\nMessage is deleted for having at least 1 attachment with potential directory transversal attack!!\n\n"
-                    writingLog(logUserAction)
-                    print(f"Attachment: {attachment.filename} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
-                    # Advance scan previous message for profanity!
-                    await AdvanceBackTrackMessageScan(message)
-                    return
-
-                """Checking attachment content already been scanned"""
-                response = requests.get(attachment.url, headers=MAINHEADERS)
-                hashedAttachmentContent = hashlib.sha512(response.content).hexdigest()
-                print(f"Attachment SHA512 content: {hashedAttachmentContent}")
-                print(f"Checking if attachment content is already in a clean list...")
-                if hashedAttachmentContent in CLEANData.keys():
-                    print("Attachment content already pass the scan! Terminating Scan Process...\n\n")
-                else:
-                    print(f"Attachment content is not in the clean data! Checking if the content is in the NSFW data!")
-                    if hashedAttachmentContent in NSFWData.keys():
-                        print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
+                scanContent = True
+                if configuration.get(str(message.guild.id), ""):
+                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), ""):
+                        if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
+                            scanContent = False
+                            logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
+                            print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!")
+                            configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
+                            with open(EMMANUELCONFIG, "w") as file:
+                                json.dump(configuration, file, indent=4)
+                if scanContent:
+                    if "../" in attachment.filename:
                         try:
-                            await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
+                            await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
                         except discord.Forbidden:
-                            await message.reply(f"{message.author.mention}, the attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
+                            await message.reply(f"{message.author.mention}, attachment {attachment.filename} hinted a potential ../ attack!")
                         await message.delete()
-                        logUserAction += "\nMessage was deleted for having attachment content already flagged NSFW!\n\n"
+                        logUserAction += "\nMessage is deleted for having at least 1 attachment with potential directory transversal attack!!\n\n"
                         writingLog(logUserAction)
+                        print(f"Attachment: {attachment.filename} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         # Advance scan previous message for profanity!
                         await AdvanceBackTrackMessageScan(message)
-                        print("Scan Process Finished!\n\n")
                         return
+
+                    """Checking attachment content already been scanned"""
+                    response = requests.get(attachment.url, headers=MAINHEADERS)
+                    hashedAttachmentContent = hashlib.sha512(response.content).hexdigest()
+                    print(f"Attachment SHA512 content: {hashedAttachmentContent}")
+                    print(f"Checking if attachment content is already in a clean list...")
+                    if hashedAttachmentContent in CLEANData.keys():
+                        print("Attachment content already pass the scan! Terminating Scan Process...\n\n")
                     else:
-                        print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
-                        attachmentFileExt = checkingRealFileExtension(attachment.url, attachment.filename.lower())
-                        AttachmentFileName = f"{os.path.basename(attachment.url.split('?')[0]).split('.')[0]}{attachmentFileExt}"
-                        attachmentNSFWResult = False
-                        attachmentNSFWResultDetails = ""
-                        print(f"Attachment file extension: {attachmentFileExt}")
-                        if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
-                            if attachmentFileExt.endswith(ARCHIVEFORMATS):
-                                attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachment.url, hashedAttachmentContent)
-                            elif attachmentFileExt.endswith(DOCUMENTFILES):
-                                print(f"Scanning ASCII text in file content...")
-                                if attachmentFileExt.endswith(".html"):
-                                    attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
-                                else:
-                                    attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
-                                if attachmentNSFWResult:
-                                    attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
-                                    AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
-                                else:
-                                    AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
-                            else:
-                                attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachment.url, hashedAttachmentContent)
-                        else:
-                            AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
-                        print("Scan Process Finished!\n\n")
-                        if attachmentNSFWResult:
+                        print(f"Attachment content is not in the clean data! Checking if the content is in the NSFW data!")
+                        if hashedAttachmentContent in NSFWData.keys():
+                            print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
                             try:
-                                await message.author.send(attachmentNSFWResultDetails)
+                                await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
                             except discord.Forbidden:
-                                await message.reply(f"{message.author.mention}, {attachmentNSFWResultDetails}")
+                                await message.reply(f"{message.author.mention}, the attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
                             await message.delete()
-                            logUserAction += "\nMessage is deleted for having at least 1 NSFW attachment!\n\n"
+                            logUserAction += "\nMessage was deleted for having attachment content already flagged NSFW!\n\n"
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
+                            print("Scan Process Finished!\n\n")
                             return
+                        else:
+                            print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
+                            attachmentFileExt = checkingRealFileExtension(attachment.url, attachment.filename.lower())
+                            AttachmentFileName = f"{os.path.basename(attachment.url.split('?')[0]).split('.')[0]}{attachmentFileExt}"
+                            attachmentNSFWResult = False
+                            attachmentNSFWResultDetails = ""
+                            print(f"Attachment file extension: {attachmentFileExt}")
+                            if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
+                                if attachmentFileExt.endswith(ARCHIVEFORMATS):
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachment.url, hashedAttachmentContent)
+                                elif attachmentFileExt.endswith(DOCUMENTFILES):
+                                    print(f"Scanning ASCII text in file content...")
+                                    if attachmentFileExt.endswith(".html"):
+                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                    else:
+                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                    if attachmentNSFWResult:
+                                        attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
+                                        AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
+                                    else:
+                                        AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
+                                else:
+                                    attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachment.url, hashedAttachmentContent)
+                            else:
+                                AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
+                            print("Scan Process Finished!\n\n")
+                            if attachmentNSFWResult:
+                                try:
+                                    await message.author.send(attachmentNSFWResultDetails)
+                                except discord.Forbidden:
+                                    await message.reply(f"{message.author.mention}, {attachmentNSFWResultDetails}")
+                                await message.delete()
+                                logUserAction += "\nMessage is deleted for having at least 1 NSFW attachment!\n\n"
+                                writingLog(logUserAction)
+                                # Advance scan previous message for profanity!
+                                await AdvanceBackTrackMessageScan(message)
+                                return
 
         logUserAction += "\nMessage is cleaned!\n\n"
         writingLog(logUserAction)

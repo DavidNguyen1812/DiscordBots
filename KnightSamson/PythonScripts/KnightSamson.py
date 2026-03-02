@@ -93,7 +93,8 @@ async def on_ready():
 
     for guild in Samson.guilds:
         for member in guild.members:
-            user_list[str(member.id)] = {"Current command usage limit": 7, "Samson Roleplay": "Medieval"}
+            if not user_list.get(str(member.id)):
+                user_list[str(member.id)] = {"Current command usage limit": 7, "Samson Roleplay": "Medieval"}
 
     with open(CONFIGFILEPATH, "w") as file:
         json.dump(user_list, file, indent=4)

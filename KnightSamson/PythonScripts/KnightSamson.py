@@ -42,6 +42,11 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior! Please ALWAYS resp
                    "Viking": "You are a Viking! Please ALWAYS response to the user prompt with Nordic culture!",
                    "Samurai": "You are an honourable Samurai! Please ALWAYS response to the user prompt according to the Bushido Code!",
                    "Comedian": "You are a comedian! Please ALWAYS response to the user prompt with some humor!"}
+MODELINPUTTOKENLIMIT = {
+                        "gemini-2.5-flash": 1048576,
+                        "gemini-2.5-pro": 1048576,
+                        "gemini-3.1-pro-preview": 1048576
+                       }
 
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""
@@ -83,6 +88,7 @@ async def on_ready():
     for guild in Samson.guilds:
         for member in guild.members:
             user_list[str(member.id)] = {"Current command usage limit": 7, "Samson Roleplay": "Medieval"}
+
     with open(CONFIGFILEPATH, "w") as file:
         json.dump(user_list, file, indent=4)
 
@@ -178,12 +184,19 @@ def Gemini(userInput, userName, model, fileUpload=None):
         os.remove(fileUpload)
     else:
         prompt = userInput
-    response = GEMINIclient.models.generate_content(
-        model=model, contents=prompt,
-    )
-    reply = response.text
-    LoggingGPTandGeminiOutputs(f"\nGemini {model}: {reply}\n\n")
-    return reply
+    totalTokenCount = GEMINIclient.models.count_tokens(model=model, contents=prompt).total_tokens
+    LoggingGPTandGeminiOutputs(f"\nTotal Input Tokens: {totalTokenCount} tokens")
+    if totalTokenCount >= MODELINPUTTOKENLIMIT[model]:
+        LoggingGPTandGeminiOutputs(f"\nTotal input tokens exceeding model {model }input token limit of {MODELINPUTTOKENLIMIT[model]} tokens!\n\n")
+        return f"YOUR PROMPT TOTAL TOKENS -> {totalTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {MODELINPUTTOKENLIMIT[model]} TOKENS!"
+    else:
+        response = GEMINIclient.models.generate_content(
+            model=model, contents=prompt,
+        )
+        reply = response.text
+        totaloutputTokenCount = GEMINIclient.models.count_tokens(model=model, contents=reply).total_tokens
+        LoggingGPTandGeminiOutputs(f"\nGemini {model}: {reply}\nTotal Output Tokens: {totaloutputTokenCount} tokens\n\n")
+        return reply
 
 
 def isDMChannel(channel):
@@ -366,6 +379,30 @@ async def chatgpt(ctx, message: str,
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
+"""
+https://ai.google.dev/gemini-api/docs/pricing
+GOOGLE GEMINI INFO:
+    - gemini-3.1-pro-preview:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $2.00 for prompts <= 200k tokens, $4.00 for prompts > 200k tokens
+        + Cost per 1 Million Output Token: $12.00 for prompts <= 200k tokens, $18.00 for prompts > 200k tokens
+        + Supported Inputs: Text, Image, Video, Audio, and PDF
+        
+    - gemini-2.5-pro:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $1.25 for prompts <= 200k tokens, $2.50 for prompts > 200k tokens
+        + Cost per 1 Million Output Token: $10.00 for prompts <= 200k tokens, $15.00 for prompts > 200k tokens
+        + Supported Inputs: Text, Image, Video, Audio, and PDF
+        
+    - gemini-2.5-flash:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $0.30 for (text, image, video), $1.00 for audio
+        + Cost per 1 Million Output Token: $2.50
+        + Supported Inputs: Text, images, video, audio
+"""
 @Samson.tree.command(
     name="google_gemini",
     description="Interacting with Google Gemini integration"
@@ -376,7 +413,7 @@ async def chatgpt(ctx, message: str,
                        file_attachment="(OPTIONAL) Please Upload only PNG, JPG, or PDF files!"
 )
 async def google_gemini(ctx, message: str,
-                        model: Literal["gemini-2.0-flash", "gemini-2.5-flash"],
+                        model: Literal["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"],
                         keep_secret: Literal["Yes", "No"],
                         file_attachment: discord.Attachment = None):
 
@@ -401,11 +438,9 @@ async def google_gemini(ctx, message: str,
         else:
             fileContent = ""
         if fileContent:
-            reply = Gemini(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}",
-                           ctx.user.name, model, fileContent)
+            reply = Gemini(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model, fileContent)
         else:
-            reply = Gemini(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}",
-                           ctx.user.name, model)
+            reply = Gemini(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model)
         if len(reply) > 1500:
             # Convert the reply to a .txt file using an in-memory file object
             buffer = BytesIO()

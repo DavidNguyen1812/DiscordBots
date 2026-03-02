@@ -45,7 +45,22 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior! Please ALWAYS resp
 MODELINPUTTOKENLIMIT = {
                         "gemini-2.5-flash": 1048576,
                         "gemini-2.5-pro": 1048576,
-                        "gemini-3.1-pro-preview": 1048576
+                        "gemini-3.1-pro-preview": 1048576,
+                        "gpt-5.2": 400000,
+                        "gpt-5.1": 400000,
+                        "gpt-5": 400000,
+                        "gpt-5-mini": 400000,
+                        "gpt-5-nano": 400000,
+                        "gpt-5.3-codex": 400000,
+                        "gpt-5.2-codex": 400000,
+                        "gpt-5.1-codex": 400000,
+                        "gpt-4.1": 1047576,
+                        "gpt-4.1-mini": 1047576,
+                        "gpt-4.1-nano": 1047576,
+                        "gpt-4o": 128000,
+                        "gpt-4.0-mini": 128000,
+                        "o4-mini": 200000,
+                        "o3": 200000,
                        }
 
 
@@ -53,15 +68,6 @@ MODELINPUTTOKENLIMIT = {
 GPTclient = OpenAI(api_key=GPTAPI)
 GEMINIclient = genai.Client()
 
-"""
-print("Available models:")
-for model in GEMINIclient.models.list():
-    print(f"  Name: {model.name}")
-    print(f"  Description: {model.description}")
-    print(f"  Input features: {model.supported_actions}")
-    print(f"  Model thinking: {model.thinking}")
-    print("-" * 20)
-"""
 
 intents = discord.Intents.all()
 Samson = commands.Bot(command_prefix='/', intents=intents)
@@ -122,39 +128,24 @@ def gpt(userPrompt, userName, model, instructions, fileUpload=None):
     LoggingGPTandGeminiOutputs(f"{time.ctime(time.time())}")
     if fileUpload is None:
         LoggingGPTandGeminiOutputs(f"\n{userName}: {userPrompt}\nUser instructions: {instructions}")
-
-        response = GPTclient.responses.create(
-            model=model,
-            instructions=instructions,
-            input=userPrompt,
-        )
+        totalInputToken = GPTclient.responses.input_tokens.count(model=model, input=userPrompt).input_tokens
     else:
         if fileUpload[1] == "IMAGE":
             LoggingGPTandGeminiOutputs(f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached an image!")
-
-            response = GPTclient.responses.create(
-                model=model,
-                instructions=instructions,
-                input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text", "text": userPrompt},
+            totalInputToken = GPTclient.responses.input_tokens.count(model=model, input=[
+                {"role": "user",
+                 "content": [{"type": "input_text", "text": userPrompt},
                             {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
                         ],
                     }
-                ]
-            )
+                ]).input_tokens
         else:
             LoggingGPTandGeminiOutputs(f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached a PDF file!")
             with open(fileUpload[0], "rb") as PDFfile:
                 fileResponse = GPTclient.files.create(file=PDFfile, purpose="assistants")
                 fileID = fileResponse.id
             os.remove(fileUpload[0])
-            response = GPTclient.responses.create(
-                model=model,
-                instructions=instructions,
-                input=[
+            totalInputToken = GPTclient.responses.input_tokens.count(model=model, input=[
                     {
                         "role": "user",
                         "content": [
@@ -162,13 +153,58 @@ def gpt(userPrompt, userName, model, instructions, fileUpload=None):
                             {"type": "input_file", "file_id": fileID}
                         ]
                     }
-                ]
-            )
-            GPTclient.files.delete(fileID)
+                ]).input_tokens
 
-    reply = response.output_text
-    LoggingGPTandGeminiOutputs(f"\nChatGPT {model}: {reply}\n\n")
-    return reply
+    LoggingGPTandGeminiOutputs(f"\nTotal Input Tokens: {totalInputToken} tokens")
+    if totalInputToken > MODELINPUTTOKENLIMIT[model]:
+        if not fileUpload:
+            if fileUpload[1] != "IMAGE":
+                GPTclient.files.delete(fileID)
+        LoggingGPTandGeminiOutputs(f"\nTotal input tokens exceeding model {model}input token limit of {MODELINPUTTOKENLIMIT[model]} tokens!\n\n")
+        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {MODELINPUTTOKENLIMIT[model]} TOKENS!"
+    else:
+        if fileUpload is None:
+            response = GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=userPrompt,
+            )
+        else:
+            if fileUpload[1] == "IMAGE":
+                response = GPTclient.responses.create(
+                    model=model,
+                    instructions=instructions,
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": userPrompt},
+                                {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
+                            ],
+                        }
+                    ]
+                )
+            else:
+                response = GPTclient.responses.create(
+                    model=model,
+                    instructions=instructions,
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text", "text": userPrompt},
+                                {"type": "input_file", "file_id": fileID}
+                            ]
+                        }
+                    ]
+                )
+                GPTclient.files.delete(fileID)
+
+
+        reply = response.output_text
+        totaloutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
+        LoggingGPTandGeminiOutputs(f"\nChatGPT {model}: {reply}\nTotal Output Tokens: {totaloutputTokenCount} tokens\n\n")
+        return reply
 
 
 def Gemini(userInput, userName, model, fileUpload=None):
@@ -186,7 +222,7 @@ def Gemini(userInput, userName, model, fileUpload=None):
         prompt = userInput
     totalTokenCount = GEMINIclient.models.count_tokens(model=model, contents=prompt).total_tokens
     LoggingGPTandGeminiOutputs(f"\nTotal Input Tokens: {totalTokenCount} tokens")
-    if totalTokenCount >= MODELINPUTTOKENLIMIT[model]:
+    if totalTokenCount > MODELINPUTTOKENLIMIT[model]:
         LoggingGPTandGeminiOutputs(f"\nTotal input tokens exceeding model {model }input token limit of {MODELINPUTTOKENLIMIT[model]} tokens!\n\n")
         return f"YOUR PROMPT TOTAL TOKENS -> {totalTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {MODELINPUTTOKENLIMIT[model]} TOKENS!"
     else:
@@ -317,16 +353,194 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
         json.dump(user_list, file, indent=4)
 
 
+"""
+https://ai.google.dev/gemini-api/docs/pricing
+OPENAI GPT INFO:
+    - gpt-5.2:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+        
+    - gpt-5.2-pro:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $21
+        + Cost per 1 Million Output Token: $168
+        + Supported Inputs: Text and Image
+        
+    - gpt-5.1:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-5:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+        
+    - gpt-5-pro:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 272000
+        + Cost per 1 Million Input Token: $15
+        + Cost per 1 Million Output Token: $120
+        + Supported Inputs: Text and Image
+        
+    - gpt-5-mini:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $0.25
+        + Cost per 1 Million Output Token: $2.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-5-nano:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $0.05
+        + Cost per 1 Million Output Token: $0.40
+        + Supported Inputs: Text and Image
+           
+    - gpt-5.3-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-5.2-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+        
+    - gpt-5.1-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+        
+    - gpt-5-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-4.1:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $2.00
+        + Cost per 1 Million Output Token: $8.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-4.1-mini:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $0.40
+        + Cost per 1 Million Output Token: $1.60
+        + Supported Inputs: Text and Image
+    
+    - gpt-4.1-nano:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $0.10
+        + Cost per 1 Million Output Token: $0.40
+        + Supported Inputs: Text and Image
+        
+    - gpt-4o:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $2.50
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+    
+    - gpt-4o-mini:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $0.15
+        + Cost per 1 Million Output Token: $0.60
+        + Supported Inputs: Text and Image
+    
+    - gpt-4:
+        + Maximum Input Token: 8192
+        + Maximum Output Token: 8192
+        + Cost per 1 Million Input Token: $30.00
+        + Cost per 1 Million Output Token: $60.00
+        + Supported Inputs: Text
+        
+    - gpt-3.5-turbo-16k:
+        + Maximum Input Token: 16385
+        + Maximum Output Token: 4096
+        + Cost per 1 Million Input Token: $0.50
+        + Cost per 1 Million Output Token: $1.50
+        + Supported Inputs: Text
+    
+    - 04-mini:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text and Image
+        
+    - o3-pro:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $20.00
+        + Cost per 1 Million Output Token: $80.00
+        + Supported Inputs: Text and Image
+        
+    - o3-mini:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text
+        
+    - o3:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $2.00
+        + Cost per 1 Million Output Token: $8.00
+        + Supported Inputs: Text and Image
+    
+    - o1-pro:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $150.00
+        + Cost per 1 Million Output Token: $600.00
+        + Supported Inputs: Text and Image
+        
+    - o1-mini:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text
+        
+    - o1:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $15.00
+        + Cost per 1 Million Output Token: $60.00
+        + Supported Inputs: Text and Image
+"""
 @Samson.tree.command(
-    name="chatgpt",
-    description="Interacting with OpenAI chatGPT integration"
+    name="open_ai_gpt",
+    description="Interacting with OpenAI GPT models"
 )
 @app_commands.describe(message="Input your prompt",
                        model="Please select the model listed above",
                        keep_secret="Select Yes if you want the output only visible between you and me!",
                        file_attachment="(OPTIONAL) Please Upload only PNG, JPG, or PDF files!")
-async def chatgpt(ctx, message: str,
-                  model: Literal["gpt-5.2", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini", "o1", "o4-mini", "o3-mini"],
+async def open_ai_gpt(ctx, message: str,
+                  model: Literal["gpt-5.2", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4.0-mini", "o4-mini", "o3"],
                   keep_secret: Literal["Yes", "No"],
                   file_attachment: discord.Attachment = None):
 
@@ -405,7 +619,7 @@ GOOGLE GEMINI INFO:
 """
 @Samson.tree.command(
     name="google_gemini",
-    description="Interacting with Google Gemini integration"
+    description="Interacting with Google Gemini models"
 )
 @app_commands.describe(message="Input your prompt",
                        model="Please select the model listed above",

@@ -88,10 +88,13 @@ GPTFLAGGEDFILEPATH = os.environ.get("EMMANUELGPTFLAGGEDWORDSPATH")
 EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
 EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
-HEADERSFORPARTIALCONTENT = {'User-Agent': 'Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 142.0.0.0 Safari / 537.36', "Range": "bytes=0-1000000"}
-MAINHEADERS = {'User-Agent': 'Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 142.0.0.0 Safari / 537.36'}
+HEADERSFORPARTIALCONTENT = {'sec-ch-ua': '"Android WebView";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"', 'upgrade-insecure-requests': '1', 'user-agent': 'Mozilla/5.0 (Linux; Android 14; V2321 Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Soul/4.0 Chrome/131.0.6778.135 Mobile Safari/537.36', 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-user': '?1', 'sec-fetch-dest': 'document', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US', "Range": "bytes=0-1000000"}
+MAINHEADERS = {'sec-ch-ua': '"Android WebView";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"', 'upgrade-insecure-requests': '1', 'user-agent': 'Mozilla/5.0 (Linux; Android 14; V2321 Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Soul/4.0 Chrome/131.0.6778.135 Mobile Safari/537.36', 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-user': '?1', 'sec-fetch-dest': 'document', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US'}
 DAILYUNCENSORLIMIT = 1
 WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
+FILEDOWNLOADCOUNTER = 0
+IMAGESCANTOKENLIMIT = 400000
+TEXTSCANTOKENLIMIT = 128000
 
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
@@ -281,36 +284,46 @@ def scanningPDFPagesWithGPT(PDFimagePath):
               " animal porn, reference to adult or NSFW websites, or even consider NSFW? Please taking into account that people in light clothing like thongs and bikini SHOULD BE consider NSFW!\n"
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!"
               )
-    response = GPTclient.responses.create(
-        model=GPTMODELFORIMAGESCAN,
-        instructions="Strictly follow the prompt for detailed instructions",
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": prompt},
-                    {"type": "input_file", "file_id": fileID}
-                ]
-            }
-        ]
-    )
+    inputPromptTokenCount = GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="Strictly follow the prompt for detailed instructions", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}]).input_tokens
+    if inputPromptTokenCount > IMAGESCANTOKENLIMIT:
+        GPTclient.files.delete(fileID)
+        return "MAXIMUM TOKEN LIMIT"
+    else:
+        response = GPTclient.responses.create(
+            model=GPTMODELFORIMAGESCAN,
+            instructions="Strictly follow the prompt for detailed instructions",
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt},
+                        {"type": "input_file", "file_id": fileID}
+                    ]
+                }
+            ]
+        )
 
-    GPTclient.files.delete(fileID)
+        GPTclient.files.delete(fileID)
 
-    print(f"GPT image NSFW scan results: {response.output_text}")
+        print(f"GPT image NSFW scan results: {response.output_text}")
 
-    return response.output_text
+        return response.output_text
 
 
 def ScanningTextOnlyWithGPT(textToBeScanned):
-    response = GPTclient.responses.create(
-        model=GPTMODELFORTEXTSCAN,
-        instructions="Strictly follow the prompt for detailed instructions",
-        input=textToBeScanned
-    )
+    inputPromptTokenCount = GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="Strictly follow the prompt for detailed instructions", input=textToBeScanned).input_tokens
+    if inputPromptTokenCount > TEXTSCANTOKENLIMIT:
+        print("MAXIMUM TOKEN LIMIT")
+        return "MAXIMUM TOKEN LIMIT"
+    else:
+        response = GPTclient.responses.create(
+            model=GPTMODELFORTEXTSCAN,
+            instructions="Strictly follow the prompt for detailed instructions",
+            input=textToBeScanned
+        )
 
-    reply = response.output_text
-    return reply
+        reply = response.output_text
+        return reply
 
 
 def isTenorURLValid(url):
@@ -1208,6 +1221,8 @@ async def uncensored_channels(ctx):
 @Emmanuel.event
 async def on_message_edit(before, after):  # Note: media attachment can be embedded via URL in re-edit message!
     # Prioritize Executing commands first!
+    global FILEDOWNLOADCOUNTER
+
     await Emmanuel.process_commands(after)
 
     # Add new server to the configuration file!
@@ -1359,7 +1374,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             return
                                         else:
                                             URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
-                                            URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                            FILEDOWNLOADCOUNTER += 1
+                                            URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
                                             UrlContentNSFWResult = False
                                             UrlContentNSFWResultDetails = ""
                                             print(f"URL content extension: {URLContentExt}")
@@ -1467,6 +1483,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
 
 @Emmanuel.event
 async def on_message(message):
+    global FILEDOWNLOADCOUNTER
     # Prioritize Executing commands first!
     await Emmanuel.process_commands(message)
 
@@ -1620,7 +1637,8 @@ async def on_message(message):
                                             return
                                         else:
                                             URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
-                                            URLContentName = f"{os.path.basename(URL.split('?')[0]).split('.')[0]}{URLContentExt}"
+                                            FILEDOWNLOADCOUNTER += 1
+                                            URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
                                             UrlContentNSFWResult = False
                                             UrlContentNSFWResultDetails = ""
                                             print(f"URL content extension: {URLContentExt}")
@@ -1777,7 +1795,8 @@ async def on_message(message):
                         else:
                             print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
                             attachmentFileExt = checkingRealFileExtension(attachment.url, attachment.filename.lower())
-                            AttachmentFileName = f"{os.path.basename(attachment.url.split('?')[0]).split('.')[0]}{attachmentFileExt}"
+                            FILEDOWNLOADCOUNTER += 1
+                            AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
                             attachmentNSFWResult = False
                             attachmentNSFWResultDetails = ""
                             print(f"Attachment file extension: {attachmentFileExt}")

@@ -11,7 +11,7 @@ pip install discord-py==2.5.2
 pip install dotenv==0.9.0
 pip install filetype==1.2.0
 pip install nudenet==3.4.2
-pip install openai==2.12.0
+pip install openai==2.26.0
 pip install opencv-python==4.12.0.88
 pip install pillow==11.3.0
 pip install python-magic==0.4.27
@@ -42,8 +42,8 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord
 pip install pillow==11.3.0
 pip install requests==2.32.4
 pip install discord-py==2.5.2
-pip install openai==2.12.0
-pip install google-genai==1.65.0
+pip install openai==2.26.0
+pip install google-genai==1.66.0
 Discord API key
 OpenAI API key
 Google Gemini API key

@@ -17,6 +17,7 @@ import discord
 import mimetypes
 import magic
 import subprocess
+import random
 
 from PIL import Image
 from better_profanity import profanity
@@ -25,6 +26,10 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from openai import OpenAI
 from nudenet import NudeDetector
+from seleniumwire import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.common import TimeoutException
+from typing import Tuple
 
 load_dotenv()
 
@@ -88,8 +93,6 @@ GPTFLAGGEDFILEPATH = os.environ.get("EMMANUELGPTFLAGGEDWORDSPATH")
 EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
 EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
-HEADERSFORPARTIALCONTENT = {'sec-ch-ua': '"Android WebView";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"', 'upgrade-insecure-requests': '1', 'user-agent': 'Mozilla/5.0 (Linux; Android 14; V2321 Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Soul/4.0 Chrome/131.0.6778.135 Mobile Safari/537.36', 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-user': '?1', 'sec-fetch-dest': 'document', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US', "Range": "bytes=0-1000000"}
-MAINHEADERS = {'sec-ch-ua': '"Android WebView";v="131", "Chromium";v="131", "Not_A Brand";v="24"', 'sec-ch-ua-mobile': '?1', 'sec-ch-ua-platform': '"Android"', 'upgrade-insecure-requests': '1', 'user-agent': 'Mozilla/5.0 (Linux; Android 14; V2321 Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Soul/4.0 Chrome/131.0.6778.135 Mobile Safari/537.36', 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7', 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-user': '?1', 'sec-fetch-dest': 'document', 'accept-encoding': 'gzip, deflate, br, zstd', 'accept-language': 'en-US'}
 DAILYUNCENSORLIMIT = 1
 WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
 FILEDOWNLOADCOUNTER = 0
@@ -172,54 +175,107 @@ with open(CLEANFILEPATH, "r") as CLEANFile:
     CLEANData = json.load(CLEANFile)
 print(f"Clean Data successfully loaded:\n{list(CLEANData.keys())}")
 
+"""Retrieving 100 ScrapeOps Mobile Browser Headers"""
+ScrapeOPSResponse = requests.get(
+  url='https://headers.scrapeops.io/v1/browser-headers',
+  params={
+      'api_key': os.environ.get("EMMANUELSCRAPEOPSAPI"),
+      'num_results': '100',
+      'mobile': 'true'}
+)
+SCRAPEOPSMOBILEBROWSERHEADERS = ScrapeOPSResponse.json().get('result',  [])
+assert len(SCRAPEOPSMOBILEBROWSERHEADERS) == 100
+print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 
-def checkingRealFileExtension(fileURL, filename):
+
+def SeleniumHTMLRetrieval(browserHeader, url):
+    print("Opening Selenium Webdriver...")
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument('--no-sandbox')  # Enable the spider to run web scrape in real life browser.
+    chrome_options.add_argument('--disable-dev-shm-usage')  # Disable shared memory feature that could cause the Selenium Chromium session to crash.
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')  # IMPORTANT: Remove the navigator.webdriver flag that websites use to detect Selenium. Selenium default set this to true.
+    chrome_options.add_experimental_option("excludeSwitches",["enable-automation"])  # IMPORTANT: Removes the "Chrome is being controlled by automated test software" banner and prevent Chrome form adding automation-related command -line switches.
+    chrome_options.add_experimental_option('useAutomationExtension',False)  # IMPORTANT: Disables Chrome's automation extension that Selenium normally loads. This limit the bot detection surface.
+    userAgent = browserHeader.get('user-agent')
+    if userAgent:
+        chrome_options.add_argument(f'user-agent={userAgent}')
+        print(f"Using ScrapeOps fake user agent: {userAgent}")
+    browser = webdriver.Chrome(options=chrome_options)
+    if browserHeader and hasattr(browser, 'execute_cdp_cmd'):
+        headers_to_set = {}
+        for key, value in browserHeader.items():
+            if key not in ['user-agent']:
+                headers_to_set[key] = value
+
+        if headers_to_set:
+            browser.execute_cdp_cmd('Network.setExtraHTTPHeaders', {'headers': headers_to_set})
+            print(f"Set {len(headers_to_set)} additional headers via CDP")
+            print(f"Using ScrapeOps browser header: {browserHeader}")
+    print(f"Making request to URL: {url}")
+    browser.set_page_load_timeout(10)
+    try:
+        browser.get(url)
+    except TimeoutException:
+        print(f"Page load timed out at 10s for {url}, attempting to proceed...")
+    EncodedResponseBody = browser.page_source.encode('utf-8')
+    currentUrl = browser.current_url
+    statusCode = 200
+    for request in reversed(browser.requests):
+        if request.response:
+            if request.url == currentUrl or (request.url.rstrip('/') == currentUrl.rstrip('/')):
+                statusCode = request.response.status_code
+                print(f"Final page status for {currentUrl}: {statusCode}")
+                break
+    print("Closing and Quitting Selenium Webdriver...")
+    browser.close()
+    browser.quit()
+    return statusCode, EncodedResponseBody
+
+
+def checkingRealFileExtension(BytesContent, filename):
     print("Getting the first 1M bytes content of the file in http RESPONSE...")
-    first1MegaBytesResponse = requests.get(fileURL, headers=HEADERSFORPARTIALCONTENT)
-    if first1MegaBytesResponse.status_code in (200, 206):
-        first1MegaBytes = first1MegaBytesResponse.content
-        print("Checking file extension with python-magic module...")
-        mime = magic.from_buffer(first1MegaBytes, mime=True)
-        fileExt = mimetypes.guess_extension(mime)
-        if fileExt:
-            if fileExt == ".bin":
-                if first1MegaBytes.startswith(b'PK'):
-                    return '.zip'
-                elif first1MegaBytes.startswith(b'caff'):
-                    return '.caf'
-            if fileExt == ".webm" and filename.endswith(".weba"):
-                return ".weba"
-            if fileExt == ".webm" and filename.endswith(".wmv"):
-                return ".wmv"
-            if fileExt == ".wmv" and filename.endswith(".wma"):
-                return ".wma"
-            if fileExt == ".ogv" and filename.endswith(".ogg"):
-                return ".ogg"
-            if fileExt == ".asf" and filename.endswith(".wmv"):
-                return ".wmv"
-            if fileExt == ".asf" and filename.endswith(".wma"):
-                return ".wma"
-            return fileExt
-        else:
-            print("python-magic  could not determined, manually checking based on pre-defined list...")
-            try:
-                first1MegaBytesToASCII = first1MegaBytes.decode("ascii")
-                if first1MegaBytesToASCII.isascii():
-                    return "ASCII document or script files"
-            except UnicodeDecodeError:
-                print("Checking file extension with filetype module...")
-                fileExt = filetype.guess(first1MegaBytes)
-                if fileExt:
-                    return f".{fileExt.extension}"
-                else:
-                    if first1MegaBytes.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
-                        return ".ac3"
-                    elif filename.endswith(".lzma"):
-                        return ".lzma"
-                    print(f"File extension can not be determined!")
-                    return "Can't be determined"
+    first1MegaBytes = BytesContent[:1000000]
+    print("Checking file extension with python-magic module...")
+    mime = magic.from_buffer(first1MegaBytes, mime=True)
+    fileExt = mimetypes.guess_extension(mime)
+    if fileExt:
+        if fileExt == ".bin":
+            if first1MegaBytes.startswith(b'PK'):
+                return '.zip'
+            elif first1MegaBytes.startswith(b'caff'):
+                return '.caf'
+        if fileExt == ".webm" and filename.endswith(".weba"):
+            return ".weba"
+        if fileExt == ".webm" and filename.endswith(".wmv"):
+            return ".wmv"
+        if fileExt == ".wmv" and filename.endswith(".wma"):
+            return ".wma"
+        if fileExt == ".ogv" and filename.endswith(".ogg"):
+            return ".ogg"
+        if fileExt == ".asf" and filename.endswith(".wmv"):
+            return ".wmv"
+        if fileExt == ".asf" and filename.endswith(".wma"):
+            return ".wma"
+        return fileExt
     else:
-        return "Invalid Download URL!"
+        print("python-magic  could not determined, manually checking based on pre-defined list...")
+        try:
+            first1MegaBytesToASCII = first1MegaBytes.decode("ascii")
+            if first1MegaBytesToASCII.isascii():
+                return "ASCII document or script files"
+        except UnicodeDecodeError:
+            print("Checking file extension with filetype module...")
+            fileExt = filetype.guess(first1MegaBytes)
+            if fileExt:
+                return f".{fileExt.extension}"
+            else:
+                if first1MegaBytes.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
+                    return ".ac3"
+                elif filename.endswith(".lzma"):
+                    return ".lzma"
+                print(f"File extension can not be determined!")
+                return "Can't be determined"
 
 
 def writingLog(logData):
@@ -330,7 +386,7 @@ def isTenorURLValid(url):
     try:
         gifID = url.split('/')[4].split('-')[len(url.split('/')[4].split('-')) - 1]
         url = f"https://tenor.googleapis.com/v2/posts?ids={gifID}&key={TENORAPI}"
-        response = requests.get(url, headers=MAINHEADERS)
+        response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             gifUrl = data["results"][0]["media_formats"]["gif"]["url"]
@@ -413,13 +469,20 @@ async def PDFConversion(filePath):
 
 
 # Return True if NSFW
-async def ScanningMedia(mediaName, mediaUrl, hashedMediaContent, URL=True):
-    if URL:
+async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent: str, alreadyOnDisk:bool=False) -> Tuple[bool, str]:
+    """
+    Description: Scanning Media Files (Image, PDF, Video, and Audio)
+    :param mediaName: The name of the media file
+    :param bytesContent: The bytes content of the media file
+    :param hashedMediaContent: The SHA512 hash of the media file content
+    :param alreadyOnDisk Specify whether the file is already exist on disk or not
+    :return: NSFW Scan result as a boolean and Reasoning of the scan a str
+    """
+
+    if not alreadyOnDisk :
         mediaPath = f"{MAINDOWNLOADDIR}{mediaName}"
-        response = requests.get(mediaUrl, headers=MAINHEADERS, stream=True)
         with open(mediaPath, "wb") as file:
-            for chunk in response.iter_content(1024):
-                file.write(chunk)
+            file.write(bytesContent)
         print("Media content downloaded!")
     else:
         mediaPath = mediaName
@@ -800,12 +863,10 @@ def ArchivesBombAnalysisAndExtraction(filePath, archiveLayer=0):
     return False
 
 
-async def ArchiveFileScan(archiveFileName, fileUrl, hashedArchiveFileData):  # Return True to continue the scan process
-    response = requests.get(fileUrl, headers=MAINHEADERS, stream=True)
+async def ArchiveFileScan(archiveFileName, bytesContent: bytes, hashedArchiveFileData):  # Return True to continue the scan process
     mainArchiveFilePath = f"{MAINDOWNLOADDIR}{archiveFileName}"
     with open(mainArchiveFilePath, "wb") as file:
-        for chunk in response.iter_content(1024):
-            file.write(chunk)
+        file.write(bytesContent)
     print(f"Archive name: {archiveFileName}")
     print("Archive attachment downloaded!")
     print(f"Checking if archive is safe to extract!")
@@ -834,7 +895,7 @@ async def ArchiveFileScan(archiveFileName, fileUrl, hashedArchiveFileData):  # R
                     AddingNewNSFWData(hashedArchiveFileData, f"The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}")
                     return False, f"NSFW Archive Content - The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}"
                 else:
-                    scanResult,  scanResultDetails = await ScanningMedia(filepath, "Blank", hashedFileContent, False)
+                    scanResult,  scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
                     if scanResult:
                         print(f"File content {filename} in Archive file was flagged NSFW!")
                         shutil.rmtree(TempDir)
@@ -1342,12 +1403,17 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     return
                             """Checking if URL is valid!"""
                             try:
-                                response = requests.get(URL, headers=MAINHEADERS)
-                                if response.status_code == 200:
+                                response = requests.get(URL)
+                                if response.status_code in range(400, 500):
+                                    statuscode, UrlContent = SeleniumHTMLRetrieval(random.choice(SCRAPEOPSMOBILEBROWSERHEADERS), URL)
+                                else:
+                                    statuscode = response.status_code
+                                    UrlContent = response.content
+                                if statuscode == 200:
                                     print(f"URL is valid!")
                                     """Analyzing if URL content is an image, video, audio, or archive file"""
                                     """Checking if URL content already been scanned"""
-                                    hashedURLContent = hashlib.sha512(response.content).hexdigest()
+                                    hashedURLContent = hashlib.sha512(UrlContent).hexdigest()
                                     print(f"URL Content in SHA512: {hashedURLContent}")
                                     print(f"Checking if URL content is already in a clean list...")
                                     if hashedURLContent in CLEANData.keys():
@@ -1373,7 +1439,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             print("Re-Edit Message Content Scan Process Finished!\n\n")
                                             return
                                         else:
-                                            URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
+                                            URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(URL.split('?')[0].lower()))
                                             FILEDOWNLOADCOUNTER += 1
                                             URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
                                             UrlContentNSFWResult = False
@@ -1393,20 +1459,20 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                                 json.dump(configuration, file, indent=4)
                                                 if scanContent:
                                                     if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                     elif URLContentExt.endswith(DOCUMENTFILES):
                                                         print(f"Scanning ASCII text in URL content...")
                                                         if URLContentExt.endswith(".html"):
-                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'), False, True)
                                                         else:
-                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'))
                                                         if UrlContentNSFWResult:
                                                             UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
                                                             AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                         else:
                                                             AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
                                                     else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                             else:
                                                 AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                             print("Scan Process Finished!\n\n")
@@ -1423,7 +1489,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                 await AdvanceBackTrackMessageScan(after)
                                                 return
                                 else:
-                                    print(f"URL is invalid with status code {response.status_code}!")
+                                    print(f"URL is invalid with status code {statuscode}!")
                                     if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
                                         await after.delete()
                                         logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!"
@@ -1605,12 +1671,17 @@ async def on_message(message):
                                     return
                             """Checking if URL is valid!"""
                             try:
-                                response = requests.get(URL, headers=MAINHEADERS)
-                                if response.status_code == 200:
+                                response = requests.get(URL)
+                                if response.status_code in range(400, 500):
+                                    statuscode, UrlContent = SeleniumHTMLRetrieval(random.choice(SCRAPEOPSMOBILEBROWSERHEADERS), URL)
+                                else:
+                                    statuscode = response.status_code
+                                    UrlContent = response.content
+                                if statuscode == 200:
                                     print(f"URL is valid!")
                                     """Analyzing if URL content is an image, video, audio, or archive file"""
                                     """Checking URL content already been scanned"""
-                                    hashedURLContent = hashlib.sha512(response.content).hexdigest()
+                                    hashedURLContent = hashlib.sha512(UrlContent).hexdigest()
                                     print(f"URL content in SHA512: {hashedURLContent}")
                                     print(f"Checking if URL content is already in a clean list...")
                                     if hashedURLContent in CLEANData.keys():
@@ -1636,7 +1707,7 @@ async def on_message(message):
                                             print("Message Content Scan Process Finished!\n\n")
                                             return
                                         else:
-                                            URLContentExt = checkingRealFileExtension(URL, os.path.basename(URL.split('?')[0].lower()))
+                                            URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(URL.split('?')[0].lower()))
                                             FILEDOWNLOADCOUNTER += 1
                                             URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
                                             UrlContentNSFWResult = False
@@ -1655,20 +1726,20 @@ async def on_message(message):
                                                                 json.dump(configuration, file, indent=4)
                                                 if scanContent:
                                                     if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                     elif URLContentExt.endswith(DOCUMENTFILES):
                                                         print(f"Scanning ASCII text in URL content...")
                                                         if URLContentExt.endswith(".html"):
-                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'), False, True)
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'), False, True)
                                                         else:
-                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(response.content.decode('utf-8'))
+                                                            UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'))
                                                         if UrlContentNSFWResult:
                                                             UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
                                                             AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                         else:
                                                             AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
                                                     else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, URL, BasedURLToSave)
+                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                             else:
                                                 AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                             print("Scan Process Finished!\n\n")
@@ -1685,7 +1756,7 @@ async def on_message(message):
                                                 await AdvanceBackTrackMessageScan(message)
                                                 return
                                 else:
-                                    print(f"URL is invalid with status code: {response.status_code}")
+                                    print(f"URL is invalid with status code: {statuscode}")
                                     if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                         await message.delete()
                                         logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!"
@@ -1770,7 +1841,7 @@ async def on_message(message):
                         return
 
                     """Checking attachment content already been scanned"""
-                    response = requests.get(attachment.url, headers=MAINHEADERS)
+                    response = requests.get(attachment.url)
                     hashedAttachmentContent = hashlib.sha512(response.content).hexdigest()
                     print(f"Attachment SHA512 content: {hashedAttachmentContent}")
                     print(f"Checking if attachment content is already in a clean list...")
@@ -1794,7 +1865,7 @@ async def on_message(message):
                             return
                         else:
                             print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
-                            attachmentFileExt = checkingRealFileExtension(attachment.url, attachment.filename.lower())
+                            attachmentFileExt = checkingRealFileExtension(response.content, attachment.filename.lower())
                             FILEDOWNLOADCOUNTER += 1
                             AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
                             attachmentNSFWResult = False
@@ -1802,7 +1873,7 @@ async def on_message(message):
                             print(f"Attachment file extension: {attachmentFileExt}")
                             if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
                                 if attachmentFileExt.endswith(ARCHIVEFORMATS):
-                                    attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachment.url, hashedAttachmentContent)
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, response.content, hashedAttachmentContent)
                                 elif attachmentFileExt.endswith(DOCUMENTFILES):
                                     print(f"Scanning ASCII text in file content...")
                                     if attachmentFileExt.endswith(".html"):
@@ -1815,7 +1886,7 @@ async def on_message(message):
                                     else:
                                         AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
                                 else:
-                                    attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachment.url, hashedAttachmentContent)
+                                    attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, response.content, hashedAttachmentContent)
                             else:
                                 AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
                             print("Scan Process Finished!\n\n")

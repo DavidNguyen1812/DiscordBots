@@ -188,7 +188,13 @@ assert len(SCRAPEOPSMOBILEBROWSERHEADERS) == 100
 print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 
 
-def SeleniumHTMLRetrieval(browserHeader, url):
+def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> Tuple[int, bytes]:
+    """
+    Description: Opening Headless Selenium browser to fetch url response content with customized browser header
+    :param browserHeader: Customized browser header
+    :param url: URL to retrieve the response content in bytes
+    :return: Status code of the request and the response bytes content
+    """
     print("Opening Selenium Webdriver...")
     chrome_options = Options()
     chrome_options.add_argument("--headless")
@@ -233,7 +239,13 @@ def SeleniumHTMLRetrieval(browserHeader, url):
     return statusCode, EncodedResponseBody
 
 
-def checkingRealFileExtension(BytesContent, filename):
+def checkingRealFileExtension(BytesContent: bytes, filename: str) -> str:
+    """
+    Description: Checking file extension based on the file content with Python Magic and filetype modules
+    :param BytesContent: The bytes content of the file
+    :param filename: The name of the file
+    :return: The result file extension from the analyzation process
+    """
     print("Getting the first 1M bytes content of the file in http RESPONSE...")
     first1MegaBytes = BytesContent[:1000000]
     print("Checking file extension with python-magic module...")
@@ -247,19 +259,19 @@ def checkingRealFileExtension(BytesContent, filename):
                 return '.caf'
         if fileExt == ".webm" and filename.endswith(".weba"):
             return ".weba"
-        if fileExt == ".webm" and filename.endswith(".wmv"):
+        elif fileExt == ".webm" and filename.endswith(".wmv"):
             return ".wmv"
-        if fileExt == ".wmv" and filename.endswith(".wma"):
+        elif fileExt == ".wmv" and filename.endswith(".wma"):
             return ".wma"
-        if fileExt == ".ogv" and filename.endswith(".ogg"):
+        elif fileExt == ".ogv" and filename.endswith(".ogg"):
             return ".ogg"
-        if fileExt == ".asf" and filename.endswith(".wmv"):
+        elif fileExt == ".asf" and filename.endswith(".wmv"):
             return ".wmv"
-        if fileExt == ".asf" and filename.endswith(".wma"):
+        elif fileExt == ".asf" and filename.endswith(".wma"):
             return ".wma"
         return fileExt
     else:
-        print("python-magic  could not determined, manually checking based on pre-defined list...")
+        print("python-magic could not determined, manually checking based on pre-defined list...")
         try:
             first1MegaBytesToASCII = first1MegaBytes.decode("ascii")
             if first1MegaBytesToASCII.isascii():
@@ -276,15 +288,26 @@ def checkingRealFileExtension(BytesContent, filename):
                     return ".lzma"
                 print(f"File extension can not be determined!")
                 return "Can't be determined"
+        return "Can't be determined"
 
-
-def writingLog(logData):
+def writingLog(logData: str) -> None:
+    """
+    Description: Writing scanning log Emmanuel log file
+    :param logData: Log content to be written
+    :return: None
+    """
     with open(EMMANUELLOGFILEPATH, "a") as txtFile:
         txtFile.write(f"{time.ctime(time.time())}\n")
         txtFile.write(logData)
 
 
-def AddingNewCleanData(Hash, Reason):
+def AddingNewCleanData(Hash: str, Reason: str) -> None:
+    """
+    Description: Adding new SHA512 hash to Emmanuel clean data JSON file and the reason 
+    :param Hash: SHA512 hash to be added
+    :param Reason: Reason why the hash was added to the clean content
+    :return: None
+    """
     CLEANData[Hash] = Reason
     print("Content passed the check, Adding to clean data...")
     with open(CLEANFILEPATH, "w") as JSONFile:
@@ -293,6 +316,12 @@ def AddingNewCleanData(Hash, Reason):
 
 
 def AddingNewNSFWData(Hash, Reason):
+    """
+    Description: Adding new SHA512 hash to Emmanuel NSFW data JSON file and the reason 
+    :param Hash: SHA512 hash to be added
+    :param Reason: Reason why the hash was added to the NSFW content
+    :return: None
+    """
     NSFWData[Hash] = Reason
     print("Content was flagged NSFW, adding to NSFW data...")
     with open(NSFWFILEPATH, "w") as JSONFile:
@@ -300,13 +329,18 @@ def AddingNewNSFWData(Hash, Reason):
     print(f"NSFW data updated!")
 
 
-async def checkServerExistInConfigFile(serverID):
+async def checkServerExistInConfigFile(serverID: str) -> None:
+    """
+    Description: Check if a server ID already exists in configuration file
+    :param serverID: The server ID to be checked
+    :return: Nothing is returned. If the server ID does not exist in the configuration file, then it will be automatically created with all the default values.
+    """
     if configuration.get(serverID) is None:
         configuration[serverID] = {}
         configuration[serverID]["Uncensored-members"] = WHITELISTMEMBERS
         configuration[serverID]["Uncensored-channels"] = []
         members = {}
-        server = await Emmanuel.fetch_guild(serverID)
+        server = await Emmanuel.fetch_guild(int(serverID))
         async for member in server.fetch_members(limit=None):
             if member.id not in WHITELISTMEMBERS:
                 members[str(member.id)] = DAILYUNCENSORLIMIT
@@ -317,12 +351,22 @@ async def checkServerExistInConfigFile(serverID):
         print(f"New server ID {serverID} added to config file!")
 
 
-def getHashValueofAttachmentFileData(filepath):
+def getHashValueofAttachmentFileData(filepath: str) -> str:
+    """
+    Description: Get SHA512 hash of the file bytes content
+    :param filepath: Path to the file on disk
+    :return: SHA512 hash of the file bytes content
+    """
     with open(filepath, "rb") as file:
         return hashlib.sha512(file.read()).hexdigest()
 
 
-def scanningImageWithNudenet(image):
+def scanningImageWithNudenet(image: str) -> bool:
+    """
+    Description: Scanning image with Nudenet pre-train NSFW model
+    :param image: Path to the image on disk
+    :return: Scan result of whether the image is NSFW or not
+    """
     detections = detector.detect(image)
     print(f"Nudenet scan results: {detections}")
     for result in detections:
@@ -332,7 +376,12 @@ def scanningImageWithNudenet(image):
     return False
 
 
-def scanningPDFPagesWithGPT(PDFimagePath):
+def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
+    """
+    Description: Scanning PDF frames with GPT pre-train model
+    :param PDFimagePath: Path to the PDF on disk
+    :return: GPT scan result
+    """
     with open(PDFimagePath, "rb") as PDFfile:
         fileResponse = GPTclient.files.create(file=PDFfile, purpose="assistants")
         fileID = fileResponse.id
@@ -366,7 +415,12 @@ def scanningPDFPagesWithGPT(PDFimagePath):
         return response.output_text
 
 
-def ScanningTextOnlyWithGPT(textToBeScanned):
+def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
+    """
+    Description: Scanning text content with GPT pre-train model
+    :param textToBeScanned: The text content to be scanned
+    :return: GPT scan result
+    """
     inputPromptTokenCount = GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="Strictly follow the prompt for detailed instructions", input=textToBeScanned).input_tokens
     if inputPromptTokenCount > TEXTSCANTOKENLIMIT:
         print("MAXIMUM TOKEN LIMIT")
@@ -382,11 +436,16 @@ def ScanningTextOnlyWithGPT(textToBeScanned):
         return reply
 
 
-def isTenorURLValid(url):
+def isTenorURLValid(gifURL: str) -> str:
+    """
+    Description: Tenor URL validation
+    :param gifURL: Tenor URL
+    :return: The correct tenor URL or Invalid if URL is not a tenor URL
+    """
     try:
-        gifID = url.split('/')[4].split('-')[len(url.split('/')[4].split('-')) - 1]
-        url = f"https://tenor.googleapis.com/v2/posts?ids={gifID}&key={TENORAPI}"
-        response = requests.get(url)
+        gifID = gifURL.split('/')[4].split('-')[len(gifURL.split('/')[4].split('-')) - 1]
+        gifURL = f"https://tenor.googleapis.com/v2/posts?ids={gifID}&key={TENORAPI}"
+        response = requests.get(gifURL)
         if response.status_code == 200:
             data = response.json()
             gifUrl = data["results"][0]["media_formats"]["gif"]["url"]
@@ -398,7 +457,12 @@ def isTenorURLValid(url):
         return "Invalid"
 
 
-def isKlipyURLValid(gifURL):
+def isKlipyURLValid(gifURL: str) -> str:
+    """
+    Description: Klipy URL validation
+    :param gifURL: Klipy URL
+    :return: The correct Klipy URL or Invalid if URL is not a Klipy URL
+    """
     gifSlug = os.path.basename(gifURL)
     response = requests.get(f"https://api.klipy.com/api/v1/{KLIPHYAPI}/gifs/items?slugs={gifSlug}")
     data = response.json()
@@ -408,7 +472,12 @@ def isKlipyURLValid(gifURL):
     return "Invalid"
 
 
-async def PDFConversion(filePath):
+async def PDFConversion(filePath: str) -> str:
+    """
+    Description: Convert a file to PDF
+    :param filePath: Path of the file on disk to be converted
+    :return: The output PDF path of the converted file
+    """
     PDFPath = filePath.split(".")[0] + ".pdf"
     if filePath.endswith(".png"):
         print("Converting PNG image to PDF...")
@@ -592,7 +661,13 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
         return False, mediaScanResult
 
 
-def ArchivesBombAnalysisAndExtraction(filePath, archiveLayer=0):
+def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bool:
+    """
+    Description: Checking if an archive file is safe to extract. If yes, then all content will be extracted to MAINDOWNLOADDIR
+    :param filePath: A list of the path to the archive file on disk
+    :param archiveLayer: The layer of the archive file
+    :return: True if the archive is not safe to extract, False otherwise
+    """
     def checkingFileExtension(fileContent: bytes):
         mime = magic.from_buffer(fileContent, mime=True)
         Ext = mimetypes.guess_extension(mime)
@@ -863,7 +938,14 @@ def ArchivesBombAnalysisAndExtraction(filePath, archiveLayer=0):
     return False
 
 
-async def ArchiveFileScan(archiveFileName, bytesContent: bytes, hashedArchiveFileData):  # Return True to continue the scan process
+async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchiveFileData: str) -> Tuple[bool, str]:  # Return True to continue the scan process
+    """
+    Description: Scanning archive file and its archived content
+    :param archiveFileName: Archive file name
+    :param bytesContent: The byte content of the archive file
+    :param hashedArchiveFileData: SHA512 hash of the archive file
+    :return: Result of the scan and reason
+    """
     mainArchiveFilePath = f"{MAINDOWNLOADDIR}{archiveFileName}"
     with open(mainArchiveFilePath, "wb") as file:
         file.write(bytesContent)
@@ -908,27 +990,33 @@ async def ArchiveFileScan(archiveFileName, bytesContent: bytes, hashedArchiveFil
     return True, ""
 
 
-async def NSFWScanAudio(inputPath, delete=True):  # Return True if Audio is NSFW!
-    audioName = os.path.basename(inputPath).split('.')[0]
+async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  # Return True if Audio is NSFW!
+    """
+    Description: NSFW scan for audio file
+    :param audioPath: Path to audio file on disk
+    :param delete: Specify to delete the audio file or not
+    :return: Scan result and reason
+    """
+    audioName = os.path.basename(audioPath).split('.')[0]
     # Running ffmpeg command to convert any input file to specific WAV audio format
-    if not inputPath.endswith(".wav"):
+    if not audioPath.endswith(".wav"):
         print("Converting Audio to WAV file format...")
-        waveFilePath = f"{os.path.dirname(inputPath)}/{audioName}.wav"
+        waveFilePath = f"{os.path.dirname(audioPath)}/{audioName}.wav"
         try:
-            subprocess.run(["ffmpeg", "-i", inputPath, "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            subprocess.run(["ffmpeg", "-i", audioPath, "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             if delete:
-                os.remove(inputPath)
+                os.remove(audioPath)
         except Exception as ConversionToWavAudioError:
             if delete:
                 print(f"Error {ConversionToWavAudioError}")
-                os.remove(inputPath)
+                os.remove(audioPath)
                 return True, "File Conversion Failure - Can not convert audio file to WAV format!"
             else:
                 print(f"Error {ConversionToWavAudioError} while extracting audio from the video! Proceeding to scan video content...")
                 return False, ""
     else:
         print("Audio file already in .wav format!")
-        waveFilePath = inputPath
+        waveFilePath = audioPath
 
     audioFile = open(waveFilePath, "rb")
 
@@ -945,7 +1033,14 @@ async def NSFWScanAudio(inputPath, delete=True):  # Return True if Audio is NSFW
         return False, f"Clean Audio Transcript - {scanResultDetails}"
 
 
-async def NSFWscanMessage(checkMessage: str, URL=False, HTML=False):  # Return True if text content is NSFW!
+async def NSFWscanMessage(checkMessage: str, URL: bool=False, HTML: bool=False) -> Tuple[bool, str]:  # Return True if text content is NSFW!
+    """
+    Description: NSFW scan for ASCII content
+    :param checkMessage: ASCII content to be scanned
+    :param URL: Specify whether the ASCII content is a URL or not
+    :param HTML: Specify whether the ASCII content is an HTML or not
+    :return: Scan result and reason
+    """
     if not HTML:
         print("Scanning content using Profanity Library...")
         if profanity.contains_profanity(checkMessage):
@@ -983,7 +1078,12 @@ async def NSFWscanMessage(checkMessage: str, URL=False, HTML=False):  # Return T
     return False, DetectedPhrase.strip("No, ")
 
 
-async def AdvanceBackTrackMessageScan(message):
+async def AdvanceBackTrackMessageScan(message: discord.Message) -> None:
+    """
+    Description: Concatenate the previous 10 message and use a dictionary to check if the concatenation result in a message with NSFW content
+    :param message: The most recent message in the server
+    :return: None
+    """
     if not str(message.channel) == "Direct Message with Unknown User":  # Only use better_profanity
         scanList = []
         lengthList = []

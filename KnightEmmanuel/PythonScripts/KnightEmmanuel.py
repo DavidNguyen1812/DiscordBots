@@ -303,7 +303,7 @@ def writingLog(logData: str) -> None:
 
 def AddingNewCleanData(Hash: str, Reason: str) -> None:
     """
-    Description: Adding new SHA512 hash to Emmanuel clean data JSON file and the reason 
+    Description: Adding new SHA512 hash to Emmanuel clean data JSON file and the reason
     :param Hash: SHA512 hash to be added
     :param Reason: Reason why the hash was added to the clean content
     :return: None
@@ -317,7 +317,7 @@ def AddingNewCleanData(Hash: str, Reason: str) -> None:
 
 def AddingNewNSFWData(Hash, Reason):
     """
-    Description: Adding new SHA512 hash to Emmanuel NSFW data JSON file and the reason 
+    Description: Adding new SHA512 hash to Emmanuel NSFW data JSON file and the reason
     :param Hash: SHA512 hash to be added
     :param Reason: Reason why the hash was added to the NSFW content
     :return: None
@@ -998,14 +998,15 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
     :return: Scan result and reason
     """
     audioName = os.path.basename(audioPath).split('.')[0]
-    # Running ffmpeg command to convert any input file to specific WAV audio format
+    # Running ffmpeg command to convert any input file to specific WAV audio format with data at 16-bit PCM
     if not audioPath.endswith(".wav"):
         print("Converting Audio to WAV file format...")
         waveFilePath = f"{os.path.dirname(audioPath)}/{audioName}.wav"
         try:
-            subprocess.run(["ffmpeg", "-i", audioPath, "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            subprocess.run(["ffmpeg", "-i", audioPath, "-acodec", "pcm_s16le", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             if delete:
                 os.remove(audioPath)
+            print("WAV conversion successful!")
         except Exception as ConversionToWavAudioError:
             if delete:
                 print(f"Error {ConversionToWavAudioError}")
@@ -1018,12 +1019,12 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
         print("Audio file already in .wav format!")
         waveFilePath = audioPath
 
-    audioFile = open(waveFilePath, "rb")
+    with open(waveFilePath, "rb") as audioFile:
+        transcription = GPTclient.audio.transcriptions.create(
+            model="gpt-4o-transcribe",
+            file=audioFile
+        )
 
-    transcription = GPTclient.audio.transcriptions.create(
-        model="gpt-4o-transcribe",
-        file=audioFile
-    )
     print(f"Words detected from audio file: {transcription.text}")
     os.remove(waveFilePath)
     scanResult, scanResultDetails = await NSFWscanMessage(transcription.text)

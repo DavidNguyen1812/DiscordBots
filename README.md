@@ -1,6 +1,6 @@
 # DiscordBots
 
-**Knight Emmanuel**
+## Knight Emmanuel
 
 Main functionality is scanning Discord text message and media file attachment for any NSFW content utilizing OpenAI LLM vision model via stateless API call and open source pre-trained NSFW model Nudenet.
 
@@ -25,17 +25,17 @@ OpenAI API key
 Tenor API key
 ScrapeOps API key
 
-**Knight Nexus**
+## Knight Nexus
 Main functionality is integrating Cryptography command to Discord using Open-Source Python Crypto Library pycryptodome
 
-**System Requirements**
+**System Requirement**
 pip install dotenv==0.9.0
 pip install discord-py==2.5.2
 pip install pycryptodome==3.23.0
 pip install vingere==1.1.0
 Discord API key
 
-**Knight Samson**
+## Knight Samson
 Main functionality is integrating OpenAI and Google Gemini models to Discord
 
 **System Requirements**

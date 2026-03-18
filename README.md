@@ -4,7 +4,7 @@
 
 Main functionality is scanning Discord text message and media file attachment for any NSFW content utilizing OpenAI LLM vision model via stateless API call and open source pre-trained NSFW model Nudenet.
 
-**System Requirements**
+### System Requirements
 
 pip install better-profanity=0.7.0
 pip install discord-py==2.5.2

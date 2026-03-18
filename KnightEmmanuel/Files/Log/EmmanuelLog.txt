@@ -1,0 +1,23 @@
+Sun Mar  1 21:59:50 2026
+User: <User Discord Name here> sent message: https://klipy.com/gifs/veiny-dih
+From channel '<Channel name here>' - ID <Channel ID here> in Server '<Server name here>' - ID <Server ID here>
+Message was deleted for having URL content already flagged NSFW! - NSFW Image - contains explicit sexual innuendo: an eggplant image used to imply genitalia with suggestive text.
+User DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!
+
+Tue Mar  3 18:06:21 2026
+Resetting all members daily uncensor value in server '<Channel name here>' ID <Server ID here> - Status: SUCCESS
+
+Tue Mar  3 18:07:22 2026
+User: <User Discord Name here> sent message: https://www.reddit.com
+From channel '<Channel name here>' - ID <Channel ID here> in Server '<Server name here>' - ID <Server ID here>
+User <User Discord Name here> ID <User Discord ID here> uncensor limit is 1 in server AirbusA350-900 ID 1294034742135750676
+File content is not scanned!!!
+Message is cleaned!
+
+Wed Mar 18 14:08:20 2026
+User: <User Discord Name here> sent message: 
+with file attachment: knight_2026-03-18_at_2.03.23_PM.png
+temporary URL: https://cdn.discordapp.com/attachments/1335635848649117892/1483889806483128320/knight_2026-03-18_at_2.03.23_PM.png?ex=69bc3b93&is=69baea13&hm=9232d242dcc12c70138137ad436656850370b620b3ce7afefb3fcb1e6c36b884&
+From channel '<Channel name here>' - ID <Channel ID here> in Server '<Server name here>' - ID <Server ID here>
+Message was deleted for having attachment content already flagged NSFW! - NSFW Image - xplicit sexual activity and nudity; clearly pornographic content with visible adult site watermark.
+Explanation message was sent to user to inform why the user message was deleted

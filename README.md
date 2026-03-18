@@ -14,7 +14,18 @@
 │   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
 │   │   │   └── ProfanityLibWordList.txt                    # Customizable list of profane words
 │   ├── PythonScripts                                       # Emmanuel source Code Directory
-│   │   └── KnightEmmanuel.py                               # Emmanuel source code, detail commentations are in the code 
+│   │   └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
+├── KnightNexus                                             # Discord Bot with Python Cryptography modules
+│   ├── KnightNexus.py                                      # Nexus source code in Python
+│   └── MultiEncryption.py                                  # Separate Python Code that contains pre-built Crypto functions for Nexus to use
+├── KnightSamson                                            # Discord Bot with OpenAI and Google Gemini integration
+│   ├── Files                                               # Essential files to run Samson
+│   │   ├── CommandUsageLogFile.txt                         # A log file that log detail an event a user calling Samson application command
+│   │   ├── GPTandGeminiResponses.txt                       # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
+│   │   └── SamsonConfiguration.json                        # Keep track of all members in any server that Knight Samson is in to ensure the member can only execute Samson application command accordance to the preset daily limit.
+│   ├── PythonScripts                                       # Samson source Code Directory
+│   │   ├── EmojiChecker.py                                 # An external Python code for Samson to check if the emoji UNICODE is valid or not
+│   │   └── KnightSamson.py                                 # Samson source code in Python
 └──README.md                                                # This file
 ```
 

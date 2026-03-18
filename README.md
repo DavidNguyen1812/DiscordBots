@@ -1,5 +1,23 @@
 # Pre-built Discord Bots
 
+## Repo Structure:
+
+```
+├── KnightEmmanuel                                          # Discord Bot for NSFW detection        
+│   ├── Files                                               # Essential files to run Emmanuel
+│   │   ├── Configuration                                   # Configruation
+│   │   │   └── EmmanuelConfig.json                         # Essential to keep track of members and channels permitted by the server owner to monitor or not as well as each member daily uncensor limit 
+│   │   ├── Log                                             # Log
+│   │   │   └── EmmanuelLog.txt                             # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
+│   │   ├── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
+│   │   │   ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
+│   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
+│   │   │   └── ProfanityLibWordList.txt                    # Customizable list of profane words
+│   ├── PythonScripts                                       # Emmanuel source Code Directory
+│   │   └── KnightEmmanuel.py                               # Emmanuel source code, detail commentations are in the code 
+└──README.md                                                # This file
+```
+
 ## Knight Emmanuel
 
 **Overview**

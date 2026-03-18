@@ -1,4 +1,4 @@
-# DiscordBots
+# Pre-built Discord Bots
 
 ## Knight Emmanuel
 

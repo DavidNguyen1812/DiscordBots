@@ -68,21 +68,28 @@ ScrapeOps API key
 
 ```
   1. Checking for a member message text content AND ASCII content in any document file for any profane words pre-defined in the ProfanityLibWordList.txt with better_profanity and OpenAI model.
+
   2. Utilizing Pillow, Open CV2 module to convert all images/video frames to PNG format for Nudenet model to scan, if nothing detected, PDF conversion is called and OpenAI model to analyze the PDF frames.
+
   3. Audio Transcript extraction from audio file with OpenAI GPT-4o-Transcribe model to scan for NSFW audio.
+
   4. Archive file extraction safety check for any malicious archive bomb and extracting all the archive content for scan.
   5. Utilizing SHA512 hash to keep record of all file content scan
+
   6. Comprhensive monitor logging that logs all the event Knight Emmanuel scan the server messages.
+
   7. Using selenium wire with ScrapeOPS fake browser headers to retrieve website HTML content for NSFW analyzation.
+
   8. Integration of Tenor and Klipy for authenticated Tenor and Klipy gifs retrieval for scan.
-  
 ```
 
 **Limitations**
 
 ```
   1. Emmanuel only limited to scan certain file formats noted in the source code.
+
   2. File content that exceed OpenAI input token limitation per model used WILL NOT BE SCANNED!!
+
   3. The image, video and archive file scan speed is not very fast and efficient.
 ```
 

@@ -1,1 +1,33 @@
-{}
+{
+  "Server1ID": {
+    "Uncensored-members": [
+        member1UserID,
+        member2UserID,
+        member3UserID
+    ],
+    "Uncensored-channels": [
+        channel1ID,
+        channel2ID
+    ],
+    "User-Uncensor-Limit": {
+        "member1UserID": CURRENT_LIMIT,
+        "member2UserID": CURRENT_LIMIT
+    }
+  },
+
+  "Server2ID": {
+    "Uncensored-members": [
+        member1UserID,
+        member2UserID,
+        member3UserID
+    ],
+    "Uncensored-channels": [
+        channel1ID,
+        channel2ID
+    ],
+    "User-Uncensor-Limit": {
+        "member1UserID": CURRENT_LIMIT,
+        "member2UserID": CURRENT_LIMIT
+    }
+  }    
+}

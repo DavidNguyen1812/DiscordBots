@@ -3,6 +3,8 @@
 ## OVERVIEW
 Three pre-built Discord bots with unique functionality. All you need just a discord API,other APIs (will be included as you read this README) and a Linux/MacOS system with Python 3.10+ to host and deploy them to your Discord server.
 
+**NOTE: PROJECT STILL UNDER PROGRESSED!!! THERE MIGHT BE EXPLICIT CONTENT IN THE REPO, SO VIEWER DISCRETION IS ADVISED**
+
 ## Repo Structure:
 
 ```
@@ -55,11 +57,32 @@ pip install requests==2.32.4
 pip install scikit-learn==1.7.1
 pip install selenium-wire==5.1.0
 pip install blinker==1.7.0
+Need ffmpeg installed
 Discord API key
 OpenAI API key
 Tenor API key
 Klipy API key
 ScrapeOps API key
+```
+**Key Features**
+
+```
+  1. Checking for a member message text content AND ASCII content in any document file for any profane words pre-defined in the ProfanityLibWordList.txt with better_profanity and OpenAI model.
+  2. Utilizing Pillow, Open CV2 module to convert all images/video frames to PNG format for Nudenet model to scan, if nothing detected, PDF conversion is called and OpenAI model to analyze the PDF frames.
+  3. Audio Transcript extraction from audio file with OpenAI GPT-4o-Transcribe model to scan for NSFW audio.
+  4. Archive file extraction safety check for any malicious archive bomb and extracting all the archive content for scan.
+  5. Utilizing SHA512 hash to keep record of all file content scan
+  6. Comprhensive monitor logging that logs all the event Knight Emmanuel scan the server messages.
+  7. Using selenium wire with ScrapeOPS fake browser headers to retrieve website HTML content for NSFW analyzation.
+  8. Integration of Tenor and Klipy for authenticated Tenor and Klipy gifs retrieval for scan.
+  
+```
+
+**Limitations**
+
+```
+  1. Emmanuel only limited to scan certain file formats noted in the source code.
+  2. File content that exceed OpenAI input token limitation per model used **WILL NOT BE SCANNED!! Future improvement on this issue will be proposed**.
 ```
 
 ## Knight Nexus

@@ -82,7 +82,8 @@ ScrapeOps API key
 
 ```
   1. Emmanuel only limited to scan certain file formats noted in the source code.
-  2. File content that exceed OpenAI input token limitation per model used **WILL NOT BE SCANNED!! Future improvement on this issue will be proposed**.
+  2. File content that exceed OpenAI input token limitation per model used WILL NOT BE SCANNED!!
+  3. The image, video and archive file scan speed is not very fast and efficient.
 ```
 
 ## Knight Nexus

@@ -74,6 +74,7 @@ ScrapeOps API key
   3. Audio Transcript extraction from audio file with OpenAI GPT-4o-Transcribe model to scan for NSFW audio.
 
   4. Archive file extraction safety check for any malicious archive bomb and extracting all the archive content for scan.
+
   5. Utilizing SHA512 hash to keep record of all file content scan
 
   6. Comprhensive monitor logging that logs all the event Knight Emmanuel scan the server messages.

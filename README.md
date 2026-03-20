@@ -57,6 +57,7 @@ pip install requests==2.32.4
 pip install scikit-learn==1.7.1
 pip install selenium-wire==5.1.0
 pip install blinker==1.7.0
+pip install webdriver-manager==4.0.2
 Need ffmpeg installed
 Discord API key
 OpenAI API key

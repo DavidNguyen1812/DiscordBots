@@ -102,7 +102,7 @@ Main functionality is integrating Cryptography command to Discord using Open-Sou
 pip install dotenv==0.9.0
 pip install discord-py==2.5.2
 pip install pycryptodome==3.23.0
-pip install vingere==1.1.0
+pip install vingenere==1.1.0
 Discord API key
 
 ## Knight Samson

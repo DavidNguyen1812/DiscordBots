@@ -1426,8 +1426,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                         try:
                             await after.author.send(f"URL {URL} hinted a potential ../ attack!")
                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                        except discord.Forbidden:
-                            logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                        except Exception as error:
+                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                         writingLog(logUserAction)
                         # Advance scan previous message for profanity!
                         await AdvanceBackTrackMessageScan(after)
@@ -1450,8 +1450,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                             try:
                                 await after.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                                 logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                            except discord.Forbidden:
-                                logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                            except Exception as error:
+                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(after)
@@ -1468,8 +1468,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                 try:
                                     await after.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                except discord.Forbidden:
-                                    logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                except Exception as error:
+                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                 writingLog(logUserAction)
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(after)
@@ -1495,8 +1495,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     try:
                                         await after.author.send(f"Your message contains an invalid {gifDomain} URL! Please provide a valid URL!")
                                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except discord.Forbidden:
-                                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                    except Exception as error:
+                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                     writingLog(logUserAction)
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(after)
@@ -1532,8 +1532,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             try:
                                                 await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
                                                 logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                            except discord.Forbidden:
-                                                logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                            except Exception as error:
+                                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                             writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(after)
@@ -1583,8 +1583,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                 try:
                                                     await after.author.send(UrlContentNSFWResultDetails)
                                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                                except discord.Forbidden:
-                                                    logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                                except Exception as error:
+                                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                                 writingLog(logUserAction)
                                                 # Advance scan previous message for profanity!
                                                 await AdvanceBackTrackMessageScan(after)
@@ -1597,8 +1597,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                         try:
                                             await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                        except discord.Forbidden:
-                                            logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                        except Exception as error:
+                                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                         writingLog(logUserAction)
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(after)
@@ -1614,8 +1614,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     try:
                                         await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except discord.Forbidden:
-                                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                    except Exception as error:
+                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                     writingLog(logUserAction)
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(after)
@@ -1635,8 +1635,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                     try:
                         await after.author.send(scanResultDetails)
                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                    except discord.Forbidden:
-                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                    except Exception as error:
+                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                 else:
                     logUserAction += f"\nReedited Message is cleaned!\n\n"
                     print("Message text content is clean!")
@@ -1695,8 +1695,8 @@ async def on_message(message):
                         try:
                             await message.author.send(f"URL {URL} hinted a potential ../ attack!")
                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                        except discord.Forbidden:
-                            logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                        except Exception as error:
+                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                         writingLog(logUserAction)
                         # Advance scan previous message for profanity!
                         await AdvanceBackTrackMessageScan(message)
@@ -1718,8 +1718,8 @@ async def on_message(message):
                             try:
                                 await message.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
                                 logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                            except discord.Forbidden:
-                                logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                            except Exception as error:
+                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
@@ -1736,8 +1736,8 @@ async def on_message(message):
                                 try:
                                     await message.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                except discord.Forbidden:
-                                    logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                except Exception as error:
+                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                 writingLog(logUserAction)
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(message)
@@ -1763,8 +1763,8 @@ async def on_message(message):
                                     try:
                                         await message.author.send(f"Your message contains an invalid {gifDomain} URL! Please provide a valid URL!")
                                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except discord.Forbidden:
-                                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                    except Exception as error:
+                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                     writingLog(logUserAction)
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(message)
@@ -1800,8 +1800,8 @@ async def on_message(message):
                                             try:
                                                 await message.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
                                                 logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                            except discord.Forbidden:
-                                                logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                            except Exception as error:
+                                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                             writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(message)
@@ -1850,8 +1850,8 @@ async def on_message(message):
                                                 try:
                                                     await message.author.send(UrlContentNSFWResultDetails)
                                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                                except discord.Forbidden:
-                                                    logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                                except Exception as error:
+                                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                                 writingLog(logUserAction)
                                                 # Advance scan previous message for profanity!
                                                 await AdvanceBackTrackMessageScan(message)
@@ -1864,8 +1864,8 @@ async def on_message(message):
                                         try:
                                             await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                        except discord.Forbidden:
-                                            logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                        except Exception as error:
+                                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                         writingLog(logUserAction)
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(message)
@@ -1882,8 +1882,8 @@ async def on_message(message):
                                     try:
                                         await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
                                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except discord.Forbidden:
-                                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                    except Exception as error:
+                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                     writingLog(logUserAction)
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(message)
@@ -1903,8 +1903,8 @@ async def on_message(message):
                     try:
                         await message.author.send(scanResultDetails)
                         logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                    except discord.Forbidden:
-                        logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                    except Exception as error:
+                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                     writingLog(logUserAction)
                     await AdvanceBackTrackMessageScan(message)
                     print("Message Content Scan Process Finished!\n\n")
@@ -1933,8 +1933,8 @@ async def on_message(message):
                         try:
                             await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                        except discord.Forbidden:
-                            logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                        except Exception as error:
+                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                         writingLog(logUserAction)
                         print(f"Attachment: {attachment.filename} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         # Advance scan previous message for profanity!
@@ -1956,8 +1956,8 @@ async def on_message(message):
                             try:
                                 await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
                                 logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                            except discord.Forbidden:
-                                logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                            except Exception as error:
+                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                             print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
                             writingLog(logUserAction)
                             # Advance scan previous message for profanity!
@@ -1997,8 +1997,8 @@ async def on_message(message):
                                 try:
                                     await message.author.send(attachmentNSFWResultDetails)
                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                except discord.Forbidden:
-                                    logUserAction += f"\nUser DISABLED DM with Emmanuel, can not send message to inform user why the message was deleted!!!\n\n"
+                                except Exception as error:
+                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                 writingLog(logUserAction)
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(message)

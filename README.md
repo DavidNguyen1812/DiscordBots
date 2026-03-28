@@ -71,7 +71,7 @@ ScrapeOps API key
 ```
   1. Checking for a member message text content AND ASCII content in any document file for any profane words pre-defined in the ProfanityLibWordList.txt with better_profanity and OpenAI model.
 
-  2. Utilizing Pillow, Open CV2 module to convert all images/video frames to PNG format for Nudenet model to scan, if nothing detected, PDF conversion is called and OpenAI model to analyze the PDF frames.
+  2. Utilizing Pillow, Open CV2 module to convert all images/video frames to PNG format for Nudenet model to scan, if nothing detected, PDF conversion is called and REST API request to OpenAI model to analyze the PDF frames.
 
   3. Audio Transcript extraction from audio file with OpenAI GPT-4o-Transcribe model to scan for NSFW audio.
 

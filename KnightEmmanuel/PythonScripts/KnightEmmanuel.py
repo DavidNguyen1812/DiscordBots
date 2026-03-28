@@ -21,6 +21,7 @@ import random
 import asyncio
 import aiohttp
 import aiofiles
+import math
 
 from PIL import Image
 from better_profanity import profanity
@@ -624,8 +625,7 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
         cap = cv2.VideoCapture(mediaPath)
         frameNum = 0
         totalFrames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        if fps == 0: fps = 30
+        fps = math.ceil(totalFrames / 40) # Ensure only 40 frames total is scanned!!!
         print(f"Video has total {totalFrames} frames!")
         while frameNum < totalFrames:
             success, frame = cap.read()
@@ -1056,12 +1056,17 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
     else:
         print("Audio file already in .wav format!")
         waveFilePath = audioPath
-
-    async with aiofiles.open(waveFilePath, "rb") as audioFile:
-        transcription = await GPTclient.audio.transcriptions.create(
-            model="gpt-4o-transcribe",
-            file=await audioFile.read()
-        )
+    try:
+        async with aiofiles.open(waveFilePath, "rb") as audioFile:
+            transcription = await GPTclient.audio.transcriptions.create(
+                model="gpt-4o-transcribe",
+                file=(os.path.basename(waveFilePath), await audioFile.read())
+            )
+    except Exception as Error:
+        print(f"GPT can not transcribe the audio: {Error}")
+        os.remove(waveFilePath)
+        scanResultDetails = "Audio is not transcribable"
+        return False, f"Clean Audio Transcript - {scanResultDetails}"
 
     print(f"Words detected from audio file: {transcription.text}")
     os.remove(waveFilePath)

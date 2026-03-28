@@ -106,6 +106,7 @@ TEXTSCANTOKENLIMIT = 128000
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
+CURRENTSCANOPERATION = {}
 
 SPECIALTEXT = [
     """⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣀⠀
@@ -1486,12 +1487,22 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                         print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         return
 
-                    """Checking if URl is in the clean list or already flagged NSFW"""
-
                     if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                         BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
                     else:
                         BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
+
+                    """Checking if there is another subroutine scanning the same URL"""
+                    if CURRENTSCANOPERATION.get(BasedURLToSave, "") == "In Progress":
+                        print(f"URL {URL} is currently being scanned by other subroutine!")
+                        while True:
+                            await asyncio.sleep(0)
+                            if not CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                break
+                    else:
+                        CURRENTSCANOPERATION[BasedURLToSave] = "In Progress"
+
+                    """Checking if URl is in the clean list or already flagged NSFW"""
                     print(f"URL in SHA512 format: {BasedURLToSave}")
                     if BasedURLToSave in CLEANData.keys():
                         print("The URL already passed the check as clean!\n\n")
@@ -1508,6 +1519,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(after)
                             print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
+                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                del CURRENTSCANOPERATION[BasedURLToSave]
                             return
                         else:
                             """Checking any NSFW hint in the URL query"""
@@ -1526,6 +1539,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(after)
                                 print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                                if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                    del CURRENTSCANOPERATION[BasedURLToSave]
                                 return
                             """Checking Klipy and Tenor Gif"""
                             if URL.startswith(("https://klipy.com/gifs/", "https://tenor.com/view")):
@@ -1553,6 +1568,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(after)
                                     print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                             """Checking if URL is valid!"""
                             try:
@@ -1576,6 +1593,8 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(after)
                                     print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
@@ -1590,21 +1609,17 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                 if hashedURLContent in CLEANData.keys():
                                     print("URL content already pass the scan!")
                                     print("Adding based URL to clean data!")
-                                    await AddingNewCleanData(BasedURLToSave,
-                                                             f"URL content already passed the check - {CLEANData[hashedURLContent]}")
+                                    await AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
                                 else:
-                                    print(
-                                        f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
+                                    print(f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
                                     if hashedURLContent in NSFWData.keys():
                                         await after.delete()
                                         print("URL content already flagged NSFW!")
                                         print(f"Adding based URL to NSFW data!")
-                                        await AddingNewNSFWData(BasedURLToSave,
-                                                                f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
+                                        await AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
                                         logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW! - {NSFWData[hashedURLContent]}"
                                         try:
-                                            await after.author.send(
-                                                f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
+                                            await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
                                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
                                         except Exception as error:
                                             logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
@@ -1612,10 +1627,11 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(after)
                                         print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                        if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                            del CURRENTSCANOPERATION[BasedURLToSave]
                                         return
                                     else:
-                                        URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(
-                                            URL.split('?')[0].lower()))
+                                        URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(URL.split('?')[0].lower()))
                                         FILEDOWNLOADCOUNTER += 1
                                         URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
                                         UrlContentNSFWResult = False
@@ -1625,15 +1641,12 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             scanContent = True
                                             async with ConfigLock:
                                                 if configuration.get(str(after.guild.id), ""):
-                                                    if configuration[str(after.guild.id)]["User-Uncensor-Limit"].get(
-                                                            str(after.author.id), ""):
-                                                        if configuration[str(after.guild.id)]["User-Uncensor-Limit"][
-                                                            str(after.author.id)] > 0:
+                                                    if configuration[str(after.guild.id)]["User-Uncensor-Limit"].get(str(after.author.id), ""):
+                                                        if configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] > 0:
                                                             scanContent = False
                                                             logUserAction += f"\nUser {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!"
                                                             print(f"User {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!")
-                                                            configuration[str(after.guild.id)]["User-Uncensor-Limit"][
-                                                                str(after.author.id)] -= 1
+                                                            configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] -= 1
                                                             async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                                                                 await file.write(json.dumps(configuration, indent=4))
                                             if scanContent:
@@ -1666,7 +1679,10 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             await writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(after)
+                                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                                del CURRENTSCANOPERATION[BasedURLToSave]
                                             return
+
                             else:
                                 print(f"URL is invalid with status code {statuscode}!")
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
@@ -1681,9 +1697,13 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(after)
                                     print("Re-Edit Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
+                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                        del CURRENTSCANOPERATION[BasedURLToSave]
 
             """Scanning message text content with hyperlink removed"""
             if textContent:
@@ -1764,11 +1784,22 @@ async def on_message(message):
                         print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         return
 
-                    """Checking if URl is in the clean list or already flagged NSFW"""
                     if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                         BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
                     else:
                         BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
+
+                    """Checking if there is another subroutine scanning the same URL"""
+                    if CURRENTSCANOPERATION.get(BasedURLToSave, "") == "In Progress":
+                        print(f"URL {URL} is currently being scanned by other subroutine!")
+                        while True:
+                            await asyncio.sleep(0)
+                            if not CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                break
+                    else:
+                        CURRENTSCANOPERATION[BasedURLToSave] = "In Progress"
+
+                    """Checking if URl is in the clean list or already flagged NSFW"""
                     print(f"URL in SHA512 format: {BasedURLToSave}")
                     if BasedURLToSave in CLEANData.keys():
                         print("The URL already passed the check as clean!")
@@ -1785,6 +1816,8 @@ async def on_message(message):
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
                             print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
+                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                del CURRENTSCANOPERATION[BasedURLToSave]
                             return
                         else:
                             """Checking any NSFW hint in the URL query"""
@@ -1803,6 +1836,8 @@ async def on_message(message):
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(message)
                                 print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
+                                if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                    del CURRENTSCANOPERATION[BasedURLToSave]
                                 return
                             """Checking Klipy and Tenor Gif"""
                             if URL.startswith(("https://klipy.com/gifs/", "https://tenor.com/view")):
@@ -1830,6 +1865,8 @@ async def on_message(message):
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(message)
                                     print("Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                             """Checking if URL is valid!"""
                             try:
@@ -1853,6 +1890,8 @@ async def on_message(message):
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(message)
                                     print("Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
@@ -1884,6 +1923,8 @@ async def on_message(message):
                                         # Advance scan previous message for profanity!
                                         await AdvanceBackTrackMessageScan(message)
                                         print("Message Content Scan Process Finished!\n\n")
+                                        if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                            del CURRENTSCANOPERATION[BasedURLToSave]
                                         return
                                     else:
                                         URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(URL.split('?')[0].lower()))
@@ -1934,6 +1975,8 @@ async def on_message(message):
                                             await writingLog(logUserAction)
                                             # Advance scan previous message for profanity!
                                             await AdvanceBackTrackMessageScan(message)
+                                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                                del CURRENTSCANOPERATION[BasedURLToSave]
                                             return
                             else:
                                 print(f"URL is invalid with status code: {statuscode}")
@@ -1949,9 +1992,14 @@ async def on_message(message):
                                     # Advance scan previous message for profanity!
                                     await AdvanceBackTrackMessageScan(message)
                                     print("Message Content Scan Process Finished!\n\n")
+                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                        del CURRENTSCANOPERATION[BasedURLToSave]
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
+                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                        del CURRENTSCANOPERATION[BasedURLToSave]
+
             """Scanning message text content with hyperlink removed"""
             if textContent:
                 print(f"Scanning text content with URL already filtered...")
@@ -2007,6 +2055,17 @@ async def on_message(message):
                     async with Emmanuel.session.get(attachment.url) as response:
                         attachmentContent = await response.read()
                     hashedAttachmentContent = hashlib.sha512(attachmentContent).hexdigest()
+
+                    """Checking if there is another subroutine scanning the same attachment"""
+                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, "") == "In Progress":
+                        print(f"Attachment {attachment.filename} is currently being scanned by other subroutine!")
+                        while True:
+                            await asyncio.sleep(0)
+                            if not CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                break
+                    else:
+                        CURRENTSCANOPERATION[hashedAttachmentContent] = "In Progress"
+
                     print(f"Attachment SHA512 content: {hashedAttachmentContent}")
                     print(f"Checking if attachment content is already in a clean list...")
                     if hashedAttachmentContent in CLEANData.keys():
@@ -2026,6 +2085,8 @@ async def on_message(message):
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
                             print("Scan Process Finished!\n\n")
+                            if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                del CURRENTSCANOPERATION[hashedAttachmentContent]
                             return
                         else:
                             print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
@@ -2065,7 +2126,12 @@ async def on_message(message):
                                 await writingLog(logUserAction)
                                 # Advance scan previous message for profanity!
                                 await AdvanceBackTrackMessageScan(message)
+                                if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                    del CURRENTSCANOPERATION[hashedAttachmentContent]
                                 return
+
+                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                        del CURRENTSCANOPERATION[hashedAttachmentContent]
 
         logUserAction += "\nMessage is cleaned!\n\n"
         await writingLog(logUserAction)

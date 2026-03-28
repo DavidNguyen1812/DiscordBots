@@ -36,8 +36,6 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 
 ## Knight Emmanuel
 
-**NOTE: Code not fully completed, there will be an update of proper using asyn functions for concurrent process**
-
 **Overview**
 
 Main functionality is scanning Discord text message and media file attachment for any NSFW content utilizing OpenAI LLM vision model via stateless REST API call and open source pre-trained NSFW model Nudenet.
@@ -60,6 +58,7 @@ pip install scikit-learn==1.7.1
 pip install selenium-wire==5.1.0
 pip install blinker==1.7.0
 pip install webdriver-manager==4.0.2
+pip install aiofiles == 25.1.0
 Need ffmpeg installed
 Discord API key
 OpenAI API key
@@ -85,16 +84,18 @@ ScrapeOps API key
   7. Using selenium wire with ScrapeOPS fake browser headers to retrieve website HTML content for NSFW analyzation.
 
   8. Integration of Tenor and Klipy for authenticated Tenor and Klipy gifs retrieval for scan.
+
+  9. Application commands for the server/bot owner to control which member or chat channel to be monitored or not by Knight Emmanuel.
 ```
 
 **Limitations**
 
 ```
-  1. Emmanuel only limited to scan certain file formats noted in the source code.
+  1. Emmanuel only limited to scan certain file formats as NOTED in the source code.
 
   2. File content that exceed OpenAI input token limitation per model used WILL NOT BE SCANNED!!
 
-  3. The image, video and archive file scan speed is not very fast and efficient.
+  3. The image, video and archive file scan speed is not very fast.
 ```
 
 ## Knight Nexus

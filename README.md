@@ -36,6 +36,8 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 
 ## Knight Emmanuel
 
+**NOTE: Code not fully completed, there will be an update of proper using asyn functions for concurrent process**
+
 **Overview**
 
 Main functionality is scanning Discord text message and media file attachment for any NSFW content utilizing OpenAI LLM vision model via stateless REST API call and open source pre-trained NSFW model Nudenet.

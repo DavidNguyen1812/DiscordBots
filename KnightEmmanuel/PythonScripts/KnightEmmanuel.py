@@ -414,7 +414,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     with open(PDFimagePath, "rb") as PDFfile:
         fileResponse = await GPTclient.files.create(file=PDFfile, purpose="assistants")
         fileID = fileResponse.id
-    prompt = ("Is the following PDF pages have any nude elements, vulgar language, sexual theme, the exposure of animal genitalia,"
+    prompt = ("Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
               " animal porn, reference to adult or NSFW websites, or even consider NSFW? Please taking into account that people in light clothing like thongs and bikini SHOULD BE consider NSFW!\n"
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!"
               )

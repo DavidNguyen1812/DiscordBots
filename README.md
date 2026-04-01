@@ -113,10 +113,10 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord
 
 **System Requirements**
 pip install pillow==11.3.0
-pip install requests==2.32.4
 pip install discord-py==2.5.2
 pip install openai==2.26.0
 pip install google-genai==1.66.0
+pip install aiofiles == 25.1.0
 Discord API key
 OpenAI API key
 Google Gemini API key

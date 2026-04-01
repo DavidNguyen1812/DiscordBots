@@ -118,20 +118,34 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord.
 
 ```
 /add_command -> Increase/Decrease member current application command usage
+
 /get_user_list_of_permissions -> Get a list of all server permissions assigned to a member (NOTE: Samson must have higher role than the member for this command to work)
+
 /samson -> Introduce the bot and it purpose
+
 /roleplay -> Configure LLM response style of user choice
+
 /clear_last_message -> Delete last specified number of messages (NOTE: Samson must have permission to delete message)
+
 /clear_all_message -> Delete all messages in the past in a server channel (NOTE: Samson must have permission to delete message)
+
 /clear_user_message -> Delete last sepcified number of messages from a specific user ((NOTE: Samson must have permission to delete message)
+
 /react -> Make Samson react with standard Discord emojis to a message
+
 /direct_message -> Make Samson send a customized DM to a user in the server (NOTE: User must enable DM with Samson)
+
 /clear_samson_dm_messages -> Delete all of Samson past DM messages
+
 /openai_gpt_chat -> Integrating OpenAI GPT chat models. This works with picture and text prompt.
+
 /google_gemini_chat -> Integrating Google Gemini chat models. This works with picture and text prompt.
+
 /openai_gpt_audio -> Integrating OpenAI audio models. This works with audio and text prompt.
+
 /google_gemini_audio -> Integrating Google Gemini audio TTS models. This works with ONLY text prompt.
 ```
+
 **System Requirements**
 
 ```
@@ -144,3 +158,9 @@ Discord API key
 OpenAI API key
 Google Gemini API key
 ```
+**Key Features**
+
+```
+
+```
+

@@ -128,11 +128,13 @@ emoji_pattern = re.compile(
     "|[\U0001F100-\U0001F64F]",  # Emoji modifiers
     flags=re.UNICODE)
 
+OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
+
 def is_emoji(char):
     return bool(emoji_pattern.match(char))
 
 with open(CONFIGFILEPATH, "r") as readFile:
-    user_list = json.load(readFile)
+    SamsonConfig = json.load(readFile)
 
 
 @Samson.event
@@ -152,11 +154,11 @@ async def on_ready():
     async with ConfigLock:
         for guild in Samson.guilds:
             for member in guild.members:
-                if not user_list.get(str(member.id), ""):
-                    user_list[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval"}
+                if not SamsonConfig.get(str(member.id), ""):
+                    SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": []}
                     print(f"Adding user: {member.name} - ID: {member.id} from server: {guild.name} - ID: {guild.id} to Samson Configuration File")
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-                await file.write(json.dumps(user_list, indent=4))
+                await file.write(json.dumps(SamsonConfig, indent=4))
 
     update_user_command_limit.start()
 
@@ -192,12 +194,12 @@ async def CheckingUserCurrentCommandUsage(userid: int) -> bool:
     :return: True, if user usage is not 0, else False
     """
     async with ConfigLock:
-        if userid == 987765832895594527: # Bot owner has no limit (Replace this with your Discord User ID)
+        if userid == OWNER_DISCORD_USER_ID: # Bot owner has no limit
             return True
-        if user_list[str(userid)]["Current command usage limit"] > 0:
-            user_list[str(userid)]["Current command usage limit"] -= 1
+        if SamsonConfig[str(userid)]["Current command usage limit"] > 0:
+            SamsonConfig[str(userid)]["Current command usage limit"] -= 1
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-                await file.write(json.dumps(user_list, indent=4))
+                await file.write(json.dumps(SamsonConfig, indent=4))
             return True
         return False
 
@@ -411,7 +413,6 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
         return reply.choices[0].message.audio.data
 
 
-
 def isDMChannel(channel: int) -> bool:
     """
     Description: Checking if the channel from which the application is called is a public server or a DM with Samson
@@ -427,17 +428,16 @@ def isDMChannel(channel: int) -> bool:
 @tasks.loop(hours=24)  # A task every 24 hours
 async def update_user_command_limit():
     async with ConfigLock:
-        for userId in user_list:
-            user_list[userId]["Current command usage limit"] = COMMAND_USAGE
-
+        for userId in SamsonConfig:
+            SamsonConfig[userId]["Current command usage limit"] = COMMAND_USAGE
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(user_list, indent=4))
+            await file.write(json.dumps(SamsonConfig, indent=4))
 
 
 # Command for Bot Owner ONLY!
 @Samson.tree.command(
     name="add_command",
-    description="Adding additional command usage to a mentioned user in the server. Creator Only Command!!!"
+    description="Adding additional command usage to a mentioned user in the server. Bot Owner Only Command!!!"
 )
 @app_commands.describe(
     username="Mention a user in the server, e.g., @user123",
@@ -445,13 +445,13 @@ async def update_user_command_limit():
 )
 async def add_command(ctx, username: discord.User, value: int):
     await ctx.response.defer(ephemeral=True)
-    if ctx.user.id == 987765832895594527: # Put your Discord ID here, if you're the owner of the bot
+    if ctx.user.id == OWNER_DISCORD_USER_ID:
 
         async with ConfigLock:
-            user_list[str(username.id)]["Current command usage limit"] += value
+            SamsonConfig[str(username.id)]["Current command usage limit"] += value
 
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-                await file.write(json.dumps(user_list, indent=4))
+                await file.write(json.dumps(SamsonConfig, indent=4))
 
         await LoggingCommandBeingExecuted(ctx.user.name, f"/add_command {username} {value}\nCommand Status: Approved")
         await ctx.followup.send("Command Successfully Executed!")
@@ -463,12 +463,12 @@ async def add_command(ctx, username: discord.User, value: int):
 # Command for Bot Owner ONLY!
 @Samson.tree.command(
     name="get_user_list_of_permissions",
-    description="Get the permissions granted to a mentioned user in the server. Creator Only Command!!!"
+    description="Get the permissions granted to a mentioned user in the server. Bot Owner Only Command!!!"
 )
 @app_commands.describe(member="Mention a user in the server, e.g., @user123")
 async def get_user_list_of_permissions(ctx, member: discord.User):
     await ctx.response.defer(ephemeral=True)
-    if ctx.user.id == 987765832895594527: # Put your Discord ID here, if you're the owner of the bot
+    if ctx.user.id == OWNER_DISCORD_USER_ID:
         if not isDMChannel(ctx.channel):
             memberPermissions = member.guild_permissions
             permissionList = []
@@ -484,36 +484,137 @@ async def get_user_list_of_permissions(ctx, member: discord.User):
         await ctx.followup.send("This command can only be used by the owner of this bot!")
 
 
+# Command for Bot Owner ONLY!
+@Samson.tree.command(
+    name="application_command_config",
+    description="Permanently Ban or Unban a member from the server to use certain application command!"
+)
+@app_commands.describe(
+    action="Ban or unban a member from the server to use certain application command",
+    member="Mention a user in the server, e.g., @user123",
+    application_command="What application command from the list to be banned?"
+)
+async def application_command_config(ctx, action: Literal["BAN", "UNBAN"], member: discord.User, application_command: Literal["/samson", "/clear_last_message", "/clear_all_message", "/clear_user_message", "/react", "/direct_message", "/customized_gif_generator", "/openai_gpt_chat", "/google_gemini_chat", "/openai_gpt_audio", "/google_gemini_audio"]):
+    await ctx.response.defer(ephemeral=True)
+    if ctx.user.id == OWNER_DISCORD_USER_ID:
+        if not isDMChannel(ctx.channel):
+            async with ConfigLock:
+                if SamsonConfig.get(str(member.id), ""):
+                    if action == "BAN":
+                        if application_command in SamsonConfig[str(member.id)]["Banned Application Commands"]:
+                            await ctx.followup.send(f"User {member.name} has already been permanently banned from using {application_command}!")
+                        else:
+                            SamsonConfig[str(member.id)]["Banned Application Commands"].append(application_command)
+                            await ctx.followup.send(f"User {member.name} is permanently banned from using {application_command}!")
+                            try:
+                                await member.send(f"You have been banned from using {application_command} by my owner!")
+                            except Exception:
+                                pass
+                    else:
+                        if application_command not in SamsonConfig[str(member.id)]["Banned Application Commands"]:
+                            await ctx.followup.send(f"User {member.name} has already been unbanned and allowed to use {application_command}!")
+                        else:
+                            SamsonConfig[str(member.id)]["Banned Application Commands"].remove(application_command)
+                            await ctx.followup.send(f"User {member.name} is unbanned and allowed to use {application_command}!")
+                            try:
+                                await member.send(f"You have been unbanned from using {application_command} by my owner!")
+                            except Exception:
+                                pass
+                else:
+                    if action == "BAN":
+                        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [application_command]}
+                        await ctx.followup.send(
+                            f"User {member.name} is permanently banned from using {application_command}!")
+                        try:
+                            await member.send(f"You have been banned from using {application_command} by my owner!")
+                        except Exception:
+                            pass
+                    else:
+                        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": []}
+                        await ctx.followup.send(f"User {member.name} is unbanned and allowed to use {application_command}!")
+                async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                    await file.write(json.dumps(SamsonConfig, indent=4))
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/application_command_config {action} {member} {application_command}\nCommand Status: Approved")
+        else:
+            await LoggingCommandBeingExecuted(ctx.user.name, f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs in DM channel")
+            await ctx.followup.send("Command can not work in DM channel")
+    else:
+        await LoggingCommandBeingExecuted(ctx.user.name,f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ctx.followup.send("This command can only be used by the owner of this bot!")
+
+
+# Command for Bot Owner ONLY!
+@Samson.tree.command(
+    name="view_application_command_config",
+    description="Viewing Samson current application command configuration"
+)
+async def view_application_command_config(ctx):
+    await ctx.response.defer(ephemeral=True)
+    if ctx.user.id == OWNER_DISCORD_USER_ID:
+        if not isDMChannel(ctx.channel):
+            async with ConfigLock:
+                report = ""
+                for member in ctx.guild.members:
+                    report += f"User {member.name} -ID {member.id} is permanently banned from using the following application commands:\n"
+                    if SamsonConfig.get(str(member.id), ""):
+                        for applicationCommand in SamsonConfig[str(member.id)]["Banned Application Commands"]:
+                            report += f"{applicationCommand}\n"
+                        report += "\n\n"
+                    else:
+                        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": []}
+                if len(report) > 1500:
+                    buffer = BytesIO()
+                    buffer.write(report.encode('utf-8'))
+                    buffer.seek(0)
+                    replyFile = discord.File(fp=buffer, filename="applicationCommandConfig.txt")
+                    await ctx.followup.send("", file=replyFile)
+                else:
+                    await ctx.followup.send(report)
+                async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                    await file.write(json.dumps(SamsonConfig, indent=4))
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Approved")
+        else:
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Denied/Command runs in DM channel")
+            await ctx.followup.send("Command can not work in DM channel")
+    else:
+        await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ctx.followup.send("This command can only be used by the owner of this bot!")
+
+
 @Samson.tree.command(
     name="samson",
     description="Get Information about Knight Samson."
 )
 async def samson(ctx):
-    await ctx.response.defer()  # Prevent interaction from timing out
+    await ctx.response.defer(ephemeral=True)
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Approved")
-            await ctx.followup.send(
-                "I am a knight designed by Sir David Nguyen with ChatGPT and Google Gemini REST API to interact with user through Direct "
-                "Message or in a Server. I have certain commands ONLY WORK in a SERVER CHANNEL. All commands can "
-                f"only be used {COMMAND_USAGE} times daily!\n"
-                "Command List:\n"
-                "/samson\n"
-                "/roleplay\n"
-                "/openai_gpt_chat\n"
-                "/google_gemini_chat\n"
-                "/openai_gpt_audio\n"
-                "/google_gemini_audio\n"
-                "/clear_last_message\n"
-                "/clear_all_message\n"
-                "/clear_user_message\n"
-                "/react\n"
-                "/direct_message\n"
-                "/customized_gif_generator\n"
-                "/clear_samson_dm_messages")
+        if "/samson" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Approved")
+                await ctx.followup.send(
+                    "I am a knight designed by Sir David Nguyen with ChatGPT and Google Gemini REST API to interact with user through Direct "
+                    "Message or in a Server. I have certain commands ONLY WORK in a SERVER CHANNEL. All commands can "
+                    f"only be used {COMMAND_USAGE} times daily!\n"
+                    "Command List:\n"
+                    "/samson\n"
+                    "/roleplay\n"
+                    "/openai_gpt_chat\n"
+                    "/google_gemini_chat\n"
+                    "/openai_gpt_audio\n"
+                    "/google_gemini_audio\n"
+                    "/clear_last_message\n"
+                    "/clear_all_message\n"
+                    "/clear_user_message\n"
+                    "/react\n"
+                    "/direct_message\n"
+                    "/customized_gif_generator\n"
+                    "/clear_samson_dm_messages")
+            else:
+                await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await LoggingCommandBeingExecuted(ctx.user.name,"/samson\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
@@ -527,16 +628,16 @@ async def samson(ctx):
 async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Modern Day", "Military", "Horror", "Fitness Coach", "Viking", "Samurai", "Comedian"]):
     await ctx.response.defer(ephemeral=True)
     async with ConfigLock:
-        if user_list[str(ctx.user.id)]["Samson Roleplay"] == role:
+        if SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] == role:
             await ctx.followup.send(f"I'm already configured to role play as {role}")
             await LoggingCommandBeingExecuted(ctx.user.name,f"/roleplay {role}\nCommand Status: Denied/Samson already configured to the selected roleplay!")
         else:
-            user_list[str(ctx.user.id)]["Samson Roleplay"] = role
+            SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] = role
             reply = gpt_text_and_picture_inputs_only("Introduce yourself as Samson", ctx.user.name, "gpt-4o", INSTRUCTION_LISTS[role])
             await ctx.followup.send(reply)
             await LoggingCommandBeingExecuted(ctx.user.name, f"/roleplay {role}\nCommand Status: Approved")
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(user_list, indent=4))
+            await file.write(json.dumps(SamsonConfig, indent=4))
 
 
 """
@@ -743,50 +844,55 @@ async def openai_gpt_chat(ctx, message: str,
                   model: Literal["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4.0-mini", "o4-mini", "o3"],
                   keep_secret: Literal["Yes", "No"],
                   file_attachment: discord.Attachment = None):
-
-    if keep_secret == "Yes":
-        await ctx.response.defer(ephemeral=True)
-    else:
-        await ctx.response.defer()
-
-    instruction = INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]
+    instruction = INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]]
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            if file_attachment is not None:
-                async with Samson.session.get(file_attachment.url) as response:
-                    fileContent = await response.read()
-                mime = magic.from_buffer(fileContent, mime=True)
-                fileExt = mimetypes.guess_extension(mime)
-                if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
-                    await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
-                    await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
-                    return
-                if fileExt.endswith(".pdf"):
-                    filePath = f"./{random.randint(0,9999)}.pdf"
-                    async with aiofiles.open(filePath, "wb") as PDFfile:
-                        await PDFfile.write(fileContent)
-                    fileContent = [filePath, "PDF"]
+        if "/openai_gpt_chat" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if keep_secret == "Yes":
+                await ctx.response.defer(ephemeral=True)
+            else:
+                await ctx.response.defer()
+
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                if file_attachment is not None:
+                    async with Samson.session.get(file_attachment.url) as response:
+                        fileContent = await response.read()
+                    mime = magic.from_buffer(fileContent, mime=True)
+                    fileExt = mimetypes.guess_extension(mime)
+                    if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
+                        await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
+                        await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
+                        return
+                    if fileExt.endswith(".pdf"):
+                        filePath = f"./{random.randint(0,9999)}.pdf"
+                        async with aiofiles.open(filePath, "wb") as PDFfile:
+                            await PDFfile.write(fileContent)
+                        fileContent = [filePath, "PDF"]
+                    else:
+                        fileContent = [base64.b64encode(fileContent).decode("utf-8"), "IMAGE"]
                 else:
-                    fileContent = [base64.b64encode(fileContent).decode("utf-8"), "IMAGE"]
+                    fileContent = ""
+                if fileContent:
+                    reply = await gpt_text_and_picture_inputs_only(message, ctx.user.name, model, instruction, fileContent)
+                else:
+                    reply = await gpt_text_and_picture_inputs_only(message, ctx.user.name, model, instruction)
+                if len(reply) > 1500:
+                    buffer = BytesIO()
+                    buffer.write(reply.encode('utf-8'))
+                    buffer.seek(0)
+                    replyFile = discord.File(fp=buffer, filename="reply.txt")
+                    await ctx.followup.send("The answer exceeds 1500 words. Here is the answer in a text file format!", file=replyFile)
+                else:
+                    await ctx.followup.send(reply)
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Approved")
             else:
-                fileContent = ""
-            if fileContent:
-                reply = await gpt_text_and_picture_inputs_only(message, ctx.user.name, model, instruction, fileContent)
-            else:
-                reply = await gpt_text_and_picture_inputs_only(message, ctx.user.name, model, instruction)
-            if len(reply) > 1500:
-                buffer = BytesIO()
-                buffer.write(reply.encode('utf-8'))
-                buffer.seek(0)
-                replyFile = discord.File(fp=buffer, filename="reply.txt")
-                await ctx.followup.send("The answer exceeds 1500 words. Here is the answer in a text file format!", file=replyFile)
-            else:
-                await ctx.followup.send(reply)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Approved")
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await ctx.response.defer(ephemeral=True)
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
+        await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
@@ -829,41 +935,46 @@ async def google_gemini_chat(ctx, message: str,
                         keep_secret: Literal["Yes", "No"],
                         file_attachment: discord.Attachment = None):
 
-    if keep_secret == "Yes":
-        await ctx.response.defer(ephemeral=True)
-    else:
-        await ctx.response.defer()
-
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            if file_attachment is not None:
-                async with Samson.session.get(file_attachment.url) as response:
-                    fileContent = await response.read()
-                mime = magic.from_buffer(fileContent, mime=True)
-                fileExt = mimetypes.guess_extension(mime)
-                if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
-                    await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
-                    await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
-                    return
-                filePath = f"./{random.randint(0, 999999)}{fileExt}"
-                async with aiofiles.open(filePath, "wb") as file:
-                    await file.write(fileContent)
-                reply = await gemini_text_and_picture_and_audio_only(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model, filePath)
+        if "/google_gemini_chat" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if keep_secret == "Yes":
+                await ctx.response.defer(ephemeral=True)
             else:
-                reply = await gemini_text_and_picture_and_audio_only(f"{message}\n{INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model)
-            if len(reply) > 1500:
-                buffer = BytesIO()
-                buffer.write(reply.encode('utf-8'))
-                buffer.seek(0)
-                replyFile = discord.File(fp=buffer, filename="reply.txt")
-                await ctx.followup.send("", file=replyFile)
+                await ctx.response.defer()
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                if file_attachment is not None:
+                    async with Samson.session.get(file_attachment.url) as response:
+                        fileContent = await response.read()
+                    mime = magic.from_buffer(fileContent, mime=True)
+                    fileExt = mimetypes.guess_extension(mime)
+                    if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
+                        await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
+                        await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
+                        return
+                    filePath = f"./{random.randint(0, 999999)}{fileExt}"
+                    async with aiofiles.open(filePath, "wb") as file:
+                        await file.write(fileContent)
+                    reply = await gemini_text_and_picture_and_audio_only(f"{message}\n{INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model, filePath)
+                else:
+                    reply = await gemini_text_and_picture_and_audio_only(f"{message}\n{INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]]}", ctx.user.name, model)
+                if len(reply) > 1500:
+                    buffer = BytesIO()
+                    buffer.write(reply.encode('utf-8'))
+                    buffer.seek(0)
+                    replyFile = discord.File(fp=buffer, filename="reply.txt")
+                    await ctx.followup.send("", file=replyFile)
+                else:
+                    await ctx.followup.send(reply)
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Approved")
             else:
-                await ctx.followup.send(reply)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Approved")
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await ctx.response.defer(ephemeral=True)
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
+        await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
@@ -907,45 +1018,51 @@ async def openai_gpt_audio(ctx, message: str,
                              keep_secret: Literal["Yes", "No"],
                              input_options: Literal["Audio and Prompt Inputs ONLY", "Prompt Input ONLY"],
                              file_attachment: discord.Attachment = None):
-    if keep_secret == "Yes":
-        await ctx.response.defer(ephemeral=True)
-    else:
-        await ctx.response.defer()
 
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            if input_options.startswith("Audio and Prompt Inputs ONLY"):
-                if file_attachment is None:
-                    await ctx.followup.send("Please upload your an audio input in WAV or MP3 format!")
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User did not provide audio input!")
-                    return
-                else:
-                    async with Samson.session.get(file_attachment.url) as response:
-                        fileContent = await response.read()
-                    mime = magic.from_buffer(fileContent, mime=True)
-                    fileExt = mimetypes.guess_extension(mime)
-                    if not fileExt.endswith((".wav", ".mp3")):
-                        await ctx.followup.send("Please upload your audio attachment in WAV or MP3 format!")
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Unaccepted File Format!")
-                        return
-                    reply = (await gpt_text_and_audio_only([message, base64.b64encode(fileContent).decode("utf-8"), fileExt.replace(".", "")], ctx.user.name, model, INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]], "text-output"))
-                    if len(reply) > 1500:
-                        buffer = BytesIO()
-                        buffer.write(reply.encode('utf-8'))
-                        buffer.seek(0)
-                        replyFile = discord.File(fp=buffer, filename="reply.txt")
-                        await ctx.followup.send("", file=replyFile)
-                    else:
-                        await ctx.followup.send(reply)
+        if "/openai_gpt_audio" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if keep_secret == "Yes":
+                await ctx.response.defer(ephemeral=True)
             else:
-                result = await gpt_text_and_audio_only([message], ctx.user.name, model, INSTRUCTION_LISTS[user_list[str(ctx.user.id)]["Samson Roleplay"]], "audio-output")
-                audioFile = discord.File(fp=BytesIO(base64.b64decode(result)), filename="SamsonResponse.wav")
-                await ctx.followup.send("", file=audioFile)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Approved")
+                await ctx.response.defer()
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                if input_options.startswith("Audio and Prompt Inputs ONLY"):
+                    if file_attachment is None:
+                        await ctx.followup.send("Please upload your an audio input in WAV or MP3 format!")
+                        await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User did not provide audio input!")
+                        return
+                    else:
+                        async with Samson.session.get(file_attachment.url) as response:
+                            fileContent = await response.read()
+                        mime = magic.from_buffer(fileContent, mime=True)
+                        fileExt = mimetypes.guess_extension(mime)
+                        if not fileExt.endswith((".wav", ".mp3")):
+                            await ctx.followup.send("Please upload your audio attachment in WAV or MP3 format!")
+                            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Unaccepted File Format!")
+                            return
+                        reply = (await gpt_text_and_audio_only([message, base64.b64encode(fileContent).decode("utf-8"), fileExt.replace(".", "")], ctx.user.name, model, INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]], "text-output"))
+                        if len(reply) > 1500:
+                            buffer = BytesIO()
+                            buffer.write(reply.encode('utf-8'))
+                            buffer.seek(0)
+                            replyFile = discord.File(fp=buffer, filename="reply.txt")
+                            await ctx.followup.send("", file=replyFile)
+                        else:
+                            await ctx.followup.send(reply)
+                else:
+                    result = await gpt_text_and_audio_only([message], ctx.user.name, model, INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]], "audio-output")
+                    audioFile = discord.File(fp=BytesIO(base64.b64decode(result)), filename="SamsonResponse.wav")
+                    await ctx.followup.send("", file=audioFile)
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Approved")
+            else:
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await ctx.response.defer(ephemeral=True)
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
+        await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
@@ -978,23 +1095,29 @@ GOOGLE GEMINI INFO:
 async def google_gemini_audio(ctx, message: str,
                              model: Literal["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"],
                              keep_secret: Literal["Yes", "No"]):
-    if keep_secret == "Yes":
-        await ctx.response.defer(ephemeral=True)
-    else:
-        await ctx.response.defer()
 
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            await gemini_text_and_picture_and_audio_only(message, ctx.user.name, model, audio=True)
-            async with asyncio.Lock():
-                AudioFile = discord.File(fp="SamsonResponse.wav", filename="SamsonResponse.wav")
-                await ctx.followup.send("", file=AudioFile)
-                os.remove(f"SamsonResponse.wav")
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Approved")
+        if "/google_gemini_audio" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if keep_secret == "Yes":
+                await ctx.response.defer(ephemeral=True)
+            else:
+                await ctx.response.defer()
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                await gemini_text_and_picture_and_audio_only(message, ctx.user.name, model, audio=True)
+                async with asyncio.Lock():
+                    AudioFile = discord.File(fp="SamsonResponse.wav", filename="SamsonResponse.wav")
+                    await ctx.followup.send("", file=AudioFile)
+                    os.remove(f"SamsonResponse.wav")
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Approved")
+            else:
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await ctx.response.defer(ephemeral=True)
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
+        await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
@@ -1005,9 +1128,9 @@ async def google_gemini_audio(ctx, message: str,
 )
 @app_commands.describe(messagenum="How many previous message you want to delete?")
 async def clear_last_message(ctx, messagenum: int):
-    await ctx.response.defer(ephemeral=True)  # Prevent timing out of the process if it takes longer than 3 seconds
-    if ctx.user.id != 341248287296454677:  # Specified the Discord User ID of a banned member from using this application command!!!
-        if not isDMChannel(ctx.channel):
+    await ctx.response.defer(ephemeral=True)
+    if not isDMChannel(ctx.channel):
+        if "/clear_last_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 await ctx.channel.purge(limit=messagenum)
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Approved")
@@ -1016,11 +1139,11 @@ async def clear_last_message(ctx, messagenum: int):
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs in DM channel")
-            await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_last_message {messagenum}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs by unauthorized user")
-        await ctx.followup.send("You are banned from using this command!")
+        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs in DM channel")
+        await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
 @Samson.tree.command(
@@ -1028,9 +1151,9 @@ async def clear_last_message(ctx, messagenum: int):
     description="Delete all messages."
 )
 async def clear_all_message(ctx):
-    await ctx.response.defer(ephemeral=True)  # Prevent timing out of the process if takes longer than 3 seconds
-    if ctx.user.id != 341248287296454677:  # Specified the Discord User ID of a banned member from using this application command!!!
-        if not isDMChannel(ctx.channel):
+    await ctx.response.defer(ephemeral=True)
+    if not isDMChannel(ctx.channel):
+        if "/clear_all_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 async for message in ctx.channel.history():  # Fetch message history
                     await message.delete()
@@ -1040,11 +1163,11 @@ async def clear_all_message(ctx):
                 await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/Command runs in DM channel")
-            await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
+            await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_all_message\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/Command runs by unauthorized user")
-        await ctx.followup.send("You are banned from using this command!")
+        await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/Command runs in DM channel")
+        await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
 @Samson.tree.command(
@@ -1056,9 +1179,9 @@ async def clear_all_message(ctx):
     messagenum="How many previous message you want to delete?"
 )
 async def clear_user_message(ctx, user: discord.User, messagenum: int):
-    if ctx.user.id != 341248287296454677:  # Specified the Discord User ID of a banned member to use this application command!!!
-        await ctx.response.defer()  # Prevent interaction from timing out
-        if not isDMChannel(ctx.channel):
+    if not isDMChannel(ctx.channel):
+        if "/clear_user_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            await ctx.response.defer()
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 counter = 0
                 async for message in ctx.channel.history():  # Fetch message history
@@ -1067,17 +1190,18 @@ async def clear_user_message(ctx, user: discord.User, messagenum: int):
                         counter += 1
                     if counter == messagenum:
                         break
-                await ctx.followup.send("Command Successfully Executed!")
+                await ctx.followup.send(f"Last {messagenum} messages from {user.name} has been deleted!")
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Approved")
             else:
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs in DM channel")
-            await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
+            await ctx.response.defer(ephemeral=True)
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_user_message {user}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs by unauthorized user")
-        await ctx.followup.send("You are banned from using this command!")
+        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs in DM channel")
+        await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
 @Samson.tree.command(
@@ -1091,31 +1215,35 @@ async def clear_user_message(ctx, user: discord.User, messagenum: int):
     emote="Make sure to select a valid emote, NOTE: Custom emoji will not work! "
 )
 async def react(ctx, username: discord.User, num: int, userinput: Literal["React", "Remove"],emote: str):
-    await ctx.response.defer(ephemeral=True)  # Prevent interaction from timing out
+    await ctx.response.defer(ephemeral=True)
     if not isDMChannel(ctx.channel):
-        counter = 0
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            emote = emote.split(' ')
-            async for message in ctx.channel.history():
-                if message.author.name == username.name:
-                    if userinput == "React":
-                        counter += 1
-                        for i in range(len(emote)):
-                            if is_emoji(emote[i]):  # Check if emote is an emoji and of length 2
-                                await message.add_reaction(emote[i])
-                            else:
-                                pass
-                    else:
-                        if message.reactions:  # Check if the message has at least 1 reaction
+        if "/react" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            counter = 0
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                emote = emote.split(' ')
+                async for message in ctx.channel.history():
+                    if message.author.name == username.name:
+                        if userinput == "React":
                             counter += 1
-                            await message.clear_reactions()
-                    if counter == num:
-                        break
-            await ctx.followup.send(f"Command Successfully Executed!")
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Approved")
+                            for i in range(len(emote)):
+                                if is_emoji(emote[i]):  # Check if emote is an emoji and of length 2
+                                    await message.add_reaction(emote[i])
+                                else:
+                                    pass
+                        else:
+                            if message.reactions:  # Check if the message has at least 1 reaction
+                                counter += 1
+                                await message.clear_reactions()
+                        if counter == num:
+                            break
+                await ctx.followup.send(f"Command Successfully Executed!")
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Approved")
+            else:
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/User reached daily limit usage")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/User reached daily limit usage")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
@@ -1130,22 +1258,26 @@ async def react(ctx, username: discord.User, num: int, userinput: Literal["React
     message="Your message to be delivered by Knight Samson."
 )
 async def direct_message(ctx, member: discord.User, message: str):
-    await ctx.response.defer(ephemeral=True)  # Prevent interaction from timing out
+    await ctx.response.defer(ephemeral=True)
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            try:
-                await member.send(f"User {ctx.user.name} want me to send you message:\n{message}")
-                await ctx.followup.send(f"Mesasage is delivered!")
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Approved")
-            except discord.Forbidden:
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
-                await ctx.followup.send(f"I can't DM {member.name}. User might have DMs disabled.")
-            except Exception as e:
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
-                await ctx.followup.send(f"An error occurred: {e}")
+        if "/direct_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                try:
+                    await member.send(f"User {ctx.user.name} want me to send you message:\n{message}")
+                    await ctx.followup.send(f"Message is delivered!")
+                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Approved")
+                except discord.Forbidden:
+                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
+                    await ctx.followup.send(f"I can't DM {member.name}. User might have DMs disabled.")
+                except Exception as e:
+                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
+                    await ctx.followup.send(f"An error occurred: {e}")
+            else:
+                await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
+                await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
-            await ctx.followup.send(f"You have reached the daily maximum command usage!")
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
@@ -1223,41 +1355,45 @@ async def customized_gif_generator(ctx, zip_file: discord.Attachment, gif_name: 
 
     await ctx.response.defer()
     if not isDMChannel(ctx.channel):
-        if await CheckingUserCurrentCommandUsage(ctx.user.id):
-            isZipFile = False
-            async with Samson.session.get(zip_file.url) as response:
-                zipContent = await response.read()
-            if zipContent.startswith(b'PK\x03\x04'):
-                isZipFile = True
-            if isZipFile:
-                GifDirectory = str(random.randint(0, 9999))
-                os.mkdir(GifDirectory)
-                zipPath = f"./{GifDirectory}/{str(random.randint(0, 9999))}"
-                async with aiofiles.open(zipPath, "wb") as data:
-                    await data.write(zipContent)
-                statusCode = await asyncio.to_thread(SafePngExtraction, zipPath, GifDirectory)
-                if statusCode.startswith("Error 1"):
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment can cause ../ attack")
-                    await ctx.followup.send("Your zip file contains uncompressed content hinted directory transversal attack!")
-                elif statusCode.startswith("Error 2"):
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment uncompressed size exceeds 1GB")
-                    await ctx.followup.send(f"Your zip file uncompressed size of {statusCode.split(':')[-1]} bytes exceeds 1GB")
-                elif statusCode.startswith("Error 3"):
-                    await ctx.followup.send(f"There is no PNG frames in the zip file!")
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment does not have any PNG frames!")
+        if "/customized_gif_generator" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
+            if await CheckingUserCurrentCommandUsage(ctx.user.id):
+                isZipFile = False
+                async with Samson.session.get(zip_file.url) as response:
+                    zipContent = await response.read()
+                if zipContent.startswith(b'PK\x03\x04'):
+                    isZipFile = True
+                if isZipFile:
+                    GifDirectory = str(random.randint(0, 9999))
+                    os.mkdir(GifDirectory)
+                    zipPath = f"./{GifDirectory}/{str(random.randint(0, 9999))}"
+                    async with aiofiles.open(zipPath, "wb") as data:
+                        await data.write(zipContent)
+                    statusCode = await asyncio.to_thread(SafePngExtraction, zipPath, GifDirectory)
+                    if statusCode.startswith("Error 1"):
+                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment can cause ../ attack")
+                        await ctx.followup.send("Your zip file contains uncompressed content hinted directory transversal attack!")
+                    elif statusCode.startswith("Error 2"):
+                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment uncompressed size exceeds 1GB")
+                        await ctx.followup.send(f"Your zip file uncompressed size of {statusCode.split(':')[-1]} bytes exceeds 1GB")
+                    elif statusCode.startswith("Error 3"):
+                        await ctx.followup.send(f"There is no PNG frames in the zip file!")
+                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment does not have any PNG frames!")
+                    else:
+                        GifFile = discord.File(fp=f'{GifDirectory}/{gif_name}.gif', filename=f"{gif_name}.gif")
+                        await ctx.followup.send(f"Please NOTE that the accuracy of the generated gif is depend on how you "
+                                                f"organize the gif frames by names before you compressed them into a zip file",
+                                                file=GifFile)
+                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Approved")
+                        shutil.rmtree(GifDirectory)
                 else:
-                    GifFile = discord.File(fp=f'{GifDirectory}/{gif_name}.gif', filename=f"{gif_name}.gif")
-                    await ctx.followup.send(f"Please NOTE that the accuracy of the generated gif is depend on how you "
-                                            f"organize the gif frames by names before you compressed them into a zip file",
-                                            file=GifFile)
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Approved")
-                    shutil.rmtree(GifDirectory)
+                    await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Attachment not a zip file!")
+                    await ctx.followup.send("Please upload a zip file only!")
             else:
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Attachment not a zip file!")
-                await ctx.followup.send("Please upload a zip file only!")
+                await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User reached daily usage limit")
+                await ctx.followup.send("You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User reached daily usage limit")
-            await ctx.followup.send("You have reached the daily maximum command usage!")
+            await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User is banned from using this application command")
+            await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
@@ -1284,11 +1420,11 @@ async def clear_samson_dm_messages(ctx):
 @Samson.event
 async def on_member_join(member):
     async with ConfigLock:
-        user_list[str(member.id)]["Current command usage limit"] = COMMAND_USAGE
-        user_list[str(member.id)]["Samson Roleplay"] = "Medieval"
+        SamsonConfig[str(member.id)]["Current command usage limit"] = COMMAND_USAGE
+        SamsonConfig[str(member.id)]["Samson Roleplay"] = "Medieval"
 
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(user_list, indent=4))
+            await file.write(json.dumps(SamsonConfig, indent=4))
 
     guild = member.guild
     channel = guild.system_channel or guild.text_channels[0]
@@ -1299,9 +1435,9 @@ async def on_member_join(member):
 @Samson.event
 async def on_member_remove(member):
     async with ConfigLock:
-        del user_list[str(member.id)]
+        del SamsonConfig[str(member.id)]
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(user_list, indent=4))
+            await file.write(json.dumps(SamsonConfig, indent=4))
 
     guild = member.guild
     channel = guild.system_channel or guild.text_channels[0]
@@ -1319,7 +1455,7 @@ async def on_message(message):
         return
 
     if isDMChannel(message.channel):
-        reply = await gpt_text_and_picture_inputs_only(message.content, message.author.name, "gpt-5.4", INSTRUCTION_LISTS[user_list[str(message.author.id)]["Samson Roleplay"]])
+        reply = await gpt_text_and_picture_inputs_only(message.content, message.author.name, "gpt-5.4", INSTRUCTION_LISTS[SamsonConfig[str(message.author.id)]["Samson Roleplay"]])
         if len(reply) > 1500:
             buffer = BytesIO()
             buffer.write(reply.encode('utf-8'))

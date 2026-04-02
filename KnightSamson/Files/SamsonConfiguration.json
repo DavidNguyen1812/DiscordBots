@@ -1,1 +1,17 @@
-{}
+{
+    "UserDiscordUserID1": {
+        "Current command usage limit": 7,
+        "Samson Roleplay": "Medieval",
+        "Banned Application Commands": []
+    },
+    "UserDiscordUserID2": {
+        "Current command usage limit": 7,
+        "Samson Roleplay": "Samurai",
+        "Banned Application Commands": ["/clear_last_message"]
+    },
+    "UserDiscordUserID3": {
+        "Current command usage limit": 7,
+        "Samson Roleplay": "Viking",
+        "Banned Application Commands": ["/openai_gpt_chat"]
+    }
+}

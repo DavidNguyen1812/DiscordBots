@@ -66,6 +66,30 @@ Tenor API key
 Klipy API key
 ScrapeOps API key
 ```
+
+**Application Commands**
+
+```
+/emmanuel
+/clear_emmanuel_dm_messages -> Clear all Emmanuel DM messages
+
+/list_supported_file -> Show all file formats that Emmanuel can process
+
+The following commands can only be used by the server owner or the bot owner only!
+
+/uncensored_members -> List all server members that are on the server uncensored list
+
+/add_uncensored_member -> Add a server member to the server uncensored list
+
+/remove_uncensored_member -> Remove a server member from the server uncensored list
+
+/add_uncensored_channel -> Add a server channel to the server uncensored list. This tells Emmanuel to not bother monitoring that specific server channel.
+
+/remove_uncensored_channel -> Add a server channel from the server uncensored list.
+
+/uncensored_channels -> List all uncensored channles that are on the server uncensored list
+```
+
 **Key Features**
 
 ```
@@ -112,7 +136,20 @@ Discord API key
 
 **Overview**
 
-Main functionality is integrating OpenAI and Google Gemini models to Discord.
+Main functionality is integrating OpenAI and Google Gemini models to Discord. Samson can also manage server channel by reacting to user message, deleting channel messages **ONLY WITH GRANTED PERMISSION**, DM user and interacting with user DM with OpenAI chat model **ONLY WHEN USER ENABLE DM WITH SAMSON**.
+
+**System Requirements**
+
+```
+pip install pillow==11.3.0
+pip install discord-py==2.5.2
+pip install openai==2.26.0
+pip install google-genai==1.66.0
+pip install aiofiles == 25.1.0
+Discord API key
+OpenAI API key
+Google Gemini API key
+```
 
 **Application Commands**
 
@@ -125,7 +162,7 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord.
 
 /roleplay -> Configure LLM response style of user choice
 
-/clear_last_message -> Delete last specified number of messages (NOTE: Samson must have permission to delete message)
+/clear_last_message -> Delete last specified number of messages in a server channel (NOTE: Samson must have permission to delete message)
 
 /clear_all_message -> Delete all messages in the past in a server channel (NOTE: Samson must have permission to delete message)
 
@@ -144,23 +181,5 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord.
 /openai_gpt_audio -> Integrating OpenAI audio models. This works with audio and text prompt.
 
 /google_gemini_audio -> Integrating Google Gemini audio TTS models. This works with ONLY text prompt.
-```
-
-**System Requirements**
-
-```
-pip install pillow==11.3.0
-pip install discord-py==2.5.2
-pip install openai==2.26.0
-pip install google-genai==1.66.0
-pip install aiofiles == 25.1.0
-Discord API key
-OpenAI API key
-Google Gemini API key
-```
-**Key Features**
-
-```
-
 ```
 

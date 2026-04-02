@@ -154,6 +154,10 @@ Google Gemini API key
 **Application Commands**
 
 ```
+/view_application_command_config -> Viewing Samson application command configuration
+
+/application_command_config -> Permanently ban or unban a member in the server to use specific Samson's application command(s)
+
 /add_command -> Increase/Decrease member current application command usage
 
 /get_user_list_of_permissions -> Get a list of all server permissions assigned to a member (NOTE: Samson must have higher role than the member for this command to work)

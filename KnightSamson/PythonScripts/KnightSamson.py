@@ -347,7 +347,6 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
                 wf.setsampwidth(2)
                 wf.setframerate(24000)
                 wf.writeframes(data)
-
         reply = response.text
         totalOutputTokenCount = response.usage_metadata.total_token_count - totalInputTokenCount
         logMessage += f"\nGemini {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
@@ -495,7 +494,7 @@ async def samson(ctx):
         if await CheckingUserCurrentCommandUsage(ctx.user.id):
             await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Approved")
             await ctx.followup.send(
-                "I am a knight designed by Sir David Nguyen with ChatGPT and Google Gemini API to interact with user through Direct "
+                "I am a knight designed by Sir David Nguyen with ChatGPT and Google Gemini REST API to interact with user through Direct "
                 "Message or in a Server. I have certain commands ONLY WORK in a SERVER CHANNEL. All commands can "
                 f"only be used {COMMAND_USAGE} times daily!\n"
                 "Command List:\n"
@@ -504,6 +503,7 @@ async def samson(ctx):
                 "/openai_gpt_chat\n"
                 "/google_gemini_chat\n"
                 "/openai_gpt_audio\n"
+                "/google_gemini_audio\n"
                 "/clear_last_message\n"
                 "/clear_all_message\n"
                 "/clear_user_message\n"
@@ -987,8 +987,7 @@ async def google_gemini_audio(ctx, message: str,
         if await CheckingUserCurrentCommandUsage(ctx.user.id):
             await gemini_text_and_picture_and_audio_only(message, ctx.user.name, model, audio=True)
             async with asyncio.Lock():
-                async with aiofiles.open(f"SamsonResponse.wav", "rb") as audioFile:
-                    AudioFile = discord.File(fp=await audioFile.read(), filename="SamsonResponse.wav")
+                AudioFile = discord.File(fp="SamsonResponse.wav", filename="SamsonResponse.wav")
                 await ctx.followup.send("", file=AudioFile)
                 os.remove(f"SamsonResponse.wav")
             await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Approved")

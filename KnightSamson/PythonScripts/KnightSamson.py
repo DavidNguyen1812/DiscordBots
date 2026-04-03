@@ -586,7 +586,7 @@ async def view_application_command_config(ctx):
     description="Get Information about Knight Samson."
 )
 async def samson(ctx):
-    await ctx.response.defer(ephemeral=True)
+    await ctx.response.defer()
     if not isDMChannel(ctx.channel):
         if "/samson" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):

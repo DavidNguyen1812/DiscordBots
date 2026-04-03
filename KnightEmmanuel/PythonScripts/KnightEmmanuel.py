@@ -477,7 +477,7 @@ async def isTenorURLValid(gifURL: str) -> str:
         async with Emmanuel.session.get(gifURL) as response:
             if response.status == 200:
                 data = await response.json()
-                if data["result"]:
+                if data["results"]:
                     gifUrl = data["results"][0]["media_formats"]["gif"]["url"]
                     return gifUrl
             return "Invalid"

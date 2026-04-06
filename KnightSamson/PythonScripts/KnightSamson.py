@@ -11,7 +11,6 @@ import random
 import wave
 import re
 import asyncio
-import aiohttp
 import aiofiles
 
 
@@ -71,21 +70,12 @@ MODELINPUTTOKENLIMIT = {
                         "gemini-2.5-pro-preview-tts": 8192
                        }
 
-"""Initialize aiohttp.ClientSession in setUpHook"""
-class SamsonBot(commands.Bot):
-    async def setup_hook(self):
-        self.session = aiohttp.ClientSession()
-        print("aiohttp ClientSession initialized.")
-
-    async def close(self):
-        await super().close()
-        await self.session.close()
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""
 GPTclient = AsyncOpenAI(api_key=GPTAPI)
 GEMINIclient = genai.Client()
 intents = discord.Intents.all()
-Samson = SamsonBot(command_prefix='/', intents=intents)
+Samson = commands.Bot(command_prefix='/', intents=intents)
 
 """Initializing asyncio locks for Thread-Safe File I/O to prevent race conditions"""
 ConfigLock = asyncio.Lock()
@@ -854,8 +844,7 @@ async def openai_gpt_chat(ctx, message: str,
 
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 if file_attachment is not None:
-                    async with Samson.session.get(file_attachment.url) as response:
-                        fileContent = await response.read()
+                    fileContent = await file_attachment.read()
                     mime = magic.from_buffer(fileContent, mime=True)
                     fileExt = mimetypes.guess_extension(mime)
                     if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
@@ -943,8 +932,7 @@ async def google_gemini_chat(ctx, message: str,
                 await ctx.response.defer()
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 if file_attachment is not None:
-                    async with Samson.session.get(file_attachment.url) as response:
-                        fileContent = await response.read()
+                    fileContent = await file_attachment.read()
                     mime = magic.from_buffer(fileContent, mime=True)
                     fileExt = mimetypes.guess_extension(mime)
                     if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
@@ -1032,8 +1020,7 @@ async def openai_gpt_audio(ctx, message: str,
                         await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User did not provide audio input!")
                         return
                     else:
-                        async with Samson.session.get(file_attachment.url) as response:
-                            fileContent = await response.read()
+                        fileContent = await file_attachment.read()
                         mime = magic.from_buffer(fileContent, mime=True)
                         fileExt = mimetypes.guess_extension(mime)
                         if not fileExt.endswith((".wav", ".mp3")):
@@ -1357,12 +1344,8 @@ async def customized_gif_generator(ctx, zip_file: discord.Attachment, gif_name: 
     if not isDMChannel(ctx.channel):
         if "/customized_gif_generator" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
-                isZipFile = False
-                async with Samson.session.get(zip_file.url) as response:
-                    zipContent = await response.read()
+                zipContent = await zip_file.read()
                 if zipContent.startswith(b'PK\x03\x04'):
-                    isZipFile = True
-                if isZipFile:
                     GifDirectory = str(random.randint(0, 9999))
                     os.mkdir(GifDirectory)
                     zipPath = f"./{GifDirectory}/{str(random.randint(0, 9999))}"

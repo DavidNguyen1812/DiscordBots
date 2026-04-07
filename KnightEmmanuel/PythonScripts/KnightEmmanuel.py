@@ -1682,7 +1682,6 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                             if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
                                                 del CURRENTSCANOPERATION[BasedURLToSave]
                                             return
-
                             else:
                                 print(f"URL is invalid with status code {statuscode}!")
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
@@ -2076,57 +2075,58 @@ async def on_message(message):
                             del CURRENTSCANOPERATION[hashedAttachmentContent]
                         return
                     else:
+                        scanContent = True
                         async with ConfigLock:
                             if configuration.get(str(message.guild.id), ""):
                                 if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), ""):
-                                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"][
-                                        str(message.author.id)] > 0:
+                                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
+                                        scanContent = False
                                         logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
                                         print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!")
                                         configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
                                         async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                                             await file.write(json.dumps(configuration, indent=4))
-                                else:
-                                    print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
-                                    attachmentFileExt = checkingRealFileExtension(attachmentContent, attachment.filename.lower())
-                                    FILEDOWNLOADCOUNTER += 1
-                                    AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
-                                    attachmentNSFWResult = False
-                                    attachmentNSFWResultDetails = ""
-                                    print(f"Attachment file extension: {attachmentFileExt}")
-                                    if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
-                                        if attachmentFileExt.endswith(ARCHIVEFORMATS):
-                                            attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
-                                        elif attachmentFileExt.endswith(DOCUMENTFILES):
-                                            print(f"Scanning ASCII text in file content...")
-                                            if attachmentFileExt.endswith(".html"):
-                                                attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'), False, True)
-                                            else:
-                                                attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'))
-                                            if attachmentNSFWResult:
-                                                attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
-                                                await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
-                                            else:
-                                                await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
-                                        else:
-                                            attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
+                        if scanContent:
+                            print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
+                            attachmentFileExt = checkingRealFileExtension(attachmentContent, attachment.filename.lower())
+                            FILEDOWNLOADCOUNTER += 1
+                            AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
+                            attachmentNSFWResult = False
+                            attachmentNSFWResultDetails = ""
+                            print(f"Attachment file extension: {attachmentFileExt}")
+                            if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
+                                if attachmentFileExt.endswith(ARCHIVEFORMATS):
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
+                                elif attachmentFileExt.endswith(DOCUMENTFILES):
+                                    print(f"Scanning ASCII text in file content...")
+                                    if attachmentFileExt.endswith(".html"):
+                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'), False, True)
                                     else:
-                                        await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
-                                    print("Scan Process Finished!\n\n")
+                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'))
                                     if attachmentNSFWResult:
-                                        await message.delete()
-                                        logUserAction += f"\nMessage is deleted for having at least 1 NSFW attachment! - {attachmentNSFWResultDetails}"
-                                        try:
-                                            await message.author.send(attachmentNSFWResultDetails)
-                                            logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                        except Exception as error:
-                                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                        await writingLog(logUserAction)
-                                        # Advance scan previous message for profanity!
-                                        await AdvanceBackTrackMessageScan(message)
-                                        if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                                            del CURRENTSCANOPERATION[hashedAttachmentContent]
-                                        return
+                                        attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
+                                        await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
+                                    else:
+                                        await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
+                                else:
+                                    attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
+                            else:
+                                await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
+                            print("Scan Process Finished!\n\n")
+                            if attachmentNSFWResult:
+                                await message.delete()
+                                logUserAction += f"\nMessage is deleted for having at least 1 NSFW attachment! - {attachmentNSFWResultDetails}"
+                                try:
+                                    await message.author.send(attachmentNSFWResultDetails)
+                                    logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
+                                except Exception as error:
+                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
+                                    await writingLog(logUserAction)
+                                    # Advance scan previous message for profanity!
+                                    await AdvanceBackTrackMessageScan(message)
+                                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                        del CURRENTSCANOPERATION[hashedAttachmentContent]
+                                    return
 
                 if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
                     del CURRENTSCANOPERATION[hashedAttachmentContent]

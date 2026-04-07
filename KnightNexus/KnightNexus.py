@@ -1,7 +1,5 @@
 import discord
 from MultiEncryption import *
-import re
-import requests
 import hashlib
 import os
 import vigenere
@@ -24,8 +22,6 @@ DISCORDAPI = os.environ.get("NEXUSDISCORDAPI")
 
 intents = discord.Intents.all()
 client = commands.Bot(command_prefix='/', intents=intents)
-# Regex pattern to detect URLs in messages
-url_pattern = re.compile(r'(https?://\S+)')
 
 
 
@@ -47,31 +43,32 @@ async def on_ready():
     name="nexus",
     description="Get Information about Knight Nexus"
 )
-async def Nexus(ctx):
-    await ctx.response.send_message \
-        ("I am a knight designed by Sir David Nguyen with a some built-in fun Cryptographic commands as shown below."
-         " Please note that for security reason, all messages from me are temporary and only visible to user that request"
-         " the commands!"
-         "\nCommand List:\n"
-         "/clear_nexus_dm_messages\n"
-         "/david_cipher\n"
-         "/rc4\n"
-         "/hash\n"
-         "/morse_decode\n"
-         "/tap_code_decode\n"
-         "/rail_fence_cipher\n"
-         "/random_string_subs_cipher\n"
-         "/vigenere_cipher\n"
-         "/square_code\n"
-         "/text_book_rsa_key_generation\n"
-         "/textbook_rsa_cipher\n"
-         "/crypto_rsa_key_generation\n"
-         "/crypto_rsa_cipher\n"
-         "/crypto_aes_ocb_key_generation\n"
-         "/crypto_aes_ocb_cipher\n"
-         "/crypto_rsa_digital_signature\n"
-         "/crypto_ecc_key_generation\n"
-         "/crypto_ecdsa")
+async def nexus(ctx):
+    await ctx.response.defer(ephemeral=True)
+    await ctx.followup.send(
+        "I am a knight designed by Sir David Nguyen with a some built-in fun Cryptographic commands as shown below."
+        " Please note that for security reason, all messages from me are temporary and only visible to user that request"
+        " the commands!"
+        "\nCommand List:\n"
+        "/clear_nexus_dm_messages\n"
+        "/david_cipher\n"
+        "/rc4\n"
+        "/hash\n"
+        "/morse_decode\n"
+        "/tap_code_decode\n"
+        "/rail_fence_cipher\n"
+        "/random_string_subs_cipher\n"
+        "/vigenere_cipher\n"
+        "/square_code\n"
+        "/text_book_rsa_key_generation\n"
+        "/textbook_rsa_cipher\n"
+        "/crypto_rsa_key_generation\n"
+        "/crypto_rsa_cipher\n"
+        "/crypto_aes_ocb_key_generation\n"
+        "/crypto_aes_ocb_cipher\n"
+        "/crypto_rsa_digital_signature\n"
+        "/crypto_ecc_key_generation\n"
+        "/crypto_ecdsa")
 
 
 @client.tree.command(
@@ -79,16 +76,11 @@ async def Nexus(ctx):
     description="Delete all direct messages sent by Knight Nexus to you"
 )
 async def clear_nexus_dm_messages(ctx):
-    await ctx.response.defer()
+    await ctx.response.defer(ephemeral=True)
     async for message in ctx.user.history():
         if message.author == client.user:
             await message.delete()
-    if str(ctx.channel.type).startswith("private"):
-        async for message in ctx.user.history(limit=1):
-            if message.author == client.user:
-                await message.delete()
-    else:
-        await ctx.channel.purge(limit=1)
+    await ctx.followup.send("All DM messages by me have been deleted.")
 
 
 @client.tree.command(
@@ -559,73 +551,5 @@ async def crypto_ecdsa(ctx, message: str, key: discord.Attachment, operation: Li
                 await ctx.followup.send(f"ECC key is not on a NIST P curve")
     except ValueError:
         await ctx.followup.send(f"You must provide an ECC with NIST p-curve key to sign or verify the message!")
-
-
-
-@client.event
-async def on_message(message):
-    return
-    # Find URLs in the message -> Credit to GPT for 100% of the code
-    urls = url_pattern.findall(message.content)
-    if urls:
-        for url in urls:
-            if "gif" not in url:
-                try:
-                    # Make a request to the URL (this simulates visiting the link)
-                    response = requests.get(url)
-                    # Check if the link is reachable
-                    if response.status_code == 200:
-                        await message.channel.send(f'URL is reachable!')
-                    else:
-                        await message.channel.send(f'Failed to reach the URL (status code: {response.status_code})')
-                except requests.exceptions.RequestException as e:
-                    await message.channel.send(f'Error reaching URL: ({e})')
-
-        for url in urls:
-            if "gif" not in url:
-                secureMeasure = 3
-                await message.channel.send(f"Analyzing the URL...")
-
-                # Step 1: Check if the URL uses HTTPS (secure)
-                if url.startswith('https://'):
-                    await message.channel.send(f"The link uses HTTPS (secure).")
-                else:
-                    secureMeasure -= 1
-                    await message.channel.send(f"The link uses HTTP (not secure).")
-
-                try:
-                    # Step 2: Make a request to the URL to fetch its SSL certificate information and headers
-                    response = requests.get(url, timeout=5, verify=True)  # Verify SSL certificate
-                    await message.channel.send(f"Successfully connected to URL")
-
-                    # Step 3: Check if security headers are present (e.g., HSTS)
-                    if 'Strict-Transport-Security' in response.headers:
-                        await message.channel.send(
-                            f"Site enforces HSTS (Strict-Transport-Security): {response.headers['Strict-Transport-Security']}")
-                    else:
-                        secureMeasure -= 1
-                        await message.channel.send(f"Site does not enforce HSTS (Strict-Transport-Security).")
-
-                    # Step 4: Check if SSL certificate is valid (using response history for any redirections)
-                    if response.history:
-                        await message.channel.send(
-                            f"The site was redirected {len(response.history)} time(s), ensure the final URL is "
-                            f"also secure.")
-                    else:
-                        await message.channel.send(f"SSL Certificate is valid and secure.")
-
-                except requests.exceptions.SSLError:
-                    await message.channel.send(f"SSL Certificate verification failed! The connection is not"
-                                               f" secure.")
-                except requests.exceptions.RequestException as e:
-                    await message.channel.send(f"Error visiting the link: {e}")
-
-                if secureMeasure != 3:
-                    await message.channel.send(f"The URL is not safe to visit!")
-                else:
-                    await message.channel.send(f"The URL is safe to visit!")
-
-    await client.process_commands(message)
-
 
 client.run(DISCORDAPI)

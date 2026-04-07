@@ -102,6 +102,7 @@ WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 131180743562703673
 FILEDOWNLOADCOUNTER = 0
 IMAGESCANTOKENLIMIT = 400000
 TEXTSCANTOKENLIMIT = 128000
+OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
@@ -1178,13 +1179,14 @@ async def AdvanceBackTrackMessageScan(message: discord.Message) -> None:
     description="Get Information about Knight Emmanuel."
 )
 async def emmanuel(ctx):
-    await ctx.response.send_message("I'm a knight designed by Sir David Nguyen with a purpose of scanning message, audio, "
-                                    "photo, gif, and video attachment in Server Channel that I am authorized to detect "
-                                    "inappropriate content using OpenAI LLMs, delete them, and annoy you with a DM warning"
-                                    " to stop sending NSFW content! I won't response to any Direct Messages!!!\n"
-                                    "If you like to delete DM messages from me, use the command /clear_emmanuel_dm_messages.\n"
-                                    "I have limitation to certain file formats that I am capable of scanning. The list can be checked "
-                                    "by the command /list_supported_file.")
+    await ctx.response.defer(ephemeral=True)
+    await ctx.followup.send("I'm a knight designed by Sir David Nguyen with a purpose of scanning message, audio, "
+                            "photo, gif, and video attachment in Server Channel that I am authorized to detect "
+                            "inappropriate content using OpenAI LLMs, delete them, and annoy you with a DM warning"
+                            " to stop sending NSFW content! I won't response to any Direct Messages!!!\n"
+                            "If you like to delete DM messages from me, use the command /clear_emmanuel_dm_messages.\n"
+                            "I have limitation to certain file formats that I am capable of scanning. The list can be checked "
+                            "by the command /list_supported_file.")
 
 
 @Emmanuel.tree.command(
@@ -1192,7 +1194,8 @@ async def emmanuel(ctx):
     description="Get a list of file formats Emmanuel can scan"
 )
 async def list_supported_file(ctx):
-    await ctx.response.send_message(
+    await ctx.response.defer(ephemeral=True)
+    await ctx.followup.send(
         "Image Formats: .jpg, .png, .jpeg, .raw, .pdf, .bmp, .webp, .tiff, .tif, .ico, .icns, .avif, .odd, .eps, .gif\n"
         "Video Formats: .mp4, .mov, .mkv, .avi, .m4v, .flv, .mpeg, mpg, .ts, .wmv, .dv, .mts, .m2ts, .vob, .ogv\n"
         "Audio Formats: .mp3, .wav, .oga, .m4a, .flac, .weba, .aac, .ac3, .aif, .aiff, .aifc, .amr, .au, .caf, .m4a,"
@@ -1207,16 +1210,12 @@ async def list_supported_file(ctx):
     description="Delete all direct messages sent by Knight Emmanuel to you"
 )
 async def clear_emmanuel_dm_messages(ctx):
-    await ctx.response.defer()
+    await ctx.response.defer(ephemeral=True)
     async for message in ctx.user.history():
         if message.author == Emmanuel.user:
             await message.delete()
-    if str(ctx.channel.type).startswith("private"):
-        async for message in ctx.user.history(limit=1):
-            if message.author == Emmanuel.user:
-                await message.delete()
-    else:
-        await ctx.channel.purge(limit=1)
+    await ctx.followup.send("All DM messages by me have been deleted.")
+
 
 @tasks.loop(hours=24)  # A task every 24 hours
 async def reset_user_uncensor_value():
@@ -1290,7 +1289,7 @@ async def add_uncensored_member(ctx, member: discord.Member):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/add_uncensored_member can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             async with ConfigLock:
                 if member.id not in configuration[str(ctx.guild.id)]["Uncensored-members"]:
@@ -1316,7 +1315,7 @@ async def remove_uncensored_member(ctx, member: discord.Member):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/remove_uncensored_member can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             async with ConfigLock:
                 if member.id not in configuration[str(ctx.guild.id)]["Uncensored-members"]:
@@ -1341,7 +1340,7 @@ async def add_uncensored_channel(ctx):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/add_uncensored_channel can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             async with ConfigLock:
                 if ctx.channel.id in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
@@ -1366,7 +1365,7 @@ async def remove_uncensored_channel(ctx):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/remove_uncensored_channel can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             async with ConfigLock:
                 if ctx.channel.id not in configuration[str(ctx.guild.id)]["Uncensored-channels"]:
@@ -1390,7 +1389,7 @@ async def uncensored_members(ctx):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/uncensored_members can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             members = ""
             async with ConfigLock:
@@ -1416,7 +1415,7 @@ async def uncensored_channels(ctx):
     if str(ctx.channel.type).startswith("private"):
         await ctx.followup.send("/uncensored_channels can only be used in server channels!")
     else:
-        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == 987765832895594527:
+        if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
             await checkServerExistInConfigFile(str(ctx.guild.id))
             channels = ""
             async with ConfigLock:

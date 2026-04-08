@@ -155,15 +155,27 @@ Discord API key
 
 /vigenere_cipher -> A symmetric Vigenere's cipher
 
-/text_book_rsa_key_generation -> A key derivation following the textbook RSA algorithm
+/text_book_rsa_key_generation -> A key derivation for the textbook RSA algorithm
 
 /textbook_rsa_cipher -> An assymetric textbook RSA algorithm
 
-/crypto_rsa_key_generation -> A key derivation following standard RSA algorithm
+/crypto_rsa_key_generation -> A key derivation for standard RSA algorithm
 
-/crypto_aes_ocb_key_generation -> A key derivation of symmetric AES cryptographic with OCB (Offset Code Block) mode for data confidentiality and integrity
+/crypto_aes_ocb_key_generation -> A key derivation for symmetric AES cryptographic algorithm with OCB (Offset Code Block) mode for data confidentiality and integrity
 
-/crypto_aes_ocb_cipher -> A  
+/crypto_aes_ocb_cipher -> A symmetric AES cryptographic with OCB (Offset Code Block) mode for data confidentiality and integrity
+
+/clear_nexus_dm_messages -> Deleting all past DM messages from Nexus (Knight Nexus was designed with no DM functionailty, this command serve in case Nexus send DM to the user about encrytion key, ..etc..)
+
+/crypto_ecc_key_generation -> A key derivation for assymetric ECC cryptographic algorithm
+
+/crypto_rsa_pkcs1_oaep_cipher -> An assymetric RSA cryptographic algorithm in Pkcs1_oaep mode
+
+/crypto_pss_rsa_digital_signature -> A digital signature with RSA
+
+/crypto_ecdsa -> A digital signature for ECC
+
+/square_code -> A symmetric square code cryptographic algorithm 
 ```
 
 ## Knight Samson

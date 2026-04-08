@@ -70,7 +70,8 @@ ScrapeOps API key
 **Application Commands**
 
 ```
-/emmanuel
+/emmanuel -> Introduce the bot and it purpose
+
 /clear_emmanuel_dm_messages -> Clear all Emmanuel DM messages
 
 /list_supported_file -> Show all file formats that Emmanuel can process
@@ -126,11 +127,44 @@ The following commands can only be used by the server owner or the bot owner onl
 Main functionality is integrating Cryptography command to Discord using Open-Source Python Crypto Library pycryptodome
 
 **System Requirement**
+```
 pip install dotenv==0.9.0
 pip install discord-py==2.5.2
 pip install pycryptodome==3.23.0
 pip install vigenere==1.1.0
 Discord API key
+```
+
+**Application Commands**
+```
+/nexus -> Introduce the bot and it purpose
+
+/david_cipher -> A symmetric self-made cryptographic algorithm by me with a combination of Ceasar's shift and random list shuffle
+
+/rc4 -> A legacy symmetric encryption used in previous TLS/SSL, HTTPS, WiFi WEP, VPN, and file encryption
+
+/hash_func -> Providing hash multiple hash algorithms from MD5, SHA1, SHA2, SHA3, SHAKE, and BLAKE
+
+/morse_decode -> Decoding a Morse code
+
+/tap_code_decode -> Decoding a Tap code
+
+/rail_fence_cipher -> A symmetric rail fence cryptographic algorithm
+
+/random_string_subs_cipher -> A symmetric Caesar's cipher with random shift
+
+/vigenere_cipher -> A symmetric Vigenere's cipher
+
+/text_book_rsa_key_generation -> A key derivation following the textbook RSA algorithm
+
+/textbook_rsa_cipher -> An assymetric textbook RSA algorithm
+
+/crypto_rsa_key_generation -> A key derivation following standard RSA algorithm
+
+/crypto_aes_ocb_key_generation -> A key derivation of symmetric AES cryptographic with OCB (Offset Code Block) mode for data confidentiality and integrity
+
+/crypto_aes_ocb_cipher -> A  
+```
 
 ## Knight Samson
 

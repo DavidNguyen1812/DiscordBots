@@ -1114,23 +1114,20 @@ async def google_gemini_audio(ctx, message: str,
 )
 @app_commands.describe(messagenum="How many previous message you want to delete?")
 async def clear_last_message(ctx, messagenum: int):
+    await ctx.response.defer(ephemeral=True)
     if not isDMChannel(ctx.channel):
         if "/clear_last_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 await ctx.response.defer()
-                await ctx.channel.purge(limit=messagenum)
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Approved")
                 await ctx.followup.send("Command Successfully Executed!")
             else:
-                await ctx.response.defer(ephemeral=True)
                 await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await ctx.response.defer(ephemeral=True)
             await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_last_message {messagenum}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 

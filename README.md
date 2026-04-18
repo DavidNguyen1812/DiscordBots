@@ -22,7 +22,7 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
 ├── KnightNexus                                             # Discord Bot with Python Cryptography modules
 │   ├── KnightNexus.py                                      # Nexus source code in Python
-│   └── MultiEncryption.py                                  # Separate Python Code that contains pre-built Crypto functions for Nexus to use
+│   └── NexusCryptoUtilities.py                             # Separate Python Code that contains all the essential crypto utilities for Nexus to use
 ├── KnightSamson                                            # Discord Bot with OpenAI and Google Gemini integration
 │   ├── Files                                               # Essential files to run Samson
 │   │   ├── CommandUsageLogFile.txt                         # A log file that log detail an event a user calling Samson application command

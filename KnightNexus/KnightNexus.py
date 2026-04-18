@@ -1,20 +1,18 @@
 import discord
-from MultiEncryption import *
-import hashlib
+from NexusCryptoUtilities import *
 import os
-import vigenere
+import asyncio
 
 from discord.ext import commands
 from discord import app_commands
 from typing import Literal
 from dotenv import load_dotenv
-from io import BytesIO
 from Crypto.Hash import SHA256
 from Crypto.Signature import pss
 from Crypto.Signature import DSS
 from Crypto.Random import get_random_bytes
-from Crypto.PublicKey import RSA
-from Crypto.PublicKey import ECC
+from vigenere import encrypt, decrypt
+from hashlib import sha1, sha224, sha256, sha384, sha512, sha3_256, sha3_384, sha3_512, shake_128, shake_256, blake2b, blake2s, md5
 
 load_dotenv()
 
@@ -97,7 +95,7 @@ async def david_cipher(ctx, userinput: str, operation: Literal["encrypt", "decry
     try:
         key = str(key)
         if operation == "encrypt":
-            result = DavidEncryption(userinput)
+            result = await asyncio.to_thread(DavidEncryption, userinput)
         else:
             if len(key) == 2 or len(key) == 3:
                 if len(key) == 2:
@@ -105,7 +103,7 @@ async def david_cipher(ctx, userinput: str, operation: Literal["encrypt", "decry
             else:
                 await ctx.followup.send(f"Invalid key length!")
                 return
-            result = DavidDecipher(userinput, key)
+            result = await asyncio.to_thread(DavidDecipher, userinput, key)
         if operation == "encrypt":
             await ctx.followup.send(f"Your Cipher Text is: {result.split(':')[0]}"
                                     f"\nYour Key is: {result.split(':')[1]}")
@@ -130,11 +128,11 @@ async def rc4(ctx, i: int, j: int, userinput: str, operation: Literal["encrypt",
     await ctx.response.defer(ephemeral=True)
     try:
         if operation == "encrypt":
-            await ctx.followup.send(f"Your Cipher Text in Hex Format is: {RC4(True, i, j, userinput)}\n"
+            await ctx.followup.send(f"Your Cipher Text in Hex Format is: {await asyncio.to_thread(RC4, True, i, j, userinput)}\n"
                                     f"Your key is: i = {i} and j = {j}")
         else:
             userinput = ''.join(userinput.split(" ")).split("0x")[1::]
-            await ctx.followup.send(f"Your Text is: {RC4(False, i, j, userinput)}")
+            await ctx.followup.send(f"Your Text is: {await asyncio.to_thread(RC4, False, i, j, userinput)}")
     except Exception as error:
         await ctx.followup.send(f"Error processing your request: {error}\nSome of the input format could be not "
                                 f"correct!")
@@ -155,31 +153,31 @@ async def hash_func(ctx,
     await ctx.response.defer(ephemeral=True)
     hashText = ''
     if hash_type == "sha1":
-        hashText = hashlib.sha1(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha1, input_text.encode())).hexdigest()
     elif hash_type == "sha224":
-        hashText = hashlib.sha224(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha224, input_text.encode())).hexdigest()
     elif hash_type == "sha256":
-        hashText = hashlib.sha256(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha256, input_text.encode())).hexdigest()
     elif hash_type == "sha384":
-        hashText = hashlib.sha384(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha384, input_text.encode())).hexdigest()
     elif hash_type == "sha512":
-        hashText = hashlib.sha512(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha512, input_text.encode())).hexdigest()
     elif hash_type == "sha3_256":
-        hashText = hashlib.sha3_256(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha3_256, input_text.encode())).hexdigest()
     elif hash_type == "sha3_384":
-        hashText = hashlib.sha3_384(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha3_384, input_text.encode())).hexdigest()
     elif hash_type == "sha3_512":
-        hashText = hashlib.sha3_512(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(sha3_512, input_text.encode())).hexdigest()
     elif hash_type == "shake_128":
-        hashText = hashlib.shake_128(input_text.encode()).hexdigest(128)
+        hashText = (await asyncio.to_thread(shake_128, input_text.encode())).hexdigest(128)
     elif hash_type == "shake_256":
-        hashText = hashlib.shake_256(input_text.encode()).hexdigest(256)
+        hashText = (await asyncio.to_thread(shake_256, input_text.encode())).hexdigest(256)
     elif hash_type == "blake2b":
-        hashText = hashlib.blake2b(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(blake2b, input_text.encode())).hexdigest()
     elif hash_type == "blake2s":
-        hashText = hashlib.blake2s(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(blake2s, input_text.encode())).hexdigest()
     elif hash_type == "md5":
-        hashText = hashlib.md5(input_text.encode()).hexdigest()
+        hashText = (await asyncio.to_thread(md5, input_text.encode())).hexdigest()
     await ctx.followup.send(f"Your hashed text using {hash_type} is: {hashText}")
 
 
@@ -204,7 +202,7 @@ async def morse_decode(ctx, morse_code: str):
         if len(character) > 5:
             await ctx.followup.send("INVALID MORSE CODE!")
             return
-    await ctx.followup.send(f"The message is {MorseCodeDecoder(morse_code)}")
+    await ctx.followup.send(f"The message is {await asyncio.to_thread(MorseCodeDecoder, morse_code)}")
 
 
 @client.tree.command(
@@ -237,7 +235,7 @@ async def tap_code_decode(ctx, tap_code: str):
             if len(temp[0]) > 5 or len(temp[1]) > 5:
                 await ctx.followup.send("INVALID INPUT! YOU CAN ONLY USE 5 DOTS IN REPETITION!")
                 return
-    await ctx.followup.send(f"The message is {tapCodeDecoder(tap_code.split('  '))}")
+    await ctx.followup.send(f"The message is {await asyncio.to_thread(tapCodeDecoder, tap_code.split('  '))}")
 
 
 @client.tree.command(
@@ -255,10 +253,10 @@ async def rail_fence_cipher(ctx, message: str, operation: Literal["encrypt", "de
     await ctx.response.defer(ephemeral=True)
     if operation == "encrypt":
         rail = random.randint(2, len(message) // 2)
-        await ctx.followup.send(f"The cipher text is {railFenceCipher(rail, message, True)}\n"
+        await ctx.followup.send(f"The cipher text is {await asyncio.to_thread(railFenceCipher, rail, message, True)}\n"
                                 f"The rail value is {rail}")
     else:
-        await ctx.followup.send(f"The plain text is {railFenceCipher(rail, message, False)}")
+        await ctx.followup.send(f"The plain text is {await asyncio.to_thread(railFenceCipher, rail, message, False)}")
 
 
 @client.tree.command(
@@ -287,9 +285,9 @@ async def random_string_subs_cipher(ctx, message: str, operation: Literal["encry
         await ctx.followup.send("ERROR: KEY STRING MUST HAVE ALL THE ENGLISH ALPHABET LETTERS")
         return
     if operation == "encrypt":
-        await ctx.followup.send(f"The cipher text is {randomSubstitutionCipher(keyString, message, True)}")
+        await ctx.followup.send(f"The cipher text is {await asyncio.to_thread(randomSubstitutionCipher, keyString, message, True)}")
     else:
-        await ctx.followup.send(f"The plain text is {randomSubstitutionCipher(keyString, message, False)}")
+        await ctx.followup.send(f"The plain text is {await asyncio.to_thread(randomSubstitutionCipher, keyString, message, False)}")
 
 
 @client.tree.command(
@@ -304,10 +302,10 @@ async def random_string_subs_cipher(ctx, message: str, operation: Literal["encry
 async def vigenere_cipher(ctx, message: str, operation: Literal["encrypt", "decrypt"], key: str):
     await ctx.response.defer(ephemeral=True)
     if operation == "encrypt":
-        await ctx.followup.send(f"The cipher text is {vigenere.encrypt(message, key, False)}\n"
+        await ctx.followup.send(f"The cipher text is {await asyncio.to_thread(encrypt, message, key, False)}\n"
                                 f"The key is {key}")
     else:
-        await ctx.followup.send(f"The plain text is {vigenere.decrypt(message, key, False)}")
+        await ctx.followup.send(f"The plain text is {await asyncio.to_thread(decrypt, message, key, False)}")
 
 
 @client.tree.command(
@@ -322,10 +320,10 @@ async def vigenere_cipher(ctx, message: str, operation: Literal["encrypt", "decr
 async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "decrypt"], key: int):
     await ctx.response.defer(ephemeral=True)
     if operation == "encrypt":
-        cipherText = squareCode(message, key, True)
+        cipherText = await asyncio.to_thread(squareCode, message, key, True)
         await ctx.followup.send(f"The cipher text is {cipherText}\nThe key is {key}")
     else:
-        plainText = squareCode(message, key, False)
+        plainText = await asyncio.to_thread(squareCode, message, key, False)
         await ctx.followup.send(f"The plain text is {plainText}")
 
 
@@ -335,7 +333,7 @@ async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "
 )
 async def text_book_rsa_key_generation(ctx):
     await ctx.response.defer(ephemeral=True)
-    e, n, d = TextBookRSAKeyGeneration()
+    e, n, d = await asyncio.to_thread(TextBookRSAKeyGeneration)
     await ctx.followup.send(f"Your public keys are:\ne\t{e}\nn\t{n}\nYour private key is:\nd\t{d}")
 
 
@@ -357,10 +355,10 @@ async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "
         public_modulus = int(public_modulus)
         if operation == "encrypt":
             await ctx.followup.send(f"Your cipher text is"
-                                    f" {TextBookRSAoperation(message, key, public_modulus, True)}")
+                                    f" {await asyncio.to_thread(TextBookRSAoperation, message, key, public_modulus, True)}")
         else:
             await ctx.followup.send(f"The original text is"
-                                    f" {TextBookRSAoperation(message, key, public_modulus, False)}")
+                                    f" {await asyncio.to_thread(TextBookRSAoperation, message, key, public_modulus, False)}")
     except ValueError:
         await ctx.followup.send(f"Your key values need to be an integer!")
 
@@ -375,15 +373,7 @@ async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "
 async def crypto_rsa_key_generation(ctx, key_size: Literal[2048, 3072, 4096]):
     # https://www.pycryptodome.org/src/examples#generate-an-rsa-key
     await ctx.response.defer(ephemeral=True)
-    key = RSA.generate(key_size)
-    privateKey = key.export_key(format="PEM")
-    publicKey = key.publickey().export_key(format="PEM")
-    PrivateKeybuffer = BytesIO()
-    PublicKeybuffer = BytesIO()
-    PrivateKeybuffer.write(privateKey)
-    PublicKeybuffer.write(publicKey)
-    PrivateKeybuffer.seek(0)
-    PublicKeybuffer.seek(0)
+    PrivateKeybuffer, PublicKeybuffer = await asyncio.to_thread(rsaKeyGen, key_size)
     await ctx.followup.send(file=discord.File(fp=PrivateKeybuffer, filename="CryptoRSAprivateKey.pem"))
     await ctx.followup.send(file=discord.File(fp=PublicKeybuffer, filename="CryptoRSApublicKey.pem"), ephemeral=True)
 
@@ -407,10 +397,10 @@ async def crypto_rsa_pkcs1_oaep_cipher(ctx, message: str, operation: Literal["en
             if len(message) >= 220:
                 await ctx.followup.send("Message too long! RSA encryption is limited to 220 bytes.")
             else:
-                cipherText = CryptoRSAOperation(message, key, True)
+                cipherText = await asyncio.to_thread(CryptoRSAOperation, message, key, True)
                 await ctx.followup.send(f"Your Cipher Message is:\n{cipherText}")
         else:
-            plainText = CryptoRSAOperation(message, key, False)
+            plainText = await asyncio.to_thread(CryptoRSAOperation, message, key, False)
             await ctx.followup.send(f"Your Original Message is:\n{plainText}")
     except Exception as error:
         await ctx.followup.send(f"Invalid RSA key file or decryption error! Error: {error}")
@@ -443,14 +433,14 @@ async def crypto_aes_ocb_cipher(ctx, message: str, operation: Literal["encrypt",
     await ctx.response.defer(ephemeral=True)
     try:
         if operation == "encrypt":
-            cipherText, tag, nonce = AES_OCBOperation(message, key, True)
+            cipherText, tag, nonce = await asyncio.to_thread(AES_OCBOperation, message, key, True)
             if cipherText == "Error":
                 await ctx.followup.send("There was an error generating the nonce value, please try the command again.")
             else:
                 await ctx.followup.send(f"Your Cipher Message is:\n{cipherText}\n"
                                         f"The decryption key is:\n{key}:{tag}:{nonce}")
         else:
-            plainText = AES_OCBOperation(message, key, False)
+            plainText = await asyncio.to_thread(AES_OCBOperation, message, key, False)
             if plainText == "#1738175319":
                 await ctx.followup.send("The original cipher text was tampered with a different AES key!")
             elif plainText == "#17381753112":
@@ -503,15 +493,7 @@ async def crypto_pss_rsa_digital_signature(ctx, message: str, operation: Literal
 )
 async def crypto_ecc_key_generation(ctx, curve: Literal["p192", "p224", "p256", "p384", "p521", "ed25519", "ed448", "curve25519", "curve448"]):
     await ctx.response.defer(ephemeral=True)
-    eccKey = ECC.generate(curve=curve)
-    privateKey = eccKey.export_key(format="PEM")
-    publicKey = eccKey.public_key().export_key(format="PEM")
-    privateKeybuffer = BytesIO()
-    publicKeybuffer = BytesIO()
-    privateKeybuffer.write(privateKey.encode())
-    publicKeybuffer.write(publicKey.encode())
-    privateKeybuffer.seek(0)
-    publicKeybuffer.seek(0)
+    privateKeybuffer, publicKeybuffer = await asyncio.to_thread(eccKeyGen, curve)
     await ctx.followup.send(file=discord.File(fp=privateKeybuffer, filename=f"CryptoECC-{curve}PrivateKey.pem"))
     await ctx.followup.send(file=discord.File(fp=publicKeybuffer, filename=f"CryptoECC-{curve}PublicKey.pem"), ephemeral=True)
 

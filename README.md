@@ -191,7 +191,11 @@ pip install pillow==11.3.0
 pip install discord-py==2.5.2
 pip install openai==2.26.0
 pip install google-genai==1.66.0
-pip install aiofiles == 25.1.0
+pip install aiofiles==25.1.0
+pip install aiocsv==1.4.0
+pip install numpy==2.4.4
+pip install pandas==3.0.2
+pip install matplotlib==3.10.8
 Discord API key
 OpenAI API key
 Google Gemini API key
@@ -217,8 +221,6 @@ Google Gemini API key
 /clear_all_message -> Delete all messages in the past in a server channel (NOTE: Samson must have permission to delete message)
 
 /clear_user_message -> Delete last sepcified number of messages from a specific user ((NOTE: Samson must have permission to delete message)
-
-/react -> Make Samson react with standard Discord emojis to a message
 
 /direct_message -> Make Samson send a customized DM to a user in the server (NOTE: User must enable DM with Samson)
 

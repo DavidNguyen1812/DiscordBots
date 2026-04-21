@@ -12,6 +12,9 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   ├── Files                                               # Essential files to run Emmanuel
 │   │   ├── Configuration                                   # Configruation
 │   │   │   └── EmmanuelConfig.json                         # Essential to keep track of members and channels permitted by the server owner to monitor or not as well as each member daily uncensor limit 
+│   │   ├── LLM Usages
+│   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Emmanuel monthly LLM usage
+│   │   │   └── LLMYearlyUsage.csv                          # Keep track of Emmanuel yearly LLM usage
 │   │   ├── Log                                             # Log
 │   │   │   └── EmmanuelLog.txt                             # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
 │   │   ├── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW

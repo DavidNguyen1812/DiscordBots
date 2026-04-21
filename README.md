@@ -54,7 +54,7 @@ pip install dotenv==0.9.0
 pip install filetype==1.2.0
 pip install nudenet==3.4.2
 pip install openai==2.26.0
-pip install opencv-python==4.12.0.88
+pip install opencv-python==4.13.0.92
 pip install pillow==11.3.0
 pip install python-magic==0.4.27
 pip install rarfile==4.2

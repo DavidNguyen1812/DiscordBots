@@ -59,6 +59,10 @@ pip install selenium-wire==5.1.0
 pip install blinker==1.7.0
 pip install webdriver-manager==4.0.2
 pip install aiofiles == 25.1.0
+pip install aiocsv==1.4.0
+pip install numpy==2.4.4
+pip install pandas==3.0.2
+pip install matplotlib==3.10.8
 Need ffmpeg installed
 Discord API key
 OpenAI API key

@@ -111,6 +111,8 @@ The following commands can only be used by the server owner or the bot owner onl
   8. Integration of Tenor and Klipy for authenticated Tenor and Klipy gifs retrieval for scan.
 
   9. Application commands for the server/bot owner to control which member or chat channel to be monitored or not by Knight Emmanuel.
+
+  10. Comprehensive logging OpenAI scan usage
 ```
 
 **Limitations**

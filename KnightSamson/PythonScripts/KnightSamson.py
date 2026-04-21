@@ -9,23 +9,24 @@ import magic
 import base64
 import random
 import wave
-import re
 import asyncio
 import aiofiles
-
-
 import zipfile
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import numpy as np
+
 from PIL import Image
 from openai import AsyncOpenAI
 from google import genai
 from discord import app_commands
 from discord.ext import commands, tasks
 from google.genai import types
-
 from typing import Literal
-from io import BytesIO
 from dotenv import load_dotenv
-
+from io import BytesIO
+from aiocsv import AsyncWriter
 
 load_dotenv()
 
@@ -36,6 +37,7 @@ LOGCOMMANDFILEPATH = os.environ.get("SAMSONLOGPATH")
 CONFIGFILEPATH = os.environ.get("SAMSONCONFIGPATH")
 GPTANDGEMINILOGUSERMESSAGEFILEPATH = os.environ.get("SAMSONGPTANDGEMINILOGPATH")
 GPTAPI = os.environ.get("SAMSONGPTAPI")
+LLMUSAGELOGDIR = os.environ.get("SAMSONLLMUSAGELOGDIR")
 INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please ALWAYS response to the user prompt in medieval style!",
                    "Futuristic": "You are a high tech futuristic machine name Samson! Please ALWAYS response to the user prompt in futuristic style!",
                    "Romantic": "You are a romantic person name Samson! Please ALWAYS response to the user prompt in a romantic style!",
@@ -46,29 +48,405 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please
                    "Viking": "You are a Viking name Samson! Please ALWAYS response to the user prompt with Nordic culture!",
                    "Samurai": "You are an honourable Samurai name Samson! Please ALWAYS response to the user prompt according to the Bushido Code!",
                    "Comedian": "You are a comedian name Samson! Please ALWAYS response to the user prompt with some humor!"}
-MODELINPUTTOKENLIMIT = {
-                        "gemini-2.5-flash": 1048576,
-                        "gemini-2.5-pro": 1048576,
-                        "gemini-3.1-pro-preview": 1048576,
-                        "gpt-5.4": 1050000,
-                        "gpt-5.2": 400000,
-                        "gpt-5.1": 400000,
-                        "gpt-5": 400000,
-                        "gpt-5-mini": 400000,
-                        "gpt-5-nano": 400000,
-                        "gpt-5.3-codex": 400000,
-                        "gpt-5.2-codex": 400000,
-                        "gpt-5.1-codex": 400000,
-                        "gpt-4.1": 1047576,
-                        "gpt-4.1-mini": 1047576,
-                        "gpt-4.1-nano": 1047576,
-                        "gpt-4o": 128000,
-                        "gpt-4.0-mini": 128000,
-                        "o4-mini": 200000,
-                        "o3": 200000,
-                        "gemini-2.5-flash-preview-tts": 8192,
-                        "gemini-2.5-pro-preview-tts": 8192
+"""
+https://developers.openai.com/api/docs/models 
+OPENAI GPT INFO:
+    - gpt-5.4:
+        + Maximum Input Token: 1050000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
+        + Cost per 1 Million Output Token: $15.00 (prompt < 272k token), $22.50 (prompt >= 272k token)
+        + Supported Inputs: Text and Image
+
+    - gpt-5.4-pro:
+        + Maximum Input Token: 1050000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $30.00 (prompt < 272k token), $60.00 (prompt >= 272k token)
+        + Cost per 1 Million Output Token: $180.00 (prompt < 272k token), $270.00 (prompt >= 272k token)
+        + Supported Inputs: Text and Image
+
+    - gpt-5.2:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5.2-pro:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $21
+        + Cost per 1 Million Output Token: $168
+        + Supported Inputs: Text and Image
+
+    - gpt-5.1:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5-pro:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 272000
+        + Cost per 1 Million Input Token: $15
+        + Cost per 1 Million Output Token: $120
+        + Supported Inputs: Text and Image
+
+    - gpt-5-mini:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $0.25
+        + Cost per 1 Million Output Token: $2.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5-nano:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $0.05
+        + Cost per 1 Million Output Token: $0.40
+        + Supported Inputs: Text and Image
+
+    - gpt-5.3-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5.2-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.75
+        + Cost per 1 Million Output Token: $14.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5.1-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+
+    - gpt-5-codex:
+        + Maximum Input Token: 400000
+        + Maximum Output Token: 128000
+        + Cost per 1 Million Input Token: $1.25
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+
+    - gpt-4.1:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $2.00
+        + Cost per 1 Million Output Token: $8.00
+        + Supported Inputs: Text and Image
+
+    - gpt-4.1-mini:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $0.40
+        + Cost per 1 Million Output Token: $1.60
+        + Supported Inputs: Text and Image
+
+    - gpt-4.1-nano:
+        + Maximum Input Token: 1047576
+        + Maximum Output Token: 32768
+        + Cost per 1 Million Input Token: $0.10
+        + Cost per 1 Million Output Token: $0.40
+        + Supported Inputs: Text and Image
+
+    - gpt-4o:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $2.50
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text and Image
+
+    - gpt-4o-mini:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $0.15
+        + Cost per 1 Million Output Token: $0.60
+        + Supported Inputs: Text and Image
+
+    - gpt-4:
+        + Maximum Input Token: 8192
+        + Maximum Output Token: 8192
+        + Cost per 1 Million Input Token: $30.00
+        + Cost per 1 Million Output Token: $60.00
+        + Supported Inputs: Text
+
+    - gpt-3.5-turbo-16k:
+        + Maximum Input Token: 16385
+        + Maximum Output Token: 4096
+        + Cost per 1 Million Input Token: $0.50
+        + Cost per 1 Million Output Token: $1.50
+        + Supported Inputs: Text
+
+    - 04-mini:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text and Image
+
+    - o3-pro:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $20.00
+        + Cost per 1 Million Output Token: $80.00
+        + Supported Inputs: Text and Image
+
+    - o3-mini:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text
+
+    - o3:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $2.00
+        + Cost per 1 Million Output Token: $8.00
+        + Supported Inputs: Text and Image
+
+    - o1-pro:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $150.00
+        + Cost per 1 Million Output Token: $600.00
+        + Supported Inputs: Text and Image
+
+    - o1-mini:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $1.10
+        + Cost per 1 Million Output Token: $4.40
+        + Supported Inputs: Text
+
+    - o1:
+        + Maximum Input Token: 200000
+        + Maximum Output Token: 100000
+        + Cost per 1 Million Input Token: $15.00
+        + Cost per 1 Million Output Token: $60.00
+        + Supported Inputs: Text and Image
+        
+OPENAI GPT AUDIO INFO:
+    - gpt-audio:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
+        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
+        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
+
+    - gpt-audio-1.5:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
+        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
+        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
+
+    - gpt-audio-mini:
+        + Maximum Input Token: 128000
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $0.60 for both audio and text
+        + Cost per 1 Million Output Token: $2.40 for both audio and text
+        + Supported Inputs: Text and Audio (Format .wav and .mp3 only)
+
+https://ai.google.dev/gemini-api/docs/pricing
+GOOGLE GEMINI INFO:
+    - gemini-3.1-pro-preview:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $2.00 for prompts <= 200k tokens, $4.00 for prompts > 200k tokens
+        + Cost per 1 Million Output Token: $12.00 for prompts <= 200k tokens, $18.00 for prompts > 200k tokens
+        + Supported Inputs: Text, Image, Video, Audio, and PDF
+        
+    - gemini-2.5-pro:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $1.25 for prompts <= 200k tokens, $2.50 for prompts > 200k tokens
+        + Cost per 1 Million Output Token: $10.00 for prompts <= 200k tokens, $15.00 for prompts > 200k tokens
+        + Supported Inputs: Text, Image, Video, Audio, and PDF
+        
+    - gemini-2.5-flash:
+        + Maximum Input Token: 1048576
+        + Maximum Output Token: 65536
+        + Cost per 1 Million Input Token: $0.30 for (text, image, video), $1.00 for audio
+        + Cost per 1 Million Output Token: $2.50
+        + Supported Inputs: Text, images, video, audio
+        
+GOOGLE GEMINI TTS INFO:
+    - gemini-2.5-flash-preview-tts:
+        + Maximum Input Token: 8192
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $0.50
+        + Cost per 1 Million Output Token: $10.00
+        + Supported Inputs: Text
+        
+    - gemini-2.5-pro-preview-tts:
+        + Maximum Input Token: 8192
+        + Maximum Output Token: 16384
+        + Cost per 1 Million Input Token: $1.00
+        + Cost per 1 Million Output Token: $20.00
+        + Supported Inputs: Text
+"""
+LLMMODELINFORMATION = {
+                        "gemini-2.5-flash":
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [0.3, 0.3], "Output Token": [2.5, 2.5]}
+                            },
+                        "gemini-2.5-pro":
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [1.25, 2.5], "Output Token": [10, 15]}
+                             },
+                        "gemini-3.1-pro-preview":
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [2, 4], "Output Token": [12, 18]}
+                            },
+                        "gpt-5.4":
+                            {
+                                "Maximum Input Tokens": 1050000,
+                                "Cost": {"Input Token": [2.5, 5], "Output Token": [15, 22.5]}
+                            },
+                        "gpt-5.2":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                            },
+                        "gpt-5.1":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                            },
+                        "gpt-5":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                            },
+                        "gpt-5-mini":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2, 2]}
+                            },
+                        "gpt-5-nano":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]}
+                            },
+                        "gpt-5.3-codex":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                            },
+                        "gpt-5.2-codex":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                            },
+                        "gpt-5.1-codex":
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                            },
+                        "gpt-4.1":
+                            {
+                                "Maximum Input Tokens": 1047576,
+                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]}
+                            },
+                        "gpt-4.1-mini":
+                            {
+                                "Maximum Input Tokens": 1047576,
+                                "Cost": {"Input Token": [0.4, 0.4], "Output Token": [1.6, 1.6]}
+                            },
+                        "gpt-4.1-nano":
+                            {
+                                "Maximum Input Tokens": 1047576,
+                                "Cost": {"Input Token": [0.1, 0.1], "Output Token": [0.4, 0.4]}
+                            },
+                        "gpt-4o":
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [2.5, 2.5], "Output Token": [10, 10]}
+                            },
+                        "gpt-4.0-mini":
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]}
+                            },
+                        "o4-mini":
+                            {
+                                "Maximum Input Tokens": 200000,
+                                "Cost": {"Input Token": [1.10, 1.10], "Output Token": [4.40, 4.40]}
+                            },
+                        "o3":
+                            {
+                                "Maximum Input Tokens": 200000,
+                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]}
+                            },
+                        "gemini-2.5-flash-preview-tts":
+                            {
+                                "Maximum Input Tokens": 8192,
+                                "Cost": {"Input Token": [0.5, 0.5], "Output Token": [10, 10]}
+                            },
+                        "gemini-2.5-pro-preview-tts":
+                            {
+                                "Maximum Input Tokens": 8192,
+                                "Cost": {"Input Token": [1.00, 1.00], "Output Token": [20, 20]}
+                            },
+                        "gpt-audio":
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]}
+                            },
+                        "gpt-audio-1.5":
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]}
+                            },
+                        "gpt-audio-mini":
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [0.6, 0.6], "Output Token": [2.4, 2.4]}
+                            }
                        }
+
+LLMModels = ["gemini-2.5-flash",
+             "gemini-2.5-pro",
+             "gemini-3.1-pro-preview",
+             "gpt-5.4",
+             "gpt-5.2",
+             "gpt-5.1",
+             "gpt-5",
+             "gpt-5-mini",
+             "gpt-5-nano",
+             "gpt-5.3-codex",
+             "gpt-5.2-codex",
+             "gpt-5.1-codex",
+             "gpt-4.1",
+             "gpt-4.1-mini",
+             "gpt-4.1-nano",
+             "gpt-4o",
+             "gpt-4.0-mini",
+             "o4-mini",
+             "o3",
+             "gemini-2.5-flash-preview-tts",
+             "gemini-2.5-pro-preview-tts",
+             "gpt-audio",
+             "gpt-audio-1.5",
+             "gpt-audio-mini"]
 
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""
@@ -81,47 +459,20 @@ Samson = commands.Bot(command_prefix='/', intents=intents)
 ConfigLock = asyncio.Lock()
 GPTandGeminiLock = asyncio.Lock()
 LogLock = asyncio.Lock()
+YearlyCSVLock = asyncio.Lock()
+MonthlyCSVLock = asyncio.Lock()
 
-
-emoji_pattern = re.compile(
-    "[\U0001F600-\U0001F64F]"  # Emoticons
-    "|[\U0001F300-\U0001F5FF]"  # Symbols & Pictographs
-    "|[\U0001F680-\U0001F6FF]"  # Transport & Map Symbols
-    "|[\U0001F700-\U0001F77F]"  # Alchemical Symbols
-    "|[\U0001F780-\U0001F7FF]"  # Geometric Shapes Extended
-    "|[\U0001F800-\U0001F8FF]"  # Supplemental Arrows-C
-    "|[\U0001F900-\U0001F9FF]"  # Supplemental Symbols & Pictographs
-    "|[\U0001FA00-\U0001FA6F]"  # Chess Symbols
-    "|[\U0001FA70-\U0001FAFF]"  # Symbols & Pictographs Extended-A
-    "|[\U00002702-\U000027B0]"  # Dingbats
-    "|[\U000024C2-\U0001F251]"  # Enclosed Characters
-    "|[\U0001F1E6-\U0001F1FF]"  # Flags (iOS)
-    "|[\U0001F004]"             # Mahjong Tile Red Dragon
-    "|[\U0001F0CF]"             # Playing Card Black Joker
-    "|[\U00002600-\U000026FF]"  # Miscellaneous Symbols
-    "|[\U0001F18E]"             # Negative Squared Ab
-    "|[\U0001F191-\U0001F19A]"  # Squared CJK Unified Ideographs
-    "|[\U0001F1E6-\U0001F1FF]"  # Regional Indicator Symbols
-    "|[\U0001F201-\U0001F251]"  # Enclosed Ideographic Supplement
-    "|[\U0001F004]"             # Mahjong Tiles
-    "|[\U0001F0CF]"             # Playing Card Black Joker
-    "|[\U0001F300-\U0001F5FF]"  # Miscellaneous Symbols and Pictographs
-    "|[\U0001F600-\U0001F64F]"  # Emoticons
-    "|[\U0001F680-\U0001F6FF]"  # Transport and Map Symbols
-    "|[\U0001F700-\U0001F77F]"  # Alchemical Symbols
-    "|[\U0001F780-\U0001F7FF]"  # Geometric Shapes Extended
-    "|[\U0001F800-\U0001F8FF]"  # Supplemental Arrows-C
-    "|[\U0001F900-\U0001F9FF]"  # Supplemental Symbols and Pictographs
-    "|[\U0001FA00-\U0001FA6F]"  # Symbols and Pictographs Extended-A
-    "|[\U0001FA70-\U0001FAFF]"  # Chess Symbols
-    "|[\U00002500-\U00002BEF]"  # Dingbats
-    "|[\U0001F100-\U0001F64F]",  # Emoji modifiers
-    flags=re.UNICODE)
+"""Getting Current Time Value"""
+currentTime = time.ctime(time.time()).split(" ")
+previousMonth = currentTime[1]
+previousDate = currentTime[2]
+previousYear = currentTime[4]
+if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
+    os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")
+if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
+    os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}")
 
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
-
-def is_emoji(char):
-    return bool(emoji_pattern.match(char))
 
 with open(CONFIGFILEPATH, "r") as readFile:
     SamsonConfig = json.load(readFile)
@@ -150,7 +501,141 @@ async def on_ready():
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                 await file.write(json.dumps(SamsonConfig, indent=4))
 
-    update_user_command_limit.start()
+    update_user_command_limit_and_llm_usage.start()
+
+
+def isDMChannel(channel: int) -> bool:
+    """
+    Description: Checking if the channel from which the application is called is a public server or a DM with Samson
+    :param channel: Channel ID
+    :return: True, if the channel is a DM, else False
+    """
+    if str(channel).startswith("Direct Message"):
+        return True
+    else:
+        return False
+
+
+def calculateUsageCost(model: str, totalInputTokens: int, totalOutputTokens: int, task: Literal["Audio-Prompt-Text-Output", "Text-Prompt-Audio-Output", "General Chat"]) -> float:
+   """
+   Description: Calculate the usage cost of the LLM model based on the total input tokens and output tokens.
+   :param model: LLM Model
+   :param totalInputTokens: The total input tokens of a prompt
+   :param totalOutputTokens: The total output tokens of a prompt
+   :param task: Audio or General Chat
+   :return: The final calculated usage cost
+   """
+   if "gemini" in model:
+      tierThresh = 200000
+   else:
+      tierThresh = 272000
+
+   if "Audio" not in task:
+      if totalInputTokens > tierThresh:
+         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][1] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][1]
+      else:
+         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+   else:
+      if task == "Audio-Prompt-Text-Output":
+         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][1] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+      else:
+         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][1]
+   return round(totalCost, 4)
+
+
+def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
+    """
+    Description: Plotting three bar charts representing Total Input Tokens, Total Output Tokens and Total Costs
+    :param datasets: The list of all y values for each bar chart
+    :param xLabels: The x label for each bar chart
+    :param suptitle: The Main Title for all the bar charts
+    :param savePath: The path to save the bar charts
+    :return: None, the bar charts will be saved in the savePath
+    """
+    x = np.arange(len(xLabels))
+    barWidth = 0.55
+    fig, axes = plt.subplots(3, 1, figsize=(13, 13))
+    fig.patch.set_facecolor("#F7F8FA")
+    fig.suptitle(suptitle, fontsize=17, fontweight="bold", color="#1E2A3A", y=0.98)
+    for ax, ds in zip(axes, datasets):
+        values = ds["values"]
+        color = ds["color"]
+        max_v = max(values) if any(v > 0 for v in values) else 1
+        bars = ax.bar(x, values, width=barWidth, color=color, alpha=0.88, edgecolor="white", linewidth=0.8, zorder=3)
+        ax.set_facecolor("#F7F8FA")
+        ax.set_title(ds["title"], fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
+        ax.set_xticks(x)
+        ax.set_xticklabels(xLabels, fontsize=10, color="#444")
+        ax.tick_params(axis="y", labelsize=9, colors="#666")
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+        ax.spines[["top", "right", "left"]].set_visible(False)
+        ax.spines["bottom"].set_color("#DDD")
+        ax.yaxis.grid(True, color="#E0E0E0", linewidth=0.7, zorder=0)
+        ax.set_axisbelow(True)
+        ax.tick_params(axis="x", length=0)
+        for bar, val in zip(bars, values):
+            if val > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max_v * 0.015, f"{val:,}", ha="center", va="bottom", fontsize=7.5, color="#333", fontweight="500")
+        for i, val in enumerate(values):
+            if val == 0:
+                ax.axvspan(i - barWidth / 2, i + barWidth / 2, color="#E8E8E8", alpha=0.5, zorder=1)
+    plt.savefig(savePath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def plotModelCalls(LLMModelUses: list[int], savePath: str):
+    """
+    Description: Plotting a single bar chart showing the total calls per LLM models each month
+    :param LLMModelUses: The usage value of each LLM models
+    :param savePath: The path to save the bar chart
+    :return: None, the bar chart will be saved in the savePath
+    """
+
+    x = np.arange(len(LLMModels))
+    max_val = max(LLMModelUses) if any(LLMModelUses) else 2
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    fig.patch.set_facecolor("#F7F8FA")
+
+    bars = ax.bar(LLMModels, LLMModelUses, width=0.55, color="Purple", alpha=0.88, edgecolor="white", linewidth=0.8, zorder=3)
+    ax.set_facecolor("#F7F8FA")
+    ax.set_title("LLM Model Calls", fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
+    ax.set_xticks(x)
+    ax.set_xticklabels(LLMModels, fontsize=10, color="#444", rotation=40, ha="right")
+    ax.tick_params(axis="y", labelsize=9, colors="#666")
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.spines["bottom"].set_color("#DDD")
+    ax.yaxis.grid(True, color="#E0E0E0", linewidth=0.7, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="x", length=0)
+    for bar, val in zip(bars, LLMModelUses):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max_val * 0.015,f"{val:,}", ha="center", va="bottom", fontsize=7.5, color="#333", fontweight="500")
+
+    for i, val in enumerate(LLMModelUses):
+        if val == 0:
+            ax.axvspan(i - 0.55 / 2, i + 0.55 / 2, color="#E8E8E8", alpha=0.5, zorder=1)
+    ax.set_ylim(0, max_val * 1.35)
+    plt.savefig(savePath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, ObjectLock: asyncio.locks.Lock) -> None:
+    """
+    Description: Executing read and write only operation on the csv files related to logging Samson LLM Usage
+    :param csvPath: The path to the csv file
+    :param mode: Must be 'w' or 'a'
+    :param data: The data to write
+    :param ObjectLock: Object lock on write operation to prevent race condition
+    :return: None
+    """
+    async with ObjectLock:
+        async with aiofiles.open(csvPath, mode) as f:
+            csvWriter = AsyncWriter(f)
+            await csvWriter.writerow(data)
 
 
 async def LoggingCommandBeingExecuted(userName: str, command: str) -> None:
@@ -194,7 +679,6 @@ async def CheckingUserCurrentCommandUsage(userid: int) -> bool:
         return False
 
 
-
 async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model: str, instructions: str, fileUpload: list=None) -> str:
     """
     Description: REST API call to OpenAI model for chat and picture prompt
@@ -235,13 +719,13 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
                 ])).input_tokens
 
     logMessage += f"\nTotal Input Tokens: {totalInputToken} tokens"
-    if totalInputToken > MODELINPUTTOKENLIMIT[model]:
+    if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
         if not fileUpload:
             if fileUpload[1] != "IMAGE":
                 await GPTclient.files.delete(fileID)
-        logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {MODELINPUTTOKENLIMIT[model]} tokens!\n\n"
+        logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
         await LoggingGPTandGeminiOutputs(logMessage)
-        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {MODELINPUTTOKENLIMIT[model]} TOKENS!"
+        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
     else:
         if fileUpload is None:
             response = await GPTclient.responses.create(
@@ -285,6 +769,11 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
         totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
         logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
         await LoggingGPTandGeminiOutputs(logMessage)
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
         return reply
 
 
@@ -311,10 +800,10 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
         prompt = userInput
     totalInputTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=prompt)).total_tokens
     logMessage += f"\nTotal Input Tokens: {totalInputTokenCount} tokens"
-    if totalInputTokenCount > MODELINPUTTOKENLIMIT[model]:
-        logMessage += f"\nTotal input tokens exceeding model {model }input token limit of {MODELINPUTTOKENLIMIT[model]} tokens!\n\n"
+    if totalInputTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+        logMessage += f"\nTotal input tokens exceeding model {model }input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
         await LoggingGPTandGeminiOutputs(logMessage)
-        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {MODELINPUTTOKENLIMIT[model]} TOKENS!"
+        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
     else:
         if audio is None:
             response = await GEMINIclient.aio.models.generate_content(model=model, contents=prompt)
@@ -341,6 +830,11 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
                 wf.writeframes(data)
         reply = response.text
         totalOutputTokenCount = response.usage_metadata.total_token_count - totalInputTokenCount
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "General Chat")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
         logMessage += f"\nGemini {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
         await LoggingGPTandGeminiOutputs(logMessage)
         return reply
@@ -379,6 +873,13 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
             ]
         )
         logMessage += f"\nTotal Input Tokens: {reply.usage.prompt_tokens} tokens\nChatGPT {model}: {reply.choices[0].message.content}\nTotal Output Tokens: {reply.usage.total_tokens - reply.usage.prompt_tokens} tokens\n\n"
+        totalInputTokenCount = reply.usage.prompt_tokens
+        totalOutputTokenCount = reply.usage.total_tokens - reply.usage.prompt_tokens
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "Audio-Prompt-Text-Output")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
         await LoggingGPTandGeminiOutputs(logMessage)
         return reply.choices[0].message.content
     else:
@@ -399,29 +900,115 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
             ]
         )
         logMessage += f"\nTotal Input Tokens: {reply.usage.prompt_tokens} tokens\nChatGPT {model}: {reply.choices[0].message.audio.transcript}\nTotal Output Tokens: {reply.usage.total_tokens - reply.usage.prompt_tokens} tokens\n\n"
+        totalInputTokenCount = reply.usage.prompt_tokens
+        totalOutputTokenCount = reply.usage.total_tokens - reply.usage.prompt_tokens
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "Text-Prompt-Audio-Output")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
         await LoggingGPTandGeminiOutputs(logMessage)
         return reply.choices[0].message.audio.data
 
 
-def isDMChannel(channel: int) -> bool:
-    """
-    Description: Checking if the channel from which the application is called is a public server or a DM with Samson
-    :param channel: Channel ID
-    :return: True, if the channel is a DM, else False
-    """
-    if str(channel).startswith("Direct Message"):
-        return True
-    else:
-        return False
-
-
 @tasks.loop(hours=24)  # A task every 24 hours
-async def update_user_command_limit():
+async def update_user_command_limit_and_llm_usage():
+    global previousDate, previousMonth, previousYear
+
     async with ConfigLock:
         for userId in SamsonConfig:
             SamsonConfig[userId]["Current command usage limit"] = COMMAND_USAGE
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
             await file.write(json.dumps(SamsonConfig, indent=4))
+
+    currentTime = time.ctime(time.time()).split(" ")
+
+    # Checking new year
+    if currentTime[4] != previousYear:
+        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
+        print(f"Generating LLM Usage Yearly Report...")
+        async with YearlyCSVLock:
+            yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        monthlyTotalInputTokens = []
+        monthlyTotalOutputTokens = []
+        monthlyTotalCosts = []
+        for month in months:
+            monthlyTotalInputToken = 0
+            monthlyTotalOutputToken = 0
+            monthlyTotalCost = 0
+            for _, row in yearlyData.iterrows():
+                if row["Date"].split(' ')[0] == month:
+                    monthlyTotalInputToken += row["Total Input Tokens"]
+                    monthlyTotalOutputToken += row["Total Output Tokens"]
+                    monthlyTotalCost += row["Total Cost"]
+            monthlyTotalInputTokens.append(monthlyTotalInputToken)
+            monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
+            monthlyTotalCosts.append(monthlyTotalCost)
+        datasets = [
+            {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
+            {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
+            {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
+        ]
+        plotBarCharts(datasets, months, "LLM Usage - End of Year Overview", f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
+        print(f"Successfully Generating LLM Usage Yearly Report!")
+
+        print(f"Resetting LLMYearlyUsage.csv...")
+        await writingLLMUsageCsv("{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
+        print(f"Successfully resetting LLMYearlyUsage.csv!")
+
+        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
+        print(f"Successfully create a new year folder!")
+        previousYear = currentTime[4]
+
+    # Checking new date
+    if currentTime[2] != previousDate:
+        print(f"New Day of the Month Change: {previousMonth} {previousDate} -> {currentTime[1]} {currentTime[2]}")
+        print(f"Updating LLMMonthlyUsageReport.png...")
+        async with MonthlyCSVLock:
+            monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
+        monthlyTotalInputToken = []
+        monthlyTotalOutputToken = []
+        monthlyTotalCost = []
+        for day in range(1, int(currentTime[2]) + 1):
+            dailyTotalInputToken = 0
+            dailyTotalOutputToken = 0
+            dailyTotalCost = 0
+            for _, row in monthlyData.iterrows():
+                if int(row["Date"].split(" ")[1]) == day:
+                    dailyTotalInputToken += row["Total Input Tokens"]
+                    dailyTotalOutputToken += row["Total Output Tokens"]
+                    dailyTotalCost += row["Total Cost"]
+            monthlyTotalInputToken.append(dailyTotalInputToken)
+            monthlyTotalOutputToken.append(dailyTotalOutputToken)
+            monthlyTotalCost.append(dailyTotalCost)
+        datasets = [
+            {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
+            {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
+            {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
+        ]
+        dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
+        plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview", f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
+        print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+
+        print(f"Updating LLMModelsUsed.png...")
+        LLMModelUses = [0 for _ in range(len(LLMModels))]
+        for _, row in monthlyData.iterrows():
+            LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+        plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+        print(f"Successfully Updating LLMModelsUsed.png!")
+        previousDate = currentTime[2]
+
+    # Checking new month
+    if currentTime[1] != previousMonth:
+        print(f"New Month Change: {previousMonth} -> {currentTime[1]}")
+        print(f"Resetting LLMMonthlyUsage.csv...")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w", ["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], MonthlyCSVLock)
+        print(f"Successfully resetting LLMMonthlyUsage.csv!")
+        print(f"Creating a new month folder...")
+        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
+        print(f"Successfully create a new month folder!")
+        previousMonth = currentTime[1]
 
 
 # Command for Bot Owner ONLY!
@@ -594,7 +1181,6 @@ async def samson(ctx):
                     "/clear_last_message\n"
                     "/clear_all_message\n"
                     "/clear_user_message\n"
-                    "/react\n"
                     "/direct_message\n"
                     "/customized_gif_generator\n"
                     "/clear_samson_dm_messages")
@@ -629,198 +1215,6 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
             await file.write(json.dumps(SamsonConfig, indent=4))
 
 
-"""
-https://developers.openai.com/api/docs/models 
-OPENAI GPT INFO:
-    - gpt-5.4:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $15.00 (prompt < 272k token), $22.50 (prompt >= 272k token)
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.4-pro:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $30.00 (prompt < 272k token), $60.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $180.00 (prompt < 272k token), $270.00 (prompt >= 272k token)
-        + Supported Inputs: Text and Image
-    
-    - gpt-5.2:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.75
-        + Cost per 1 Million Output Token: $14.00
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.2-pro:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $21
-        + Cost per 1 Million Output Token: $168
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.1:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-5:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text and Image
-        
-    - gpt-5-pro:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 272000
-        + Cost per 1 Million Input Token: $15
-        + Cost per 1 Million Output Token: $120
-        + Supported Inputs: Text and Image
-        
-    - gpt-5-mini:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.25
-        + Cost per 1 Million Output Token: $2.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-5-nano:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.05
-        + Cost per 1 Million Output Token: $0.40
-        + Supported Inputs: Text and Image
-           
-    - gpt-5.3-codex:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.75
-        + Cost per 1 Million Output Token: $14.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-5.2-codex:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.75
-        + Cost per 1 Million Output Token: $14.00
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.1-codex:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text and Image
-        
-    - gpt-5-codex:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-4.1:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $2.00
-        + Cost per 1 Million Output Token: $8.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-4.1-mini:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $0.40
-        + Cost per 1 Million Output Token: $1.60
-        + Supported Inputs: Text and Image
-    
-    - gpt-4.1-nano:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $0.10
-        + Cost per 1 Million Output Token: $0.40
-        + Supported Inputs: Text and Image
-        
-    - gpt-4o:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text and Image
-    
-    - gpt-4o-mini:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.15
-        + Cost per 1 Million Output Token: $0.60
-        + Supported Inputs: Text and Image
-    
-    - gpt-4:
-        + Maximum Input Token: 8192
-        + Maximum Output Token: 8192
-        + Cost per 1 Million Input Token: $30.00
-        + Cost per 1 Million Output Token: $60.00
-        + Supported Inputs: Text
-        
-    - gpt-3.5-turbo-16k:
-        + Maximum Input Token: 16385
-        + Maximum Output Token: 4096
-        + Cost per 1 Million Input Token: $0.50
-        + Cost per 1 Million Output Token: $1.50
-        + Supported Inputs: Text
-    
-    - 04-mini:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $1.10
-        + Cost per 1 Million Output Token: $4.40
-        + Supported Inputs: Text and Image
-        
-    - o3-pro:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $20.00
-        + Cost per 1 Million Output Token: $80.00
-        + Supported Inputs: Text and Image
-        
-    - o3-mini:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $1.10
-        + Cost per 1 Million Output Token: $4.40
-        + Supported Inputs: Text
-        
-    - o3:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $2.00
-        + Cost per 1 Million Output Token: $8.00
-        + Supported Inputs: Text and Image
-    
-    - o1-pro:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $150.00
-        + Cost per 1 Million Output Token: $600.00
-        + Supported Inputs: Text and Image
-        
-    - o1-mini:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $1.10
-        + Cost per 1 Million Output Token: $4.40
-        + Supported Inputs: Text
-        
-    - o1:
-        + Maximum Input Token: 200000
-        + Maximum Output Token: 100000
-        + Cost per 1 Million Input Token: $15.00
-        + Cost per 1 Million Output Token: $60.00
-        + Supported Inputs: Text and Image
-"""
 @Samson.tree.command(
     name="openai_gpt_chat",
     description="Interacting with OpenAI GPT chat models"
@@ -882,30 +1276,6 @@ async def openai_gpt_chat(ctx, message: str,
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
-"""
-https://ai.google.dev/gemini-api/docs/pricing
-GOOGLE GEMINI INFO:
-    - gemini-3.1-pro-preview:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $2.00 for prompts <= 200k tokens, $4.00 for prompts > 200k tokens
-        + Cost per 1 Million Output Token: $12.00 for prompts <= 200k tokens, $18.00 for prompts > 200k tokens
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-2.5-pro:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $1.25 for prompts <= 200k tokens, $2.50 for prompts > 200k tokens
-        + Cost per 1 Million Output Token: $10.00 for prompts <= 200k tokens, $15.00 for prompts > 200k tokens
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-2.5-flash:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $0.30 for (text, image, video), $1.00 for audio
-        + Cost per 1 Million Output Token: $2.50
-        + Supported Inputs: Text, images, video, audio
-"""
 @Samson.tree.command(
     name="google_gemini_chat",
     description="Interacting with Google Gemini chat models"
@@ -964,30 +1334,6 @@ async def google_gemini_chat(ctx, message: str,
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
-"""
-https://developers.openai.com/api/docs/models 
-OPENAI GPT AUDIO INFO:
-    - gpt-audio:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
-        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
-        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
-
-    - gpt-audio-1.5:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
-        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
-        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
-
-    - gpt-audio-mini:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.60 for both audio and text
-        + Cost per 1 Million Output Token: $2.40 for both audio and text
-        + Supported Inputs: Text and Audio (Format .wav and .mp3 only)
-"""
 @Samson.tree.command(
     name="openai_gpt_audio",
     description="Interacting with OpenAI GPT audio models"
@@ -1052,23 +1398,6 @@ async def openai_gpt_audio(ctx, message: str,
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
-"""
-https://ai.google.dev/gemini-api/docs/pricing
-GOOGLE GEMINI INFO:
-    - gemini-2.5-flash-preview-tts:
-        + Maximum Input Token: 8192
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.50
-        + Cost per 1 Million Output Token: $10.00
-        + Supported Inputs: Text
-        
-    - gemini-2.5-pro-preview-tts:
-        + Maximum Input Token: 8192
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $1.00
-        + Cost per 1 Million Output Token: $20.00
-        + Supported Inputs: Text
-"""
 @Samson.tree.command(
     name="google_gemini_audio",
     description="Interacting with Google Gemini audio models"
@@ -1192,51 +1521,6 @@ async def clear_user_message(ctx, user: discord.User, messagenum: int):
     else:
         await ctx.response.defer(ephemeral=True)
         await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs in DM channel")
-        await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
-
-
-@Samson.tree.command(
-    name="react",
-    description="Tell Knight Samson add emoji reaction to the last specified messages from the mentioned user."
-)
-@app_commands.describe(
-    username="Mention a user in the server, e.g., @user123",
-    num="How many previous message you want to react?",
-    userinput="Select 'React' for Samson to react, Select 'Remove' to clear all reactions",
-    emote="Make sure to select a valid emote, NOTE: Custom emoji will not work! "
-)
-async def react(ctx, username: discord.User, num: int, userinput: Literal["React", "Remove"],emote: str):
-    await ctx.response.defer(ephemeral=True)
-    if not isDMChannel(ctx.channel):
-        if "/react" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
-            counter = 0
-            if await CheckingUserCurrentCommandUsage(ctx.user.id):
-                emote = emote.split(' ')
-                async for message in ctx.channel.history():
-                    if message.author.name == username.name:
-                        if userinput == "React":
-                            counter += 1
-                            for i in range(len(emote)):
-                                if is_emoji(emote[i]):  # Check if emote is an emoji and of length 2
-                                    await message.add_reaction(emote[i])
-                                else:
-                                    pass
-                        else:
-                            if message.reactions:  # Check if the message has at least 1 reaction
-                                counter += 1
-                                await message.clear_reactions()
-                        if counter == num:
-                            break
-                await ctx.followup.send(f"Command Successfully Executed!")
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Approved")
-            else:
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/User reached daily limit usage")
-                await ctx.followup.send(f"You have reached the daily maximum command usage!")
-        else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/User is banned from using this application command")
-            await ctx.followup.send("You are banned from using this application command by my owner!")
-    else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/react {username} {num} {userinput} {emote}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 

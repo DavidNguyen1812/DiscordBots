@@ -22,6 +22,10 @@ import asyncio
 import aiohttp
 import aiofiles
 import math
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import numpy as np
 
 from PIL import Image
 from better_profanity import profanity
@@ -33,7 +37,8 @@ from nudenet import NudeDetector
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common import TimeoutException
-from typing import Tuple
+from typing import Tuple, Literal
+from aiocsv import AsyncWriter
 
 load_dotenv()
 
@@ -97,17 +102,29 @@ GPTFLAGGEDFILEPATH = os.environ.get("EMMANUELGPTFLAGGEDWORDSPATH")
 EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
 EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
+LLMUSAGELOGDIR = os.environ.get("EMMANUELLLMUSAGELOGDIR")
 DAILYUNCENSORLIMIT = 1
 WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
 FILEDOWNLOADCOUNTER = 0
-IMAGESCANTOKENLIMIT = 400000
-TEXTSCANTOKENLIMIT = 128000
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
+LLMModels = [GPTMODELFORTEXTSCAN, GPTMODELFORIMAGESCAN]
+LLMMODELINFORMATION = {
+                        GPTMODELFORIMAGESCAN:
+                            {
+                                "Maximum Input Tokens": 400000,
+                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]}
+                            },
+                        GPTMODELFORTEXTSCAN :
+                            {
+                                "Maximum Input Tokens": 128000,
+                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]}
+                            }
+                       }
 
 SPECIALTEXT = [
     """⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣀⠀
@@ -177,6 +194,8 @@ ConfigLock = asyncio.Lock()
 CleanDataLock = asyncio.Lock()
 NSFWDataLock = asyncio.Lock()
 LogLock = asyncio.Lock()
+YearlyCSVLock = asyncio.Lock()
+MonthlyCSVLock = asyncio.Lock()
 
 
 """Initializing data container to load essential files and setting up Discord Intents for Emmanuel"""
@@ -212,6 +231,124 @@ ScrapeOPSResponse = requests.get(
 SCRAPEOPSMOBILEBROWSERHEADERS = ScrapeOPSResponse.json().get('result',  [])
 assert len(SCRAPEOPSMOBILEBROWSERHEADERS) == 100
 print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
+
+
+"""Getting Current Time Value"""
+currentTime = time.ctime(time.time()).split(" ")
+previousMonth = currentTime[1]
+previousDate = currentTime[2]
+previousYear = currentTime[4]
+if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
+    os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")
+if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
+    os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}")
+
+
+def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
+    """
+    Description: Plotting three bar charts representing Total Input Tokens, Total Output Tokens and Total Costs
+    :param datasets: The list of all y values for each bar chart
+    :param xLabels: The x label for each bar chart
+    :param suptitle: The Main Title for all the bar charts
+    :param savePath: The path to save the bar charts
+    :return: None, the bar charts will be saved in the savePath
+    """
+    x = np.arange(len(xLabels))
+    barWidth = 0.55
+    fig, axes = plt.subplots(3, 1, figsize=(13, 13))
+    fig.patch.set_facecolor("#F7F8FA")
+    fig.suptitle(suptitle, fontsize=17, fontweight="bold", color="#1E2A3A", y=0.98)
+    for ax, ds in zip(axes, datasets):
+        values = ds["values"]
+        color = ds["color"]
+        max_v = max(values) if any(v > 0 for v in values) else 1
+        bars = ax.bar(x, values, width=barWidth, color=color, alpha=0.88, edgecolor="white", linewidth=0.8, zorder=3)
+        ax.set_facecolor("#F7F8FA")
+        ax.set_title(ds["title"], fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
+        ax.set_xticks(x)
+        ax.set_xticklabels(xLabels, fontsize=10, color="#444")
+        ax.tick_params(axis="y", labelsize=9, colors="#666")
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+        ax.spines[["top", "right", "left"]].set_visible(False)
+        ax.spines["bottom"].set_color("#DDD")
+        ax.yaxis.grid(True, color="#E0E0E0", linewidth=0.7, zorder=0)
+        ax.set_axisbelow(True)
+        ax.tick_params(axis="x", length=0)
+        for bar, val in zip(bars, values):
+            if val > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max_v * 0.015, f"{val:,}", ha="center", va="bottom", fontsize=7.5, color="#333", fontweight="500")
+        for i, val in enumerate(values):
+            if val == 0:
+                ax.axvspan(i - barWidth / 2, i + barWidth / 2, color="#E8E8E8", alpha=0.5, zorder=1)
+    plt.savefig(savePath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def plotModelCalls(LLMModelUses: list[int], savePath: str):
+    """
+    Description: Plotting a single bar chart showing the total calls per LLM models each month
+    :param LLMModelUses: The usage value of each LLM models
+    :param savePath: The path to save the bar chart
+    :return: None, the bar chart will be saved in the savePath
+    """
+
+    x = np.arange(len(LLMModels))
+    max_val = max(LLMModelUses) if any(LLMModelUses) else 2
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    fig.patch.set_facecolor("#F7F8FA")
+
+    bars = ax.bar(LLMModels, LLMModelUses, width=0.55, color="Purple", alpha=0.88, edgecolor="white", linewidth=0.8, zorder=3)
+    ax.set_facecolor("#F7F8FA")
+    ax.set_title("LLM Model Calls", fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
+    ax.set_xticks(x)
+    ax.set_xticklabels(LLMModels, fontsize=10, color="#444", rotation=40, ha="right")
+    ax.tick_params(axis="y", labelsize=9, colors="#666")
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.spines["bottom"].set_color("#DDD")
+    ax.yaxis.grid(True, color="#E0E0E0", linewidth=0.7, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="x", length=0)
+    for bar, val in zip(bars, LLMModelUses):
+        if val > 0:
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max_val * 0.015,f"{val:,}", ha="center", va="bottom", fontsize=7.5, color="#333", fontweight="500")
+
+    for i, val in enumerate(LLMModelUses):
+        if val == 0:
+            ax.axvspan(i - 0.55 / 2, i + 0.55 / 2, color="#E8E8E8", alpha=0.5, zorder=1)
+    ax.set_ylim(0, max_val * 1.35)
+    plt.savefig(savePath, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, ObjectLock: asyncio.locks.Lock) -> None:
+    """
+    Description: Executing read and write only operation on the csv files related to logging Samson LLM Usage
+    :param csvPath: The path to the csv file
+    :param mode: Must be 'w' or 'a'
+    :param data: The data to write
+    :param ObjectLock: Object lock on write operation to prevent race condition
+    :return: None
+    """
+    async with ObjectLock:
+        async with aiofiles.open(csvPath, mode) as f:
+            csvWriter = AsyncWriter(f)
+            await csvWriter.writerow(data)
+
+
+def calculateUsageCost(model: str, totalInputTokens: int, totalOutputTokens: int) -> float:
+   """
+   Description: Calculate the usage cost of the LLM model based on the total input tokens and output tokens.
+   :param model: LLM Model
+   :param totalInputTokens: The total input tokens of a prompt
+   :param totalOutputTokens: The total output tokens of a prompt
+   :return: The final calculated usage cost
+   """
+   totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+   return round(totalCost, 8)
 
 
 def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> Tuple[int, bytes]:
@@ -420,7 +557,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!"
               )
     inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="Strictly follow the prompt for detailed instructions", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
-    if inputPromptTokenCount > IMAGESCANTOKENLIMIT:
+    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"]:
         await GPTclient.files.delete(fileID)
         return "MAXIMUM TOKEN LIMIT"
     else:
@@ -441,6 +578,12 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
         await GPTclient.files.delete(fileID)
 
         print(f"GPT image NSFW scan results: {response.output_text}")
+        outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
 
         return response.output_text
 
@@ -452,7 +595,7 @@ async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
     :return: GPT scan result
     """
     inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="Strictly follow the prompt for detailed instructions", input=textToBeScanned)).input_tokens
-    if inputPromptTokenCount > TEXTSCANTOKENLIMIT:
+    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["Maximum Input Tokens"]:
         print("MAXIMUM TOKEN LIMIT")
         return "MAXIMUM TOKEN LIMIT"
     else:
@@ -461,7 +604,12 @@ async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
             instructions="Strictly follow the prompt for detailed instructions",
             input=textToBeScanned
         )
-
+        outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+        cMonth = time.ctime(time.time()).split(' ')[1]
+        cDay = time.ctime(time.time()).split(' ')[2]
+        totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
         reply = response.output_text
         return reply
 
@@ -1218,7 +1366,9 @@ async def clear_emmanuel_dm_messages(ctx):
 
 
 @tasks.loop(hours=24)  # A task every 24 hours
-async def reset_user_uncensor_value():
+async def reset_user_uncensor_value_and_update_llm_usage():
+    global previousDate, previousMonth, previousYear
+
     print("\n")
     async with ConfigLock:
         for serverID in configuration:
@@ -1229,6 +1379,98 @@ async def reset_user_uncensor_value():
             print(f"Resetting all members daily uncensor value in server {server.name} ID {server.id} - Status: SUCCESS")
         async with aiofiles.open(EMMANUELCONFIG, "w") as file:
             await file.write(json.dumps(configuration, indent=4))
+
+    currentTime = time.ctime(time.time()).split(" ")
+
+    # Checking new year
+    if currentTime[4] != previousYear:
+        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
+        print(f"Generating LLM Usage Yearly Report...")
+        async with YearlyCSVLock:
+            yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        monthlyTotalInputTokens = []
+        monthlyTotalOutputTokens = []
+        monthlyTotalCosts = []
+        for month in months:
+            monthlyTotalInputToken = 0
+            monthlyTotalOutputToken = 0
+            monthlyTotalCost = 0
+            for _, row in yearlyData.iterrows():
+                if row["Date"].split(' ')[0] == month:
+                    monthlyTotalInputToken += row["Total Input Tokens"]
+                    monthlyTotalOutputToken += row["Total Output Tokens"]
+                    monthlyTotalCost += row["Total Cost"]
+            monthlyTotalInputTokens.append(monthlyTotalInputToken)
+            monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
+            monthlyTotalCosts.append(monthlyTotalCost)
+        datasets = [
+            {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
+            {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
+            {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
+        ]
+        plotBarCharts(datasets, months, "LLM Usage - End of Year Overview",f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
+        print(f"Successfully Generating LLM Usage Yearly Report!")
+
+        print(f"Resetting LLMYearlyUsage.csv...")
+        await writingLLMUsageCsv("{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
+        print(f"Successfully resetting LLMYearlyUsage.csv!")
+
+        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
+        print(f"Successfully create a new year folder!")
+        previousYear = currentTime[4]
+
+    # Checking new date
+    if currentTime[2] != previousDate:
+        print(f"New Day of the Month Change: {previousMonth} {previousDate} -> {currentTime[1]} {currentTime[2]}")
+        print(f"Updating LLMMonthlyUsageReport.png...")
+        async with MonthlyCSVLock:
+            monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
+        monthlyTotalInputToken = []
+        monthlyTotalOutputToken = []
+        monthlyTotalCost = []
+        for day in range(1, int(currentTime[2]) + 1):
+            dailyTotalInputToken = 0
+            dailyTotalOutputToken = 0
+            dailyTotalCost = 0
+            for _, row in monthlyData.iterrows():
+                if int(row["Date"].split(" ")[1]) == day:
+                    dailyTotalInputToken += row["Total Input Tokens"]
+                    dailyTotalOutputToken += row["Total Output Tokens"]
+                    dailyTotalCost += row["Total Cost"]
+            monthlyTotalInputToken.append(dailyTotalInputToken)
+            monthlyTotalOutputToken.append(dailyTotalOutputToken)
+            monthlyTotalCost.append(dailyTotalCost)
+        datasets = [
+            {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
+            {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
+            {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
+        ]
+        dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
+        plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview",
+                      f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
+        print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+
+        print(f"Updating LLMModelsUsed.png...")
+        LLMModelUses = [0 for _ in range(len(LLMModels))]
+        for _, row in monthlyData.iterrows():
+            LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+        plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+        print(f"Successfully Updating LLMModelsUsed.png!")
+        previousDate = currentTime[2]
+
+    # Checking new month
+    if currentTime[1] != previousMonth:
+        print(f"New Month Change: {previousMonth} -> {currentTime[1]}")
+        print(f"Resetting LLMMonthlyUsage.csv...")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w",
+                                 ["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"],
+                                 MonthlyCSVLock)
+        print(f"Successfully resetting LLMMonthlyUsage.csv!")
+        print(f"Creating a new month folder...")
+        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
+        print(f"Successfully create a new month folder!")
+        previousMonth = currentTime[1]
 
 
 @Emmanuel.event
@@ -1244,7 +1486,7 @@ async def on_ready():
         print(f"Synced command /{cmd.name}")
     print(f"Commands are updated and ready to use!")
     print("\n\n")
-    reset_user_uncensor_value.start()
+    reset_user_uncensor_value_and_update_llm_usage.start()
 
 
 @Emmanuel.event

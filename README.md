@@ -25,9 +25,14 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   └── NexusCryptoUtilities.py                             # Separate Python Code that contains all the essential crypto utilities for Nexus to use
 ├── KnightSamson                                            # Discord Bot with OpenAI and Google Gemini integration
 │   ├── Files                                               # Essential files to run Samson
-│   │   ├── CommandUsageLogFile.txt                         # A log file that log detail an event a user calling Samson application command
-│   │   ├── GPTandGeminiResponses.txt                       # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
-│   │   └── SamsonConfiguration.json                        # Keep track of all members in any server that Knight Samson is in to ensure the member can only execute Samson application command accordance to the preset daily limit.
+│   │   ├── Configuration
+│   │   │   └── SamsonConfiguration.json                    # Keep track of all members in any server that Knight Samson is in to ensure the member can only execute Samson application command accordance to the preset daily limit.
+│   │   ├── LLM Usages
+│   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Samson monthly LLM usage
+│   │   │   └── LLMYearlyUsage.csv                          # Keep track of Samson yearly LLM usage
+│   │   ├── Logs
+│   │   │   ├── CommandUsageLogFile.txt                    # A log file that log detail an event a user calling Samson application command
+│   │   │   └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
 │   ├── PythonScripts                                       # Samson source Code Directory
 │   │   ├── EmojiChecker.py                                 # An external Python code for Samson to check if the emoji UNICODE is valid or not
 │   │   └── KnightSamson.py                                 # Samson source code in Python

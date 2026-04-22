@@ -16,7 +16,7 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Emmanuel monthly LLM usage
 │   │   │   └── LLMYearlyUsage.csv                          # Keep track of Emmanuel yearly LLM usage
 │   │   ├── Log                                             # Log
-│   │   │   └── EmmanuelLog.txt                             # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
+│   │   │   └── EventLogs.txt                               # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
 │   │   ├── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
 │   │   │   ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
 │   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
@@ -34,7 +34,7 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Samson monthly LLM usage
 │   │   │   └── LLMYearlyUsage.csv                          # Keep track of Samson yearly LLM usage
 │   │   ├── Logs
-│   │   │   ├── EventLogs.txt                    # A log file that log detail an event a user calling Samson application command and Samson cron tasks
+│   │   │   ├── EventLogs.txt                               # A log file that log detail an event a user calling Samson application command and Samson cron tasks
 │   │   │   └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
 │   ├── PythonScripts                                       # Samson source Code Directory
 │   │   ├── EmojiChecker.py                                 # An external Python code for Samson to check if the emoji UNICODE is valid or not

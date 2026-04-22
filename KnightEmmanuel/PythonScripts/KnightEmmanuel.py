@@ -36,6 +36,7 @@ from openai import AsyncOpenAI
 from nudenet import NudeDetector
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.service import Service
 from selenium.common import TimeoutException
 from typing import Tuple, Literal
 from aiocsv import AsyncWriter
@@ -234,15 +235,18 @@ print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 
 
 """Getting Current Time Value"""
-currentTime = time.ctime(time.time()).split(" ")
-previousMonth = currentTime[1]
-previousDate = currentTime[2]
-previousYear = currentTime[4]
+ct = time.ctime(time.time()).split(" ")
+previousMonth = ct[1]
+previousDate = ct[2]
+previousYear = ct[4]
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}")
 
+
+"""Setting Path to Chrome Driver Binary"""
+# service = Service("")
 
 def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
     """
@@ -370,6 +374,7 @@ def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> Tuple[int, bytes]:
     if userAgent:
         chrome_options.add_argument(f'user-agent={userAgent}')
         print(f"Using ScrapeOps fake user agent: {userAgent}")
+    # browser = webdriver.Chrome(options=chrome_options, service=service)
     browser = webdriver.Chrome(options=chrome_options)
     if browserHeader and hasattr(browser, 'execute_cdp_cmd'):
         headers_to_set = {}
@@ -1382,94 +1387,136 @@ async def reset_user_uncensor_value_and_update_llm_usage():
 
     currentTime = time.ctime(time.time()).split(" ")
 
-    # Checking new year
-    if currentTime[4] != previousYear:
-        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
-        print(f"Generating LLM Usage Yearly Report...")
-        async with YearlyCSVLock:
-            yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
-        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        monthlyTotalInputTokens = []
-        monthlyTotalOutputTokens = []
-        monthlyTotalCosts = []
-        for month in months:
-            monthlyTotalInputToken = 0
-            monthlyTotalOutputToken = 0
-            monthlyTotalCost = 0
-            for _, row in yearlyData.iterrows():
-                if row["Date"].split(' ')[0] == month:
-                    monthlyTotalInputToken += row["Total Input Tokens"]
-                    monthlyTotalOutputToken += row["Total Output Tokens"]
-                    monthlyTotalCost += row["Total Cost"]
-            monthlyTotalInputTokens.append(monthlyTotalInputToken)
-            monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
-            monthlyTotalCosts.append(monthlyTotalCost)
-        datasets = [
-            {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
-            {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
-            {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
-        ]
-        plotBarCharts(datasets, months, "LLM Usage - End of Year Overview",f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
-        print(f"Successfully Generating LLM Usage Yearly Report!")
-
-        print(f"Resetting LLMYearlyUsage.csv...")
-        await writingLLMUsageCsv("{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
-        print(f"Successfully resetting LLMYearlyUsage.csv!")
-
-        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
-        print(f"Successfully create a new year folder!")
-        previousYear = currentTime[4]
-
     # Checking new date
     if currentTime[2] != previousDate:
         print(f"New Day of the Month Change: {previousMonth} {previousDate} -> {currentTime[1]} {currentTime[2]}")
-        print(f"Updating LLMMonthlyUsageReport.png...")
-        async with MonthlyCSVLock:
-            monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
-        monthlyTotalInputToken = []
-        monthlyTotalOutputToken = []
-        monthlyTotalCost = []
-        for day in range(1, int(currentTime[2]) + 1):
-            dailyTotalInputToken = 0
-            dailyTotalOutputToken = 0
-            dailyTotalCost = 0
-            for _, row in monthlyData.iterrows():
-                if int(row["Date"].split(" ")[1]) == day:
-                    dailyTotalInputToken += row["Total Input Tokens"]
-                    dailyTotalOutputToken += row["Total Output Tokens"]
-                    dailyTotalCost += row["Total Cost"]
-            monthlyTotalInputToken.append(dailyTotalInputToken)
-            monthlyTotalOutputToken.append(dailyTotalOutputToken)
-            monthlyTotalCost.append(dailyTotalCost)
-        datasets = [
-            {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
-            {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
-            {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
-        ]
-        dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
-        plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview",
-                      f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
-        print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+        try:
+            print(f"Updating LLMMonthlyUsageReport.png...")
+            async with MonthlyCSVLock:
+                monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
+            monthlyTotalInputToken = []
+            monthlyTotalOutputToken = []
+            monthlyTotalCost = []
+            for day in range(1, int(currentTime[2]) + 1):
+                dailyTotalInputToken = 0
+                dailyTotalOutputToken = 0
+                dailyTotalCost = 0
+                for _, row in monthlyData.iterrows():
+                    if int(row["Date"].split(" ")[1]) == day:
+                        dailyTotalInputToken += row["Total Input Tokens"]
+                        dailyTotalOutputToken += row["Total Output Tokens"]
+                        dailyTotalCost += row["Total Cost"]
+                monthlyTotalInputToken.append(dailyTotalInputToken)
+                monthlyTotalOutputToken.append(dailyTotalOutputToken)
+                monthlyTotalCost.append(dailyTotalCost)
+            datasets = [
+                {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
+                {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
+                {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
+            ]
+            dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
+            plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview",f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
+            print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+            await writingLog("Updating LLMMonthlyUsageReport.png\nStatus: Success\n\n")
 
-        print(f"Updating LLMModelsUsed.png...")
-        LLMModelUses = [0 for _ in range(len(LLMModels))]
-        for _, row in monthlyData.iterrows():
-            LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
-        plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
-        print(f"Successfully Updating LLMModelsUsed.png!")
+            try:
+                print(f"Updating LLMModelsUsed.png...")
+                LLMModelUses = [0 for _ in range(len(LLMModels))]
+                for _, row in monthlyData.iterrows():
+                    LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+                plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+                print(f"Successfully Updating LLMModelsUsed.png!")
+                await writingLog("Updating LLMModelsUsed.png\nStatus: Success\n\n")
+            except Exception as error:
+                print(f"An error occurs while updating LLMModelsUsed.png\n{error}")
+                await writingLog(f"Updating LLMModelsUsed.png\nError: {error}\n\n")
+
+        except Exception as error:
+            print(f"An error occurs while updating LLMMonthlyUsageReport.png\n{error}")
+            await writingLog(f"Updating LLMMonthlyUsageReport.png\nError: {error}\n\n")
+
         previousDate = currentTime[2]
+
+    # Checking new year
+    if currentTime[4] != previousYear:
+        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
+        try:
+            print(f"Generating LLM Usage Yearly Report...")
+            async with YearlyCSVLock:
+                yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
+            months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            monthlyTotalInputTokens = []
+            monthlyTotalOutputTokens = []
+            monthlyTotalCosts = []
+            for month in months:
+                monthlyTotalInputToken = 0
+                monthlyTotalOutputToken = 0
+                monthlyTotalCost = 0
+                for _, row in yearlyData.iterrows():
+                    if row["Date"].split(' ')[0] == month:
+                        monthlyTotalInputToken += row["Total Input Tokens"]
+                        monthlyTotalOutputToken += row["Total Output Tokens"]
+                        monthlyTotalCost += row["Total Cost"]
+                monthlyTotalInputTokens.append(monthlyTotalInputToken)
+                monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
+                monthlyTotalCosts.append(monthlyTotalCost)
+            datasets = [
+                {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
+                {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
+                {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
+            ]
+            plotBarCharts(datasets, months, "LLM Usage - End of Year Overview",f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
+            print(f"Successfully Generating LLM Usage Yearly Report!")
+            await writingLog("Generating LLM Usage Yearly Report\nStatus: Success\n\n")
+
+            try:
+                print(f"Resetting LLMYearlyUsage.csv...")
+                await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
+                print(f"Successfully resetting LLMYearlyUsage.csv!")
+                await writingLog("Resetting LLMYearlyUsage.csv\nStatus: Success\n\n")
+
+                try:
+                    print(f"Creating a new year folder...")
+                    os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
+                    print(f"Successfully create a new year folder!")
+                    await writingLog("Creating a new year folder\nStatus: Success\n\n")
+
+                except Exception as error:
+                    print(f"An error occurs while creating a new year folder\n{error}")
+                    await writingLog(f"Creating a new year folder\nError: {error}\n\n")
+
+            except Exception as error:
+                print(f"An error occurs while resetting LLMYearlyUsage.csv\n{error}")
+                await writingLog(f"Resetting LLMYearlyUsage.csv\nError: {error}\n\n")
+
+        except Exception as error:
+            print(f"An error occurs while generating LLM Usage Yearly Report\n{error}")
+            await writingLog(f"Generating LLM Usage Yearly Report\nError: {error}\n\n")
+
+        previousYear = currentTime[4]
 
     # Checking new month
     if currentTime[1] != previousMonth:
         print(f"New Month Change: {previousMonth} -> {currentTime[1]}")
-        print(f"Resetting LLMMonthlyUsage.csv...")
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w",
-                                 ["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"],
-                                 MonthlyCSVLock)
-        print(f"Successfully resetting LLMMonthlyUsage.csv!")
-        print(f"Creating a new month folder...")
-        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
-        print(f"Successfully create a new month folder!")
+        try:
+            print(f"Resetting LLMMonthlyUsage.csv...")
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], MonthlyCSVLock)
+            print(f"Successfully resetting LLMMonthlyUsage.csv!")
+            await writingLog("Resetting LLMMonthlyUsage.csv\nStatus: Success\n\n")
+
+            try:
+                print(f"Creating a new month folder...")
+                os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
+                print(f"Successfully create a new month folder!")
+                await writingLog("Creating a new month folder\nStatus: Success\n\n")
+
+            except Exception as error:
+                print(f"An error occurs while creating a new month folder\n{error}")
+                await writingLog(f"Creating a new month folder\nError: {error}\n\n")
+
+        except Exception as error:
+            print(f"An error occurs while resetting LLMMonthlyUsage.csv\n{error}")
+            await writingLog(f"Resetting LLMMonthlyUsage.csv\nError: {error}\n\n")
         previousMonth = currentTime[1]
 
 

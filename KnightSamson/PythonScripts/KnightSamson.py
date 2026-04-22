@@ -463,10 +463,10 @@ YearlyCSVLock = asyncio.Lock()
 MonthlyCSVLock = asyncio.Lock()
 
 """Getting Current Time Value"""
-currentTime = time.ctime(time.time()).split(" ")
-previousMonth = currentTime[1]
-previousDate = currentTime[2]
-previousYear = currentTime[4]
+ct = time.ctime(time.time()).split(" ")
+previousMonth = ct[1]
+previousDate = ct[2]
+previousYear = ct[4]
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
@@ -474,6 +474,7 @@ if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
 
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
+"""Loading Configuration File"""
 with open(CONFIGFILEPATH, "r") as readFile:
     SamsonConfig = json.load(readFile)
 
@@ -638,7 +639,7 @@ async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, 
             await csvWriter.writerow(data)
 
 
-async def LoggingCommandBeingExecuted(userName: str, command: str) -> None:
+async def ApplicationCommandLogging(userName: str, command: str) -> None:
     """
     Description: Logging all Samson application commands being called by a server's member
     :param userName:  Member Discord username
@@ -649,6 +650,19 @@ async def LoggingCommandBeingExecuted(userName: str, command: str) -> None:
         async with aiofiles.open(LOGCOMMANDFILEPATH, 'a') as logFile:
             await logFile.write(f"{time.ctime(time.time())}")
             await logFile.write(f"\n{userName} used command {command}\n\n")
+
+
+async def TaskLogging(task: str, status: str) -> None:
+    """
+    Description: Logging all Samson cron tasks (resetting member daily usage limit and LLM usage reports)
+    :param task: Cron task name
+    :param status: Status of the cron task
+    :return: None
+    """
+    async with LogLock:
+        async with aiofiles.open(LOGCOMMANDFILEPATH, 'a') as logFile:
+            await logFile.write(f"{time.ctime(time.time())}")
+            await logFile.write(f"\nTask Performs: {task}\nStatus {status}\n\n")
 
 
 async def LoggingGPTandGeminiOutputs(data: str) -> None:
@@ -915,99 +929,154 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
 async def update_user_command_limit_and_llm_usage():
     global previousDate, previousMonth, previousYear
 
-    async with ConfigLock:
-        for userId in SamsonConfig:
-            SamsonConfig[userId]["Current command usage limit"] = COMMAND_USAGE
-        async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(SamsonConfig, indent=4))
+    try:
+        print("Resetting member daily application command usage limit...")
+        async with ConfigLock:
+            for userId in SamsonConfig:
+                SamsonConfig[userId]["Current command usage limit"] = COMMAND_USAGE
+            async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                await file.write(json.dumps(SamsonConfig, indent=4))
+        print("Successfully resetting member daily application command usage limit!")
+        await TaskLogging("Resetting member daily application command usage limit", "Success")
+    except Exception as error:
+        print(f"An error occurs while resetting member daily application command usage limit\n{error}")
+        await TaskLogging("Resetting member daily application command usage limit", f"Error: {error}")
 
     currentTime = time.ctime(time.time()).split(" ")
 
-    # Checking new year
-    if currentTime[4] != previousYear:
-        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
-        print(f"Generating LLM Usage Yearly Report...")
-        async with YearlyCSVLock:
-            yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
-        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        monthlyTotalInputTokens = []
-        monthlyTotalOutputTokens = []
-        monthlyTotalCosts = []
-        for month in months:
-            monthlyTotalInputToken = 0
-            monthlyTotalOutputToken = 0
-            monthlyTotalCost = 0
-            for _, row in yearlyData.iterrows():
-                if row["Date"].split(' ')[0] == month:
-                    monthlyTotalInputToken += row["Total Input Tokens"]
-                    monthlyTotalOutputToken += row["Total Output Tokens"]
-                    monthlyTotalCost += row["Total Cost"]
-            monthlyTotalInputTokens.append(monthlyTotalInputToken)
-            monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
-            monthlyTotalCosts.append(monthlyTotalCost)
-        datasets = [
-            {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
-            {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
-            {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
-        ]
-        plotBarCharts(datasets, months, "LLM Usage - End of Year Overview", f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
-        print(f"Successfully Generating LLM Usage Yearly Report!")
-
-        print(f"Resetting LLMYearlyUsage.csv...")
-        await writingLLMUsageCsv("{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
-        print(f"Successfully resetting LLMYearlyUsage.csv!")
-
-        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
-        print(f"Successfully create a new year folder!")
-        previousYear = currentTime[4]
 
     # Checking new date
     if currentTime[2] != previousDate:
         print(f"New Day of the Month Change: {previousMonth} {previousDate} -> {currentTime[1]} {currentTime[2]}")
-        print(f"Updating LLMMonthlyUsageReport.png...")
-        async with MonthlyCSVLock:
-            monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
-        monthlyTotalInputToken = []
-        monthlyTotalOutputToken = []
-        monthlyTotalCost = []
-        for day in range(1, int(currentTime[2]) + 1):
-            dailyTotalInputToken = 0
-            dailyTotalOutputToken = 0
-            dailyTotalCost = 0
-            for _, row in monthlyData.iterrows():
-                if int(row["Date"].split(" ")[1]) == day:
-                    dailyTotalInputToken += row["Total Input Tokens"]
-                    dailyTotalOutputToken += row["Total Output Tokens"]
-                    dailyTotalCost += row["Total Cost"]
-            monthlyTotalInputToken.append(dailyTotalInputToken)
-            monthlyTotalOutputToken.append(dailyTotalOutputToken)
-            monthlyTotalCost.append(dailyTotalCost)
-        datasets = [
-            {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
-            {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
-            {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
-        ]
-        dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
-        plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview", f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
-        print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+        try:
+            print(f"Updating LLMMonthlyUsageReport.png...")
+            async with MonthlyCSVLock:
+                monthlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv")
+            monthlyTotalInputToken = []
+            monthlyTotalOutputToken = []
+            monthlyTotalCost = []
+            for day in range(1, int(currentTime[2]) + 1):
+                dailyTotalInputToken = 0
+                dailyTotalOutputToken = 0
+                dailyTotalCost = 0
+                for _, row in monthlyData.iterrows():
+                    if int(row["Date"].split(" ")[1]) == day:
+                        dailyTotalInputToken += row["Total Input Tokens"]
+                        dailyTotalOutputToken += row["Total Output Tokens"]
+                        dailyTotalCost += row["Total Cost"]
+                monthlyTotalInputToken.append(dailyTotalInputToken)
+                monthlyTotalOutputToken.append(dailyTotalOutputToken)
+                monthlyTotalCost.append(dailyTotalCost)
+            datasets = [
+                {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
+                {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
+                {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
+            ]
+            dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
+            plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview", f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
+            print(f"Successfully Updating LLMMonthlyUsageReport.png!")
+            await TaskLogging("Updating LLMMonthlyUsageReport.png", "Success")
 
-        print(f"Updating LLMModelsUsed.png...")
-        LLMModelUses = [0 for _ in range(len(LLMModels))]
-        for _, row in monthlyData.iterrows():
-            LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
-        plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
-        print(f"Successfully Updating LLMModelsUsed.png!")
+            try:
+                print(f"Updating LLMModelsUsed.png...")
+                LLMModelUses = [0 for _ in range(len(LLMModels))]
+                for _, row in monthlyData.iterrows():
+                    LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+                plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+                print(f"Successfully Updating LLMModelsUsed.png!")
+                await TaskLogging("Updating LLMModelsUsed.png", "Success")
+            except Exception as error:
+                print(f"An error occurs while updating LLMModelsUsed.png\n{error}")
+                await TaskLogging("Updating LLMModelsUsed.png", f"Error: {error}")
+
+        except Exception as error:
+            print(f"An error occurs while updating LLMMonthlyUsageReport.png\n{error}")
+            await TaskLogging("Updating LLMMonthlyUsageReport.png", f"Error: {error}")
+
         previousDate = currentTime[2]
+
+
+    # Checking new year
+    if currentTime[4] != previousYear:
+        print(f"New Year Change: {previousYear} -> {currentTime[4]}")
+        try:
+            print(f"Generating LLM Usage Yearly Report...")
+            async with YearlyCSVLock:
+                yearlyData = await asyncio.to_thread(pd.read_csv, f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv")
+            months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            monthlyTotalInputTokens = []
+            monthlyTotalOutputTokens = []
+            monthlyTotalCosts = []
+            for month in months:
+                monthlyTotalInputToken = 0
+                monthlyTotalOutputToken = 0
+                monthlyTotalCost = 0
+                for _, row in yearlyData.iterrows():
+                    if row["Date"].split(' ')[0] == month:
+                        monthlyTotalInputToken += row["Total Input Tokens"]
+                        monthlyTotalOutputToken += row["Total Output Tokens"]
+                        monthlyTotalCost += row["Total Cost"]
+                monthlyTotalInputTokens.append(monthlyTotalInputToken)
+                monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
+                monthlyTotalCosts.append(monthlyTotalCost)
+            datasets = [
+                {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
+                {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},
+                {"values": monthlyTotalCosts, "title": "Total Cost ($)", "color": "Orange"},
+            ]
+            plotBarCharts(datasets, months, "LLM Usage - End of Year Overview",f"{LLMUSAGELOGDIR}{previousYear}/FullYearUsageReport.png")
+            print(f"Successfully Generating LLM Usage Yearly Report!")
+            await TaskLogging("Generating LLM Usage Yearly Report", "Success")
+
+            try:
+                print(f"Resetting LLMYearlyUsage.csv...")
+                await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "w",["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], YearlyCSVLock)
+                print(f"Successfully resetting LLMYearlyUsage.csv!")
+                await TaskLogging("Resetting LLMYearlyUsage.csv", "Success")
+
+                try:
+                    print(f"Creating a new year folder...")
+                    os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}")
+                    print(f"Successfully create a new year folder!")
+                    await TaskLogging("Creating a new year folder", "Success")
+
+                except Exception as error:
+                    print(f"An error occurs while creating a new year folder\n{error}")
+                    await TaskLogging("Creating a new year folder", f"Error: {error}")
+
+            except Exception as error:
+                print(f"An error occurs while resetting LLMYearlyUsage.csv\n{error}")
+                await TaskLogging("Resetting LLMYearlyUsage.csv", f"Error: {error}")
+
+        except Exception as error:
+            print(f"An error occurs while generating LLM Usage Yearly Report\n{error}")
+            await TaskLogging("Generating LLM Usage Yearly Report", f"Error: {error}")
+
+        previousYear = currentTime[4]
+
 
     # Checking new month
     if currentTime[1] != previousMonth:
         print(f"New Month Change: {previousMonth} -> {currentTime[1]}")
-        print(f"Resetting LLMMonthlyUsage.csv...")
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w", ["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], MonthlyCSVLock)
-        print(f"Successfully resetting LLMMonthlyUsage.csv!")
-        print(f"Creating a new month folder...")
-        os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
-        print(f"Successfully create a new month folder!")
+        try:
+            print(f"Resetting LLMMonthlyUsage.csv...")
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "w", ["Date", "Total Input Tokens", "Total Output Tokens", "LLM Models", "Total Cost"], MonthlyCSVLock)
+            print(f"Successfully resetting LLMMonthlyUsage.csv!")
+            await TaskLogging("Resetting LLMMonthlyUsage.csv", f"Success")
+
+            try:
+                print(f"Creating a new month folder...")
+                os.mkdir(f"{LLMUSAGELOGDIR}{currentTime[4]}/{currentTime[1]}")
+                print(f"Successfully create a new month folder!")
+                await TaskLogging("Creating a new month folder", f"Success")
+
+            except Exception as error:
+                print(f"An error occurs while creating a new month folder\n{error}")
+                await TaskLogging("Creating a new month folder", f"Error: {error}")
+
+        except Exception as error:
+            print(f"An error occurs while resetting LLMMonthlyUsage.csv\n{error}")
+            await TaskLogging("Resetting LLMMonthlyUsage.csv", f"Error: {error}")
         previousMonth = currentTime[1]
 
 
@@ -1030,10 +1099,10 @@ async def add_command(ctx, username: discord.User, value: int):
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                 await file.write(json.dumps(SamsonConfig, indent=4))
 
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/add_command {username} {value}\nCommand Status: Approved")
+        await ApplicationCommandLogging(ctx.user.name, f"/add_command {username} {value}\nCommand Status: Approved")
         await ctx.followup.send("Command Successfully Executed!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/add_command {username} {value}\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ApplicationCommandLogging(ctx.user.name, f"/add_command {username} {value}\nCommand Status: Denied/Command runs by unauthorized personnel")
         await ctx.followup.send("This command can only be used by the owner of this bot!")
 
 
@@ -1052,12 +1121,12 @@ async def get_user_list_of_permissions(ctx, member: discord.User):
             for permission, status in iter(memberPermissions):
                 permissionList.append(f"{permission.replace("_", " ").upper()}: {status}")
             await ctx.followup.send(f"Permissions for '{member.name}' from Server '{ctx.channel.guild.name}':\n" + "\n".join(permissionList))
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Approved")
+            await ApplicationCommandLogging(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Approved")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Denied/Command runs in DM channel")
+            await ApplicationCommandLogging(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Denied/Command runs in DM channel")
             await ctx.followup.send("Command can not work in DM channel")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ApplicationCommandLogging(ctx.user.name, f"/get_user_list_of_permissions {member}\nCommand Status: Denied/Command runs by unauthorized personnel")
         await ctx.followup.send("This command can only be used by the owner of this bot!")
 
 
@@ -1110,12 +1179,12 @@ async def application_command_config(ctx, action: Literal["BAN", "UNBAN"], membe
                         await ctx.followup.send(f"User {member.name} is unbanned and allowed to use {application_command}!")
                 async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                     await file.write(json.dumps(SamsonConfig, indent=4))
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/application_command_config {action} {member} {application_command}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/application_command_config {action} {member} {application_command}\nCommand Status: Approved")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs in DM channel")
+            await ApplicationCommandLogging(ctx.user.name, f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs in DM channel")
             await ctx.followup.send("Command can not work in DM channel")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name,f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ApplicationCommandLogging(ctx.user.name, f"/application_command_config {action} {member} {application_command}\nCommand Status: Denied/Command runs by unauthorized personnel")
         await ctx.followup.send("This command can only be used by the owner of this bot!")
 
 
@@ -1148,12 +1217,12 @@ async def view_application_command_config(ctx):
                     await ctx.followup.send(report)
                 async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                     await file.write(json.dumps(SamsonConfig, indent=4))
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/view_application_command_config\nCommand Status: Approved")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Denied/Command runs in DM channel")
+            await ApplicationCommandLogging(ctx.user.name, f"/view_application_command_config\nCommand Status: Denied/Command runs in DM channel")
             await ctx.followup.send("Command can not work in DM channel")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name,f"/view_application_command_config\nCommand Status: Denied/Command runs by unauthorized personnel")
+        await ApplicationCommandLogging(ctx.user.name, f"/view_application_command_config\nCommand Status: Denied/Command runs by unauthorized personnel")
         await ctx.followup.send("This command can only be used by the owner of this bot!")
 
 
@@ -1166,7 +1235,7 @@ async def samson(ctx):
     if not isDMChannel(ctx.channel):
         if "/samson" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
-                await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, "/samson\nCommand Status: Approved")
                 await ctx.followup.send(
                     "I am a knight designed by Sir David Nguyen with ChatGPT and Google Gemini REST API to interact with user through Direct "
                     "Message or in a Server. I have certain commands ONLY WORK in a SERVER CHANNEL. All commands can "
@@ -1185,13 +1254,13 @@ async def samson(ctx):
                     "/customized_gif_generator\n"
                     "/clear_samson_dm_messages")
             else:
-                await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, "/samson\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,"/samson\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, "/samson\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, "/samson\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, "/samson\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1205,12 +1274,12 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
     async with ConfigLock:
         if SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] == role:
             await ctx.followup.send(f"I'm already configured to role play as {role}")
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/roleplay {role}\nCommand Status: Denied/Samson already configured to the selected roleplay!")
+            await ApplicationCommandLogging(ctx.user.name, f"/roleplay {role}\nCommand Status: Denied/Samson already configured to the selected roleplay!")
         else:
             SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] = role
             reply = gpt_text_and_picture_inputs_only("Introduce yourself", ctx.user.name, "gpt-5.4", INSTRUCTION_LISTS[role])
             await ctx.followup.send(reply)
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/roleplay {role}\nCommand Status: Approved")
+            await ApplicationCommandLogging(ctx.user.name, f"/roleplay {role}\nCommand Status: Approved")
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
             await file.write(json.dumps(SamsonConfig, indent=4))
 
@@ -1241,7 +1310,7 @@ async def openai_gpt_chat(ctx, message: str,
                     fileExt = mimetypes.guess_extension(mime)
                     if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
                         await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
-                        await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
+                        await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
                         return
                     if fileExt.endswith(".pdf"):
                         filePath = f"./{random.randint(0,9999)}.pdf"
@@ -1261,18 +1330,18 @@ async def openai_gpt_chat(ctx, message: str,
                     await ctx.followup.send("", file=replyFile)
                 else:
                     await ctx.followup.send(reply)
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Approved")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1303,7 +1372,7 @@ async def google_gemini_chat(ctx, message: str,
                     fileExt = mimetypes.guess_extension(mime)
                     if not fileExt.endswith((".png", ".jpg", ".jpeg", ".pdf")):
                         await ctx.followup.send("Please upload your file attachments in PNG, JPG, or PDF format!")
-                        await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
+                        await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
                         return
                     filePath = f"./{random.randint(0, 999999)}{fileExt}"
                     async with aiofiles.open(filePath, "wb") as file:
@@ -1319,18 +1388,18 @@ async def google_gemini_chat(ctx, message: str,
                     await ctx.followup.send("", file=replyFile)
                 else:
                     await ctx.followup.send(reply)
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Approved")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_chat {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1360,7 +1429,7 @@ async def openai_gpt_audio(ctx, message: str,
                 if input_options.startswith("Audio and Prompt Inputs ONLY"):
                     if file_attachment is None:
                         await ctx.followup.send("Please upload your an audio input in WAV or MP3 format!")
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User did not provide audio input!")
+                        await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User did not provide audio input!")
                         return
                     else:
                         fileContent = await file_attachment.read()
@@ -1368,7 +1437,7 @@ async def openai_gpt_audio(ctx, message: str,
                         fileExt = mimetypes.guess_extension(mime)
                         if not fileExt.endswith((".wav", ".mp3")):
                             await ctx.followup.send("Please upload your audio attachment in WAV or MP3 format!")
-                            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Unaccepted File Format!")
+                            await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Unaccepted File Format!")
                             return
                         reply = await gpt_text_and_audio_only([message, base64.b64encode(fileContent).decode("utf-8"), fileExt.replace(".", "")], ctx.user.name, model, INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]], "text-output")
                         if len(reply) > 1500:
@@ -1383,18 +1452,18 @@ async def openai_gpt_audio(ctx, message: str,
                     result = await gpt_text_and_audio_only([message], ctx.user.name, model, INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]], "audio-output")
                     audioFile = discord.File(fp=BytesIO(base64.b64decode(result)), filename="SamsonResponse.wav")
                     await ctx.followup.send("", file=audioFile)
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Approved")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name,f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_audio {message} {model} {keep_secret} {input_options}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1422,18 +1491,18 @@ async def google_gemini_audio(ctx, message: str,
                     AudioFile = discord.File(fp="SamsonResponse.wav", filename="SamsonResponse.wav")
                     await ctx.followup.send("", file=AudioFile)
                     os.remove(f"SamsonResponse.wav")
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Approved")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name,f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/google_gemini_audio {message} {model} {keep_secret}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1448,16 +1517,16 @@ async def clear_last_message(ctx, messagenum: int):
         if "/clear_last_message" not in SamsonConfig[str(ctx.user.id)]["Banned Application Commands"]:
             if await CheckingUserCurrentCommandUsage(ctx.user.id):
                 await ctx.response.defer()
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Approved")
                 await ctx.followup.send("Command Successfully Executed!")
             else:
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_last_message {messagenum}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/clear_last_message {messagenum}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1472,19 +1541,19 @@ async def clear_all_message(ctx):
                 await ctx.response.defer()
                 async for message in ctx.channel.history():  # Fetch message history
                     await message.delete()
-                await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, "/clear_all_message\nCommand Status: Approved")
                 return
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, "/clear_all_message\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_all_message\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/clear_all_message\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name, "/clear_all_message\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, "/clear_all_message\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1509,18 +1578,18 @@ async def clear_user_message(ctx, user: discord.User, messagenum: int):
                     if counter == messagenum:
                         break
                 await ctx.followup.send(f"Last {messagenum} messages from {user.name} has been deleted!")
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Approved")
+                await ApplicationCommandLogging(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Approved")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/User reached daily limit usage")
+                await ApplicationCommandLogging(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/User reached daily limit usage")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_user_message {user}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/clear_user_message {user}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1540,21 +1609,21 @@ async def direct_message(ctx, member: discord.User, message: str):
                 try:
                     await member.send(f"User {ctx.user.name} want me to send you message:\n{message}")
                     await ctx.followup.send(f"Message is delivered!")
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Approved")
+                    await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Approved")
                 except discord.Forbidden:
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
+                    await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User disabled DM with Samson")
                     await ctx.followup.send(f"I can't DM {member.name}. User might have DMs disabled.")
                 except Exception as e:
-                    await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
+                    await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/Error {e}")
                     await ctx.followup.send(f"An error occurred: {e}")
             else:
-                await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
+                await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User reached daily usage limit")
                 await ctx.followup.send(f"You have reached the daily maximum command usage!")
         else:
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
-        await LoggingCommandBeingExecuted(ctx.user.name,f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/direct_message {member} {message}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1641,35 +1710,35 @@ async def customized_gif_generator(ctx, zip_file: discord.Attachment, gif_name: 
                         await data.write(zipContent)
                     statusCode = await asyncio.to_thread(SafePngExtraction, zipPath, GifDirectory)
                     if statusCode.startswith("Error 1"):
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment can cause ../ attack")
+                        await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment can cause ../ attack")
                         await ctx.followup.send("Your zip file contains uncompressed content hinted directory transversal attack!")
                     elif statusCode.startswith("Error 2"):
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment uncompressed size exceeds 1GB")
+                        await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment uncompressed size exceeds 1GB")
                         await ctx.followup.send(f"Your zip file uncompressed size of {statusCode.split(':')[-1]} bytes exceeds 1GB")
                     elif statusCode.startswith("Error 3"):
                         await ctx.followup.send(f"There is no PNG frames in the zip file!")
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment does not have any PNG frames!")
+                        await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Zip Attachment does not have any PNG frames!")
                     else:
                         GifFile = discord.File(fp=f'{GifDirectory}/{gif_name}.gif', filename=f"{gif_name}.gif")
                         await ctx.followup.send(f"Please NOTE that the accuracy of the generated gif is depend on how you "
                                                 f"organize the gif frames by names before you compressed them into a zip file",
                                                 file=GifFile)
-                        await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Approved")
+                        await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Approved")
                         shutil.rmtree(GifDirectory)
                 else:
-                    await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Attachment not a zip file!")
+                    await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Attachment not a zip file!")
                     await ctx.followup.send("Please upload a zip file only!")
             else:
                 await ctx.response.defer(ephemeral=True)
-                await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User reached daily usage limit")
+                await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User reached daily usage limit")
                 await ctx.followup.send("You have reached the daily maximum command usage!")
         else:
             await ctx.response.defer(ephemeral=True)
-            await LoggingCommandBeingExecuted(ctx.user.name,f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User is banned from using this application command")
+            await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/User is banned from using this application command")
             await ctx.followup.send("You are banned from using this application command by my owner!")
     else:
         await ctx.response.defer(ephemeral=True)
-        await LoggingCommandBeingExecuted(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Command runs in DM channel")
+        await ApplicationCommandLogging(ctx.user.name, f"/customized_gif_generator {zip_file.url}\nCommand Status: Denied/Command runs in DM channel")
         await ctx.followup.send("I can only execute command in a Server channel, not Direct Message!!!")
 
 
@@ -1682,7 +1751,7 @@ async def clear_samson_dm_messages(ctx):
     async for message in ctx.user.history():
         if message.author == Samson.user:
             await message.delete()
-    await LoggingCommandBeingExecuted(ctx.user.name,f"/clear_samson_dm_messages\nCommand Status: Approved")
+    await ApplicationCommandLogging(ctx.user.name, f"/clear_samson_dm_messages\nCommand Status: Approved")
     await ctx.followup.send("All DM messages by me have been deleted.")
 
 

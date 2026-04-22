@@ -37,7 +37,6 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   ├── EventLogs.txt                               # A log file that log detail an event a user calling Samson application command and Samson cron tasks
 │   │   │   └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
 │   ├── PythonScripts                                       # Samson source Code Directory
-│   │   ├── EmojiChecker.py                                 # An external Python code for Samson to check if the emoji UNICODE is valid or not
 │   │   └── KnightSamson.py                                 # Samson source code in Python
 └──README.md                                                # This file
 ```

@@ -22,7 +22,7 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
 │   │   │   └── ProfanityLibWordList.txt                    # Customizable list of profane words
 │   ├── PythonScripts                                       # Emmanuel source Code Directory
-└── └── └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
+│   │   └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
 ├── KnightNexus                                             # Discord Bot with Python Cryptography modules
 │   ├── KnightNexus.py                                      # Nexus source code in Python
 │   └── NexusCryptoUtilities.py                             # Separate Python Code that contains all the essential crypto utilities for Nexus to use

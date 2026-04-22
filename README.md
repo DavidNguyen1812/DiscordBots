@@ -34,7 +34,7 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Samson monthly LLM usage
 │   │   │   └── LLMYearlyUsage.csv                          # Keep track of Samson yearly LLM usage
 │   │   ├── Logs
-│   │   │   ├── CommandUsageLogFile.txt                    # A log file that log detail an event a user calling Samson application command
+│   │   │   ├── EventLogs.txt                    # A log file that log detail an event a user calling Samson application command and Samson cron tasks
 │   │   │   └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
 │   ├── PythonScripts                                       # Samson source Code Directory
 │   │   ├── EmojiChecker.py                                 # An external Python code for Samson to check if the emoji UNICODE is valid or not

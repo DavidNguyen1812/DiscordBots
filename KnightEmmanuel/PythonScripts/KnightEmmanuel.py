@@ -1757,7 +1757,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
             if "https://" in after.content or "http://" in after.content:
                 print("Re-Edited Message contains URL link(s)! Checking all the URL(s)...")
                 URLs = re.findall(r'https?://(?:(?!https?://)\S)+', after.content)
-
+                URLs = list(set(URLs))
                 for URL in URLs:
                     print(f"Extracting {URL} from message {after.content}")
                     textContent = textContent.replace(URL, '')
@@ -2052,7 +2052,7 @@ async def on_message(message):
             if "https://" in message.content or "http://" in message.content:
                 print("Message contains URL link(s)! Checking all the URL(s)...")
                 URLs = re.findall(r'https?://(?:(?!https?://)\S)+', message.content)
-
+                URLs = list(set(URLs))
                 for URL in URLs:
                     textContent = textContent.replace(URL, '')
                     print(f"Extracting {URL} from message {message.content}")

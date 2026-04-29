@@ -543,7 +543,7 @@ async def scanningImageWithNudenet(image: str) -> bool:
     print(f"Nudenet scan results: {detections}")
     for result in detections:
         if result['class'] in SEXUALTAGS:
-            if result['score'] > 0.55:
+            if result['score'] > 0.53:
                 return True
     return False
 
@@ -856,12 +856,12 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
 
 def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bool:
     """
-    Description: Checking if an archive file is safe to extract. If yes, then all content will be extracted to MAINDOWNLOADDIR
+    Description: Checking if an archive file is safe to extract. If yes, then all content that in Emmanuel scope of scan will be extracted to MAINDOWNLOADDIR
     :param filePath: A list of the path to the archive file on disk
     :param archiveLayer: The layer of the archive file
     :return: True if the archive is not safe to extract, False otherwise
     """
-    def checkingFileExtension(fileContent: bytes):
+    def checkingFileExtension(fileContent: bytes, fname: str):
         mime = magic.from_buffer(fileContent, mime=True)
         Ext = mimetypes.guess_extension(mime)
         if Ext:
@@ -870,6 +870,18 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     return '.zip'
                 else:
                     return ".bin"
+            if Ext == ".webm" and fname.endswith(".weba"):
+                return ".weba"
+            elif Ext == ".webm" and fname.endswith(".wmv"):
+                return ".wmv"
+            elif Ext == ".wmv" and fname.endswith(".wma"):
+                return ".wma"
+            elif Ext == ".ogv" and fname.endswith(".ogg"):
+                return ".ogg"
+            elif Ext == ".asf" and fname.endswith(".wmv"):
+                return ".wmv"
+            elif Ext == ".asf" and fname.endswith(".wma"):
+                return ".wma"
             return Ext
         else:
             print(f"Python-Magic did not detect")
@@ -883,8 +895,11 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                 if Ext:
                     return f".{Ext.extension}"
                 else:
-                    print(f"File extension can not be determined!")
-                    return "Can't be determined"
+                    if fileContent.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
+                        return ".ac3"
+        print(f"File extension can not be determined!")
+        return "Can't be determined"
+
     NESTEDARCHIVESIZELIMIT = 1000000000
     UNCOMPRESSEDSIZELIMIT = 32000000000
     CHUNKSIZE = 5000000000  # Read file to RAM content every 5 GB
@@ -892,31 +907,47 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
     TempDir = f"{MAINDOWNLOADDIR}{os.path.basename(filePath[0]).split('.')[0]}/"
     os.mkdir(TempDir)
     with open(filePath[0], 'rb') as rootFile:
-        DuplicatedFileDectection = [hashlib.sha256(rootFile.read()).hexdigest()]
+        DuplicatedFileDetection = [hashlib.sha256(rootFile.read()).hexdigest()]
     uncompressedSize = os.path.getsize(filePath[0])
+    totalDuplicatedFile = 0
     totalDuplicatedArchive = 0
+    totalFileCount = 0
     while len(filePath) != 0:
         if archiveLayer == 7:
             print(f"The root archive file has 7 or more nested layers, hinted potential archive bomb!")
             return True
-        for filepath in range(len(filePath)):
+        for i in range(len(filePath)):
             if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                 print(f"The total uncompressed size has reached the limit threshold!")
                 return True
-            with open(filePath[filepath], "rb") as ArchiveSource:
+            with open(filePath[i], "rb") as ArchiveSource:
                 ArchiveContent = ArchiveSource.read()
-            fileExt = checkingFileExtension(ArchiveContent)
-            if fileExt == "Can't be determined" and filePath[filepath].endswith(".lzma"):
+            fileExt = checkingFileExtension(ArchiveContent, os.path.basename(filePath[i]))
+            if fileExt == "Can't be determined" and filePath[i].endswith(".lzma"):
                 fileExt = ".lzma"
-            print(f"Scanning Archive file: {os.path.basename(filePath[filepath])} at path {filePath[filepath]}...")
+            print(f"Scanning Archive file: {os.path.basename(filePath[i])} at path {filePath[i]}...")
             if fileExt.endswith(".zip"):
-                with zipfile.ZipFile(filePath[filepath], 'r') as zipRef:
+                print("Archive is a zip file!")
+                with zipfile.ZipFile(filePath[i], 'r') as zipRef:
+                    """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in zipRef.infolist():
-                        DestinationPath = os.path.abspath(os.path.join(TempDir, os.path.basename(entry.filename)))
-                        if not DestinationPath.startswith(os.path.abspath(TempDir)):
-                            print(f"The uncompressed file name {entry.filename} formed an illegal path"
-                                  f" {DestinationPath} to cause directory transversal attack!")
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
+                        if not DestinationPath.startswith(TempDir):
+                            print(f"The uncompressed file name {entry.filename} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
+                        if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
+                            totalFileCount += 1
+                            if entry.filename.endswith('/'):
+                                os.makedirs(DestinationPath, exist_ok=True)
+                                print(f"Directory {entry.filename} created at path {DestinationPath}")
+                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                            return True
+
+                    """Second Extraction Focusing On Extracting All the Compressed Files"""
+                    for entry in zipRef.infolist():
+                        if entry.filename.endswith('/'):
+                            continue
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
                         try:
                             with zipRef.open(entry, 'r') as source:
                                 if source is None:
@@ -931,43 +962,60 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                         print(f"The total uncompressed size has reached the limit threshold!")
                                         return True
-                            if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._"):
-                                hashedData = hashlib.sha256(fileData).hexdigest()
-                                if hashedData not in DuplicatedFileDectection:
-                                    if checkingFileExtension(fileData).endswith(ALLSCANNABLEFILEFORMATS):
-                                        with open(DestinationPath, 'wb') as file:
-                                            file.write(fileData)
+                            if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
+                                if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
+                                    hashedData = hashlib.sha256(fileData).hexdigest()
+                                    if hashedData not in DuplicatedFileDetection:
+                                        with open(DestinationPath, 'wb') as f:
+                                            f.write(fileData)
                                         print(f"{entry.filename} is written to path {DestinationPath}")
-                                    DuplicatedFileDectection.append(hashedData)
-                                else:
-                                    if checkingFileExtension(fileData).endswith(ARCHIVEFORMATS):
-                                        totalDuplicatedArchive += 1
-                                        print(f"Duplicated archive file at path {DestinationPath}")
-                                        if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
-                                            return True
+                                        DuplicatedFileDetection.append(hashedData)
                                     else:
-                                        print(f"Duplicated file at path {DestinationPath}")
-                        except TypeError:
-                            print(f"The extracted content of {os.path.basename(filePath[filepath])} is empty!")
-                            pass
-                        except zipfile.BadZipFile:
+                                        totalDuplicatedFile += 1
+                                        if checkingFileExtension(fileData, DestinationPath).endswith(ARCHIVEFORMATS):
+                                            totalDuplicatedArchive += 1
+                                            print(f"Duplicated archive/disk file at path {DestinationPath}")
+                                            if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
+                                                return True
+                                        else:
+                                            print(f"Duplicated file {entry.filename} at path {DestinationPath}")
+                            if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                                return True
+                        except zipfile.BadZipFile as error:
+                            print(f"Bad Zip File: {error}")
                             pass
                         except RuntimeError as e:
                             if 'password required' in str(e).lower():
                                 print("Zip file is encrypted!")
                                 return True
                             else:
+                                print(f"RunTimeError: {e}")
                                 pass
-                        except OSError:
+                        except OSError as error:
+                            print(f"OSError: {error}")
                             pass
             elif fileExt.endswith((".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz")):
-                with tarfile.open(filePath[filepath], 'r') as tarRef:
+                with tarfile.open(filePath[i], 'r') as tarRef:
+                    print("Archive is a tar file!")
+                    """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in tarRef.getmembers():
-                        DestinationPath = os.path.abspath(os.path.join(TempDir, os.path.basename(entry.name)))
-                        if not DestinationPath.startswith(os.path.abspath(TempDir)):
-                            print(f"The uncompressed file name {entry.name} formed an illegal path"
-                                  f" {DestinationPath} to cause directory transversal attack!")
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.name}")
+                        if not DestinationPath.startswith(TempDir):
+                            print(f"The uncompressed file name {entry.name} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
+                        if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
+                            totalFileCount += 1
+                            if "." not in entry.name:
+                                os.makedirs(DestinationPath, exist_ok=True)
+                                print(f"Directory {entry.name} created at path {DestinationPath}")
+                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                            return True
+
+                    """Second Extraction Focusing On Extracting All the Compressed Files"""
+                    for entry in tarRef.getmembers():
+                        if "." not in entry.name:
+                            continue
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.name}")
                         try:
                             with tarRef.extractfile(entry) as source:
                                 if source is None:
@@ -982,41 +1030,60 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                         print(f"The total uncompressed size has reached the limit threshold!")
                                         return True
-                                if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._"):
-                                    hashedData = hashlib.sha256(fileData).hexdigest()
-                                    if hashedData not in DuplicatedFileDectection:
-                                        if checkingFileExtension(fileData).endswith(ALLSCANNABLEFILEFORMATS):
-                                            with open(DestinationPath, 'wb') as file:
-                                                file.write(fileData)
+                                if "__MACOSX" not in DestinationPath and not os.path.basename( DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
+                                    if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
+                                        hashedData = hashlib.sha256(fileData).hexdigest()
+                                        if hashedData not in DuplicatedFileDetection:
+                                            with open(DestinationPath, 'wb') as f:
+                                                f.write(fileData)
                                             print(f"{entry.name} is written to path {DestinationPath}")
-                                        DuplicatedFileDectection.append(hashedData)
-                                    else:
-                                        if checkingFileExtension(fileData).endswith(ARCHIVEFORMATS):
-                                            totalDuplicatedArchive += 1
-                                            print(f"Duplicated archive/disk file at path {DestinationPath}")
-                                            if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
-                                                return True
+                                            DuplicatedFileDetection.append(hashedData)
                                         else:
-                                            print(f"Duplicated file at path {DestinationPath}")
-                        except TypeError:
-                            print(f"The extracted content of {os.path.basename(filePath[filepath])} is empty!")
+                                            totalDuplicatedFile += 1
+                                            if checkingFileExtension(fileData, DestinationPath).endswith(ARCHIVEFORMATS):
+                                                totalDuplicatedArchive += 1
+                                                print(f"Duplicated archive/disk file at path {DestinationPath}")
+                                                if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
+                                                    return True
+                                            else:
+                                                print(f"Duplicated file at path {DestinationPath}")
+                                if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                                    return True
+                        except tarfile.TarError as error:
+                            print(f"Tar file error: {error}")
                             pass
-                        except (OSError, tarfile.TarError):
+                        except OSError as error:
+                            print(f"OSError: {error}")
                             pass
             elif fileExt.endswith(".rar"):
-                with rarfile.RarFile(filePath[filepath], 'r') as rar:
+                print("Archive is a rar file!")
+                with rarfile.RarFile(filePath[i], 'r') as rar:
                     if rar.needs_password():
-                        print(f"Rar file {filePath[filepath]} required password!")
+                        print(f"Rar file {filePath[i]} required password!")
                         return True
+
+                    """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in rar.infolist():
                         if entry.needs_password():
-                            print(f"Rar file {entry.filename} required password!")
+                            print(f"Compressed file {entry.filename} required password!")
                             return True
-                        DestinationPath = os.path.abspath(os.path.join(TempDir, os.path.basename(entry.filename)))
-                        if not DestinationPath.startswith(os.path.abspath(TempDir)):
-                            print(f"The uncompressed file name {entry.filename} formed an illegal path"
-                                  f" {DestinationPath} to cause directory transversal attack!")
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
+                        if not DestinationPath.startswith(TempDir):
+                            print(f"The uncompressed file name {entry.filename} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
+                        if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
+                            totalFileCount += 1
+                            if entry.filename.endswith('/'):
+                                os.makedirs(DestinationPath, exist_ok=True)
+                                print(f"Directory {entry.filename} created at path {DestinationPath}")
+                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                            return True
+
+                    """Second Extraction Focusing On Extracting All the Compressed Files"""
+                    for entry in rar.infolist():
+                        DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
+                        if entry.filename.endswith('/'):
+                            continue
                         try:
                             with rar.open(entry, 'r') as source:
                                 if source is None:
@@ -1031,52 +1098,62 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                         print(f"The total uncompressed size has reached the limit threshold!")
                                         return True
-                            if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._"):
-                                hashedData = hashlib.sha256(fileData).hexdigest()
-                                if hashedData not in DuplicatedFileDectection:
-                                    if checkingFileExtension(fileData).endswith(ALLSCANNABLEFILEFORMATS):
-                                        with open(DestinationPath, 'wb') as file:
-                                            file.write(fileData)
+                            if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
+                                if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
+                                    hashedData = hashlib.sha256(fileData).hexdigest()
+                                    if hashedData not in DuplicatedFileDetection:
+                                        with open(DestinationPath, 'wb') as f:
+                                            f.write(fileData)
                                         print(f"{entry.filename} is written to path {DestinationPath}")
-                                    DuplicatedFileDectection.append(hashedData)
-                                else:
-                                    if checkingFileExtension(fileData).endswith(ARCHIVEFORMATS):
-                                        totalDuplicatedArchive += 1
-                                        print(f"Duplicated archive/disk file at path {DestinationPath}")
-                                        if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
-                                            return True
+                                        DuplicatedFileDetection.append(hashedData)
                                     else:
-                                        print(f"Duplicated file at path {DestinationPath}")
-                        except TypeError:
-                            print(f"The extracted content of {os.path.basename(filePath[filepath])} is empty!")
+                                        totalDuplicatedFile += 1
+                                        if checkingFileExtension(fileData, DestinationPath).endswith(ARCHIVEFORMATS):
+                                            totalDuplicatedArchive += 1
+                                            print(f"Duplicated archive/disk file at path {DestinationPath}")
+                                            if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
+                                                return True
+                                        else:
+                                            print(f"Duplicated file {entry.filename} at path {DestinationPath}")
+                            if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                                return True
+                        except rarfile.BadRarFile as error:
+                            print(f"Bad Rar File Error: {error}")
                             pass
-                        except (rarfile.BadRarFile, OSError, rarfile.NotRarFile):
+                        except rarfile.NotRarFile as error:
+                            print(f"Not Rar File Error: {error}")
+                            pass
+                        except OSError as error:
+                            print(f"OSError: {error}")
                             pass
             elif fileExt.endswith((".gz", ".bz2", ".xz", ".lzma")):
+                totalFileCount += 1
                 try:
-                    fileName = os.path.basename(filePath[filepath]).rsplit(fileExt, 1)[0]
+                    fileName = os.path.basename(filePath[i]).rsplit(fileExt, 1)[0]
                     DestinationPath = os.path.join(TempDir, fileName)
                     if not DestinationPath.startswith(os.path.abspath(TempDir)):
-                        print(f"The uncompressed file name {fileName} formed an illegal path"
-                              f" {DestinationPath} to cause directory transversal attack!")
+                        print(f"The uncompressed file name {fileName} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                         return True
                     fileData = b''
                     if fileExt.endswith(".bz2"):
-                        with bz2.BZ2File(filePath[filepath], 'rb') as bz2File:
+                        print("Archive is a bz2 file!")
+                        with bz2.BZ2File(filePath[i], 'rb') as bz2File:
                             while True:
                                 dataChunk = bz2File.read(CHUNKSIZE)
                                 if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
                                     break
                                 fileData += dataChunk
                     elif fileExt.endswith(".gz"):
-                        with gzip.open(filePath[filepath], 'rb') as gzipRef:
+                        print("Archive is a gzip file!")
+                        with gzip.open(filePath[i], 'rb') as gzipRef:
                             while True:
                                 dataChunk = gzipRef.read(CHUNKSIZE)
                                 if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
                                     break
                                 fileData += dataChunk
                     elif fileExt.endswith((".xz", ".lzma")):
-                        with lzma.open(filePath[filepath], 'rb') as lzFile:
+                        print("Archive is in xz and lzma category!")
+                        with lzma.open(filePath[i], 'rb') as lzFile:
                             while True:
                                 dataChunk = lzFile.read(CHUNKSIZE)
                                 if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
@@ -1086,52 +1163,57 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                         print(f"The total uncompressed size has reached the limit threshold!")
                         return True
-                    fileExt = checkingFileExtension(fileData)
-                    if fileExt == "Can't be determined" and filePath[filepath].endswith(".lzma"):
+                    fileExt = checkingFileExtension(fileData, fileName)
+                    if fileExt == "Can't be determined" and filePath[i].endswith(".lzma"):
                         fileExt = ".lzma"
                     if fileExt.endswith(ARCHIVEFORMATS):
                         DestinationPath += fileExt
                     hashedData = hashlib.sha256(fileData).hexdigest()
-                    if hashedData not in DuplicatedFileDectection:
-                        if  checkingFileExtension(fileData).endswith(ALLSCANNABLEFILEFORMATS):
+                    if hashedData not in DuplicatedFileDetection:
+                        if  checkingFileExtension(fileData, fileName).endswith(ALLSCANNABLEFILEFORMATS):
                             with open(DestinationPath, "wb") as file:
                                 file.write(fileData)
                             print(f"{fileName} is written to path {DestinationPath}")
-                        DuplicatedFileDectection.append(hashedData)
+                        DuplicatedFileDetection.append(hashedData)
                     else:
-                        if checkingFileExtension(fileData).endswith(ARCHIVEFORMATS):
+                        if checkingFileExtension(fileData, fileName).endswith(ARCHIVEFORMATS):
                             totalDuplicatedArchive += 1
                             print(f"Duplicated archive/disk file at path {DestinationPath}")
                             if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
                                 return True
                         else:
                             print(f"Duplicated file at path {DestinationPath}")
-                except (OSError, lzma.LZMAError, OSError):
+                except OSError as error:
+                    print(f"OSError: {error}")
                     pass
-            os.remove(filePath[filepath])
+                except lzma.LZMAError:
+                    print(f"LZMAError: {error}")
+                    pass
+            os.remove(filePath[i])
+            print("\n\n")
 
         archiveLayer += 1
         filePath.clear()
         for dirpath, dirnames, filenames in os.walk(TempDir):
             for filename in filenames:
-                filepath = os.path.join(dirpath, filename)
-                with open(filepath, "rb") as file:
+                i = os.path.join(dirpath, filename)
+                with open(i, "rb") as file:
                     fileData = file.read()
-                fileExt = checkingFileExtension(fileData)
-                if fileExt == "Can't be determined" and filepath.endswith(".lzma"):
+                fileExt = checkingFileExtension(fileData, i)
+                if fileExt == "Can't be determined" and i.endswith(".lzma"):
                     fileExt = ".lzma"
                 if fileExt.endswith(ARCHIVEFORMATS):
-                    print(f"Found nested Archive file {filename} at path {filepath}")
-                    if os.path.getsize(filepath) >= NESTEDARCHIVESIZELIMIT:
-                        print(f"The nested file {filename} size is {os.path.getsize(filepath)}. The number is"
+                    print(f"Found nested Archive file {filename} at path {i}")
+                    if os.path.getsize(i) >= NESTEDARCHIVESIZELIMIT:
+                        print(f"The nested file {filename} size is {os.path.getsize(i)}. The number is"
                               f" too large, thus, hinted potential archive bomb!")
                         return True
-                    filePath.append(filepath)
+                    filePath.append(i)
     print(f"Archive content extracted with total uncompressed size of {uncompressedSize} bytes")
     return False
 
 
-async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchiveFileData: str) -> Tuple[bool, str]:  # Return True to continue the scan process
+async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchiveFileData: str) -> Tuple[bool, str]:  # Return True if scan is NSFW
     """
     Description: Scanning archive file and its archived content
     :param archiveFileName: Archive file name
@@ -1148,7 +1230,7 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
     if await asyncio.to_thread(ArchivesBombAnalysisAndExtraction, [mainArchiveFilePath]):
         await AddingNewNSFWData(hashedArchiveFileData, "Archive File - Potential Archive Bomb!")
         print("The Archive File is flagged as potential archive bomb!")
-        return True, ""  # Cyber bot will delete the archive bomb!
+        return False, ""  # Cyber bot will delete the archive bomb!
     TempDir = f"{MAINDOWNLOADDIR}{archiveFileName.split('.')[0]}"
     print(f"Scanning content in temp directory: {TempDir}...\n\n")
     for dirpath, _, filenames in os.walk(TempDir):
@@ -1168,19 +1250,19 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                     print("Media file content already flagged NSFW!")
                     shutil.rmtree(TempDir)
                     await AddingNewNSFWData(hashedArchiveFileData, f"The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}")
-                    return False, f"NSFW Archive Content - The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}"
+                    return True, f"NSFW Archive Content - The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}"
                 else:
                     scanResult,  scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
                     if scanResult:
                         print(f"File content {filename} in Archive file was flagged NSFW!")
                         shutil.rmtree(TempDir)
                         await AddingNewNSFWData(hashedArchiveFileData, f"File content {filename} in Archive file was flagged NSFW! Reason: {scanResultDetails}")
-                        return False, f"NSFW Archive Content - File content {filename} in Archive file was flagged NSFW! Reason: {scanResultDetails}"
+                        return True, f"NSFW Archive Content - File content {filename} in Archive file was flagged NSFW! Reason: {scanResultDetails}"
                     print("\n\n")
     print(f"Archive content is clean!")
     await AddingNewCleanData(hashedArchiveFileData, "Archive contents passed the check!")
     shutil.rmtree(TempDir)
-    return True, ""
+    return False, ""
 
 
 async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  # Return True if Audio is NSFW!
@@ -2103,8 +2185,6 @@ async def on_message(message):
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
                             print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
-                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                del CURRENTSCANOPERATION[BasedURLToSave]
                             return
                         else:
                             """Checking any NSFW hint in the URL query"""
@@ -2384,7 +2464,7 @@ async def on_message(message):
                             print(f"Attachment file extension: {attachmentFileExt}")
                             if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
                                 if attachmentFileExt.endswith(ARCHIVEFORMATS):
-                                    attachmentNSFWResult, attachmentNSFWResultDetails = not await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
+                                    attachmentNSFWResult, attachmentNSFWResultDetails = await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
                                 elif attachmentFileExt.endswith(DOCUMENTFILES):
                                     print(f"Scanning ASCII text in file content...")
                                     if attachmentFileExt.endswith(".html"):

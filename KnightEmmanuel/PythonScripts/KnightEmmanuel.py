@@ -235,7 +235,7 @@ print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 
 
 """Getting Current Time Value"""
-ct = time.ctime(time.time()).split(" ")
+ct = time.ctime(time.time()).split()
 previousMonth = ct[1]
 previousDate = ct[2]
 previousYear = ct[4]
@@ -246,7 +246,7 @@ if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
 
 
 """Setting Path to Chrome Driver Binary"""
-# service = Service("")
+# service = Service("/usr/bin/chromedriver")
 
 def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
     """
@@ -1467,7 +1467,7 @@ async def reset_user_uncensor_value_and_update_llm_usage():
         async with aiofiles.open(EMMANUELCONFIG, "w") as file:
             await file.write(json.dumps(configuration, indent=4))
 
-    currentTime = time.ctime(time.time()).split(" ")
+    currentTime = time.ctime(time.time()).split()
 
     # Checking new date
     if currentTime[2] != previousDate:

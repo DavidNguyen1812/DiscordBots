@@ -463,7 +463,7 @@ YearlyCSVLock = asyncio.Lock()
 MonthlyCSVLock = asyncio.Lock()
 
 """Getting Current Time Value"""
-ct = time.ctime(time.time()).split(" ")
+ct = time.ctime(time.time()).split()
 previousMonth = ct[1]
 previousDate = ct[2]
 previousYear = ct[4]
@@ -942,7 +942,7 @@ async def update_user_command_limit_and_llm_usage():
         print(f"An error occurs while resetting member daily application command usage limit\n{error}")
         await TaskLogging("Resetting member daily application command usage limit", f"Error: {error}")
 
-    currentTime = time.ctime(time.time()).split(" ")
+    currentTime = time.ctime(time.time()).split()
 
 
     # Checking new date

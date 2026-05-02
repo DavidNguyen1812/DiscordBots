@@ -52,7 +52,7 @@ Main functionality is scanning Discord text message and media file attachment fo
 ```
 pip install better-profanity==0.7.0
 pip install discord-py==2.5.2
-pip install dotenv==0.9.0
+pip install dotenv==0.9.9
 pip install filetype==1.2.0
 pip install nudenet==3.4.2
 pip install openai==2.26.0
@@ -141,7 +141,7 @@ Main functionality is integrating Cryptography command to Discord using Open-Sou
 
 **System Requirement**
 ```
-pip install dotenv==0.9.0
+pip install dotenv==0.9.9
 pip install discord-py==2.5.2
 pip install pycryptodome==3.23.0
 pip install vigenere==1.1.0
@@ -201,6 +201,7 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord. Sa
 
 ```
 pip install pillow==11.3.0
+pip install dotenv==0.9.9
 pip install discord-py==2.5.2
 pip install openai==2.26.0
 pip install google-genai==1.66.0

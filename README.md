@@ -62,8 +62,8 @@ pip install python-magic==0.4.27
 pip install rarfile==4.2
 pip install requests==2.32.4
 pip install scikit-learn==1.7.1
-pip install selenium-wire==5.1.0
-pip install blinker==1.7.0
+pip install selenium-wire-2==0.2.1
+pip install blinker==1.9.0
 pip install webdriver-manager==4.0.2
 pip install aiofiles == 25.1.0
 pip install aiocsv==1.4.0

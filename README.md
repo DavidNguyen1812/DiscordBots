@@ -50,7 +50,7 @@ Main functionality is scanning Discord text message and media file attachment fo
 **System Requirements**
 
 ```
-pip install better-profanity=0.7.0
+pip install better-profanity==0.7.0
 pip install discord-py==2.5.2
 pip install dotenv==0.9.0
 pip install filetype==1.2.0

@@ -34,7 +34,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 from openai import AsyncOpenAI
 from nudenet import NudeDetector
-from seleniumwire import webdriver
+from seleniumwire2 import webdriver
 from selenium.webdriver.chrome.options import Options
 # from selenium.webdriver.chrome.service import Service
 from selenium.common import TimeoutException
@@ -584,8 +584,8 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
 
         print(f"GPT image NSFW scan results: {response.output_text}")
         outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
@@ -610,8 +610,8 @@ async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
             input=textToBeScanned
         )
         outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)

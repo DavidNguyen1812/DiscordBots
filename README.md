@@ -49,33 +49,34 @@ Main functionality is scanning Discord text message and media file attachment fo
 
 **System Requirements**
 
-```
-pip install better-profanity==0.7.0
-pip install discord-py==2.5.2
-pip install dotenv==0.9.9
-pip install filetype==1.2.0
-pip install nudenet==3.4.2
-pip install openai==2.26.0
-pip install opencv-python==4.13.0.92
-pip install pillow==11.3.0
-pip install python-magic==0.4.27
-pip install rarfile==4.2
-pip install requests==2.32.4
-pip install selenium-wire-2==0.2.1
-pip install blinker==1.9.0
-pip install webdriver-manager==4.0.2
-pip install aiofiles == 25.1.0
-pip install aiocsv==1.4.0
-pip install numpy==2.4.4
-pip install pandas==3.0.2
-pip install matplotlib==3.10.8
-Need ffmpeg installed
-Discord API key
-OpenAI API key
-Tenor API key
-Klipy API key
-ScrapeOps API key
-```
+Tool | Version |Source |
+|---|---|---|
+| Python | `>= 3.11.0` | https://www.python.org/downloads |
+| better-profanity | `== 0.7.0` | https://github.com/snguyenthanh/better_profanity |
+| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
+| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
+| filetype | `== 1.2.0` | https://github.com/h2non/filetype.py |
+| nudenet | `== 3.4.2` | https://github.com/notAI-tech/nudenet |
+| openai | `== 2.26.0` | https://github.com/openai/openai-python |
+| opencv-python | `== 4.13.0.92` | https://github.com/opencv/opencv-python |
+| pillow | `== 11.3.0` | https://python-pillow.github.io |
+| python-magic | `== 0.4.27` | http://github.com/ahupp/python-magic |
+| rarfile | `== 4.2` | https://github.com/markokr/rarfile |
+| requests | `== 2.32.4` | https://requests.readthedocs.io |
+| selenium-wire-2 | `== 0.2.1` | https://github.com/7x11x13/selenium-wire-2 |
+| blinker | `== 1.9.0` | https://github.com/pallets-eco/blinker |
+| webdriver-manager | `== 4.0.2` | https://github.com/SergeyPirogov/webdriver_manager |
+| aiofiles | `== 25.1.0` | https://github.com/Tinche/aiofiles |
+| aiocsv | `== 1.4.0` | https://github.com/MKuranowski/aiocsv |
+| numpy | `== 2.4.4` | https://numpy.org |
+| pandas | `== 3.0.2` | https://pandas.pydata.org |
+| matplotlib | `== 3.10.8` | https://matplotlib.org |
+| ffmpeg | `== 7.1.1` | https://www.ffmpeg.org/download.html |
+| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
+| Tenor API key | `N/A` | https://tenor.com/gifapi/documentation |
+| Klipy API key | `N/A` | https://klipy.com |
+| ScrapeOps API key | `N/A` | https://scrapeops.io |
+| OpenAI API key | `N/A` | https://openai.com/api/ |
 
 **Application Commands**
 

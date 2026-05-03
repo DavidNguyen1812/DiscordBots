@@ -140,13 +140,16 @@ The following commands can only be used by the server owner or the bot owner onl
 Main functionality is integrating Cryptography command to Discord using Open-Source Python Crypto Library pycryptodome
 
 **System Requirement**
-```
-pip install dotenv==0.9.9
-pip install discord-py==2.5.2
-pip install pycryptodome==3.23.0
-pip install vigenere==1.1.0
-Discord API key
-```
+
+Tool | Version |Source |
+|---|---|---|
+| Python | `>= 3.11.0` | https://www.python.org/downloads |
+| better-profanity | `== 0.7.0` | https://github.com/snguyenthanh/better_profanity |
+| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
+| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
+| pycryptodome | `== 3.23.0` | https://www.pycryptodome.org |
+| vigenere | `== 1.1.0` | https://github.com/GuptaAyush19/Vigenere-Cipher |
+| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
 
 **Application Commands**
 ```

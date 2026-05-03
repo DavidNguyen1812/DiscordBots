@@ -783,8 +783,8 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
         totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
         logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
         await LoggingGPTandGeminiOutputs(logMessage)
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
@@ -844,8 +844,8 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
                 wf.writeframes(data)
         reply = response.text
         totalOutputTokenCount = response.usage_metadata.total_token_count - totalInputTokenCount
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "General Chat")
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
@@ -889,8 +889,8 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
         logMessage += f"\nTotal Input Tokens: {reply.usage.prompt_tokens} tokens\nChatGPT {model}: {reply.choices[0].message.content}\nTotal Output Tokens: {reply.usage.total_tokens - reply.usage.prompt_tokens} tokens\n\n"
         totalInputTokenCount = reply.usage.prompt_tokens
         totalOutputTokenCount = reply.usage.total_tokens - reply.usage.prompt_tokens
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "Audio-Prompt-Text-Output")
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
@@ -916,8 +916,8 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
         logMessage += f"\nTotal Input Tokens: {reply.usage.prompt_tokens} tokens\nChatGPT {model}: {reply.choices[0].message.audio.transcript}\nTotal Output Tokens: {reply.usage.total_tokens - reply.usage.prompt_tokens} tokens\n\n"
         totalInputTokenCount = reply.usage.prompt_tokens
         totalOutputTokenCount = reply.usage.total_tokens - reply.usage.prompt_tokens
-        cMonth = time.ctime(time.time()).split(' ')[1]
-        cDay = time.ctime(time.time()).split(' ')[2]
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
         totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "Text-Prompt-Audio-Output")
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)

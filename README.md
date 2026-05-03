@@ -202,21 +202,23 @@ Main functionality is integrating OpenAI and Google Gemini models to Discord. Sa
 
 **System Requirements**
 
-```
-pip install pillow==11.3.0
-pip install dotenv==0.9.9
-pip install discord-py==2.5.2
-pip install openai==2.26.0
-pip install google-genai==1.66.0
-pip install aiofiles==25.1.0
-pip install aiocsv==1.4.0
-pip install numpy==2.4.4
-pip install pandas==3.0.2
-pip install matplotlib==3.10.8
-Discord API key
-OpenAI API key
-Google Gemini API key
-```
+Tool | Version |Source |
+|---|---|---|
+| Python | `>= 3.11.0` | https://www.python.org/downloads |
+| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
+| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
+| openai | `== 2.26.0` | https://github.com/openai/openai-python |
+| google-genai | `== 1.66.0` | https://github.com/googleapis/python-genai |
+| pillow | `== 11.3.0` | https://python-pillow.github.io |
+| aiofiles | `== 25.1.0` | https://github.com/Tinche/aiofiles |
+| aiocsv | `== 1.4.0` | https://github.com/MKuranowski/aiocsv |
+| numpy | `== 2.4.4` | https://numpy.org |
+| pandas | `== 3.0.2` | https://pandas.pydata.org |
+| matplotlib | `== 3.10.8` | https://matplotlib.org |
+| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
+| ScrapeOps API key | `N/A` | https://scrapeops.io |
+| OpenAI API key | `N/A` | https://openai.com/api/ |
+| Google Gemini API key | `N/A` | https://ai.google.dev/gemini-api/docs |
 
 **Application Commands**
 

@@ -1284,8 +1284,9 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
     for dirpath, _, filenames in os.walk(TempDir):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
-            fixedFileExt = filename.split(".")
-            fixedFileExt.pop(0)
+            async with aiofiles.open(filepath, "rb") as file:
+                fileData = await file.read()
+                fileExt = checkingRealFileExtension(await file.read(), filename)
             if filename.startswith("._"):  # Remove duplicated ._ file
                 os.remove(filepath)
             print(f"Found media file {filename} at path {filepath}")
@@ -1300,7 +1301,13 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                     await AddingNewNSFWData(hashedArchiveFileData, f"The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}")
                     return True, f"NSFW Archive Content - The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}"
                 else:
-                    scanResult,  scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
+                    if fileExt.endswith(DOCUMENTFILES):
+                        if fileExt.endswith(".html"):
+                            scanResult,  scanResultDetails = await NSFWscanMessage(fileData.decode('utf-8'), False, True)
+                        else:
+                            scanResult,  scanResultDetails = await NSFWscanMessage(fileData.decode('utf-8'))
+                    else:
+                        scanResult, scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
                     if scanResult:
                         print(f"File content {filename} in Archive file was flagged NSFW!")
                         shutil.rmtree(TempDir)
@@ -2069,7 +2076,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                                 await file.write(json.dumps(configuration, indent=4))
                                             if scanContent:
                                                 if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
+                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                 elif URLContentExt.endswith(DOCUMENTFILES):
                                                     print(f"Scanning ASCII text in URL content...")
                                                     if URLContentExt.endswith(".html"):
@@ -2362,7 +2369,7 @@ async def on_message(message):
                                                                 await file.write(json.dumps(configuration, indent=4))
                                             if scanContent:
                                                 if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = not await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
+                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                 elif URLContentExt.endswith(DOCUMENTFILES):
                                                     print(f"Scanning ASCII text in URL content...")
                                                     if URLContentExt.endswith(".html"):

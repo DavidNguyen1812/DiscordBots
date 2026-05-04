@@ -414,49 +414,61 @@ def checkingRealFileExtension(BytesContent: bytes, filename: str) -> str:
     :param filename: The name of the file
     :return: The result file extension from the analyzation process
     """
-    print("Getting the first 1M bytes content of the file in http RESPONSE...")
-    first1MegaBytes = BytesContent[:1000000]
-    print("Checking file extension with python-magic module...")
-    mime = magic.from_buffer(first1MegaBytes, mime=True)
+    print("Checking file extension with Python-Magic module...")
+    mime = magic.from_buffer(BytesContent, mime=True)
     fileExt = mimetypes.guess_extension(mime)
     if fileExt:
         if fileExt == ".bin":
-            if first1MegaBytes.startswith(b'PK'):
+            if BytesContent.startswith(b'PK'):
+                print(f"Detected file extension .zip")
                 return '.zip'
-            elif first1MegaBytes.startswith(b'caff'):
+            elif BytesContent.startswith(b'caff'):
+                print(f"Detected file extension .caf")
                 return '.caf'
         if fileExt == ".webm" and filename.endswith(".weba"):
+            print(f"Detected file extension .weba")
             return ".weba"
         elif fileExt == ".webm" and filename.endswith(".wmv"):
+            print(f"Detected file extension .wmv")
             return ".wmv"
         elif fileExt == ".wmv" and filename.endswith(".wma"):
+            print(f"Detected file extension .wma")
             return ".wma"
         elif fileExt == ".ogv" and filename.endswith(".ogg"):
+            print(f"Detected file extension .ogg")
             return ".ogg"
         elif fileExt == ".asf" and filename.endswith(".wmv"):
+            print(f"Detected file extension .wmv")
             return ".wmv"
         elif fileExt == ".asf" and filename.endswith(".wma"):
+            print(f"Detected file extension .wma")
             return ".wma"
+        if fileExt.endswith((".xz", ".bz2", ".gz")) and filename.endswith((".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz")):
+            fileExt = f".{'.'.join(filename.split(".")[1:])}"
+            print(f"Detected extension {fileExt}")
+        else:
+            print(f"Python-Magic detected file extension {fileExt}")
         return fileExt
     else:
-        print("python-magic could not determined, manually checking based on pre-defined list...")
+        print("Python-Magic did not detect")
         try:
-            first1MegaBytesToASCII = first1MegaBytes.decode("ascii")
-            if first1MegaBytesToASCII.isascii():
+            if BytesContent.decode("ascii").isascii():
                 return "ASCII document or script files"
         except UnicodeDecodeError:
             print("Checking file extension with filetype module...")
-            fileExt = filetype.guess(first1MegaBytes)
+            fileExt = filetype.guess(BytesContent)
             if fileExt:
+                print(f"Filetype detected file extension {fileExt.extension}")
                 return f".{fileExt.extension}"
             else:
-                if first1MegaBytes.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
+                if BytesContent.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
+                    print(f"Detected file extension .ac3")
                     return ".ac3"
                 elif filename.endswith(".lzma"):
+                    print(f"Detected file extension .lzma")
                     return ".lzma"
-                print(f"File extension can not be determined!")
-                return "Can't be determined"
-        return "Can't be determined"
+    print(f"File extension can not be determined!")
+    return "Can't be determined"
 
 async def writingLog(logData: str) -> None:
     """
@@ -903,17 +915,15 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                 Ext = f".{'.'.join(fname.split(".")[1:])}"
                 if verbose:
                     print(f"Detected extension {Ext}")
-                return Ext
             else:
                 if verbose:
                     print(f"Python-Magic detect file extension {Ext}")
-                return Ext
+            return Ext
         else:
             if verbose:
                 print(f"Python-Magic did not detect")
             try:
-                first1MegaBytesToASCII = fileContent.decode("ascii")
-                if first1MegaBytesToASCII.isascii():
+                if fileContent.decode("ascii").isascii():
                     if verbose:
                         print(f"ASCII file detected")
                     return ".txt"
@@ -936,7 +946,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
         if verbose:
             print(f"File extension can not be determined!")
         return "Can't be determined"
-    
+
     NESTEDARCHIVESIZELIMIT = 1000000000
     UNCOMPRESSEDSIZELIMIT = 32000000000
     CHUNKSIZE = 5000000000  # Read file to RAM content every 5 GB

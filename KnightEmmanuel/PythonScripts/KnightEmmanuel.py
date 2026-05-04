@@ -861,45 +861,82 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
     :param archiveLayer: The layer of the archive file
     :return: True if the archive is not safe to extract, False otherwise
     """
-    def checkingFileExtension(fileContent: bytes, fname: str):
+
+    def checkingFileExtension(fileContent: bytes, fname: str, verbose: bool = True):
         mime = magic.from_buffer(fileContent, mime=True)
         Ext = mimetypes.guess_extension(mime)
         if Ext:
             if Ext == ".bin":
                 if fileContent.startswith(b'PK'):
+                    if verbose:
+                        print(f"Detected file extension .zip")
                     return '.zip'
                 else:
+                    if verbose:
+                        print(f"Python-Magic detect file extension .bin")
                     return ".bin"
             if Ext == ".webm" and fname.endswith(".weba"):
+                if verbose:
+                    print(f"Detected file extension .weba")
                 return ".weba"
             elif Ext == ".webm" and fname.endswith(".wmv"):
+                if verbose:
+                    print(f"Detected file extension .wmv")
                 return ".wmv"
             elif Ext == ".wmv" and fname.endswith(".wma"):
+                if verbose:
+                    print(f"Detected file extension .wma")
                 return ".wma"
             elif Ext == ".ogv" and fname.endswith(".ogg"):
+                if verbose:
+                    print(f"Detected file extension .ogg")
                 return ".ogg"
             elif Ext == ".asf" and fname.endswith(".wmv"):
+                if verbose:
+                    print(f"Detected file extension .wmv")
                 return ".wmv"
             elif Ext == ".asf" and fname.endswith(".wma"):
+                if verbose:
+                    print(f"Detected file extension .wma")
                 return ".wma"
-            return Ext
+            if Ext.endswith((".xz", ".bz2", ".gz")) and fname.endswith((".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz")):
+                Ext = f".{'.'.join(fname.split(".")[1:])}"
+                if verbose:
+                    print(f"Detected extension {Ext}")
+                return Ext
+            else:
+                if verbose:
+                    print(f"Python-Magic detect file extension {Ext}")
+                return Ext
         else:
-            print(f"Python-Magic did not detect")
+            if verbose:
+                print(f"Python-Magic did not detect")
             try:
                 first1MegaBytesToASCII = fileContent.decode("ascii")
                 if first1MegaBytesToASCII.isascii():
+                    if verbose:
+                        print(f"ASCII file detected")
                     return ".txt"
             except UnicodeDecodeError:
-                print(f"Starting filetype module...")
+                if verbose:
+                    print(f"Starting filetype module...")
                 Ext = filetype.guess(fileContent)
                 if Ext:
+                    if verbose:
+                        print(f"Filetype detected file extension {Ext.extension}")
                     return f".{Ext.extension}"
-                else:
-                    if fileContent.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
-                        return ".ac3"
-        print(f"File extension can not be determined!")
+                elif fileContent.startswith((b'\x0B\x77', b'\x0bwu\xacT@C')):
+                    if verbose:
+                        print(f"Detected file extension .ac3")
+                    return ".ac3"
+                elif fname.endswith(".lzma"):
+                    if verbose:
+                        print(f"Detected file extension .lzma")
+                    return ".lzma"
+        if verbose:
+            print(f"File extension can not be determined!")
         return "Can't be determined"
-
+    
     NESTEDARCHIVESIZELIMIT = 1000000000
     UNCOMPRESSEDSIZELIMIT = 32000000000
     CHUNKSIZE = 5000000000  # Read file to RAM content every 5 GB
@@ -922,13 +959,12 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                 return True
             with open(filePath[i], "rb") as ArchiveSource:
                 ArchiveContent = ArchiveSource.read()
+            print(f"Checking Archive file: {os.path.basename(filePath[i])} at path {filePath[i]}...")
             fileExt = checkingFileExtension(ArchiveContent, os.path.basename(filePath[i]))
-            if fileExt == "Can't be determined" and filePath[i].endswith(".lzma"):
-                fileExt = ".lzma"
-            print(f"Scanning Archive file: {os.path.basename(filePath[i])} at path {filePath[i]}...")
             if fileExt.endswith(".zip"):
                 print("Archive is a zip file!")
                 with zipfile.ZipFile(filePath[i], 'r') as zipRef:
+                    print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in zipRef.infolist():
                         DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
@@ -943,6 +979,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                         if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
                             return True
 
+                    print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
                     for entry in zipRef.infolist():
                         if entry.filename.endswith('/'):
@@ -995,8 +1032,9 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             print(f"OSError: {error}")
                             pass
             elif fileExt.endswith((".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz")):
+                print("Archive is a tar file!")
                 with tarfile.open(filePath[i], 'r') as tarRef:
-                    print("Archive is a tar file!")
+                    print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in tarRef.getmembers():
                         DestinationPath = os.path.abspath(f"{TempDir}{entry.name}")
@@ -1011,6 +1049,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                         if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
                             return True
 
+                    print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
                     for entry in tarRef.getmembers():
                         if "." not in entry.name:
@@ -1030,7 +1069,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                         print(f"The total uncompressed size has reached the limit threshold!")
                                         return True
-                                if "__MACOSX" not in DestinationPath and not os.path.basename( DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
+                                if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
                                     if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
                                         hashedData = hashlib.sha256(fileData).hexdigest()
                                         if hashedData not in DuplicatedFileDetection:
@@ -1061,7 +1100,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     if rar.needs_password():
                         print(f"Rar file {filePath[i]} required password!")
                         return True
-
+                    print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in rar.infolist():
                         if entry.needs_password():
@@ -1079,6 +1118,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                         if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
                             return True
 
+                    print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
                     for entry in rar.infolist():
                         DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
@@ -1140,37 +1180,37 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                         with bz2.BZ2File(filePath[i], 'rb') as bz2File:
                             while True:
                                 dataChunk = bz2File.read(CHUNKSIZE)
-                                if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                     break
                                 fileData += dataChunk
+                                uncompressedSize += len(dataChunk)
                     elif fileExt.endswith(".gz"):
                         print("Archive is a gzip file!")
                         with gzip.open(filePath[i], 'rb') as gzipRef:
                             while True:
                                 dataChunk = gzipRef.read(CHUNKSIZE)
-                                if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                     break
                                 fileData += dataChunk
+                                uncompressedSize += len(dataChunk)
                     elif fileExt.endswith((".xz", ".lzma")):
                         print("Archive is in xz and lzma category!")
                         with lzma.open(filePath[i], 'rb') as lzFile:
                             while True:
                                 dataChunk = lzFile.read(CHUNKSIZE)
-                                if not dataChunk or len(fileData) >= UNCOMPRESSEDSIZELIMIT:
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                     break
                                 fileData += dataChunk
-                    uncompressedSize += len(fileData)
+                                uncompressedSize += len(dataChunk)
                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                         print(f"The total uncompressed size has reached the limit threshold!")
                         return True
-                    fileExt = checkingFileExtension(fileData, fileName)
-                    if fileExt == "Can't be determined" and filePath[i].endswith(".lzma"):
-                        fileExt = ".lzma"
+                    fileExt = checkingFileExtension(fileData, fileName, False)
                     if fileExt.endswith(ARCHIVEFORMATS):
                         DestinationPath += fileExt
                     hashedData = hashlib.sha256(fileData).hexdigest()
                     if hashedData not in DuplicatedFileDetection:
-                        if  checkingFileExtension(fileData, fileName).endswith(ALLSCANNABLEFILEFORMATS):
+                        if checkingFileExtension(fileData, fileName).endswith(ALLSCANNABLEFILEFORMATS):
                             with open(DestinationPath, "wb") as file:
                                 file.write(fileData)
                             print(f"{fileName} is written to path {DestinationPath}")
@@ -1199,14 +1239,12 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                 i = os.path.join(dirpath, filename)
                 with open(i, "rb") as file:
                     fileData = file.read()
-                fileExt = checkingFileExtension(fileData, i)
-                if fileExt == "Can't be determined" and i.endswith(".lzma"):
-                    fileExt = ".lzma"
+                fileExt = checkingFileExtension(fileData, i, False)
                 if fileExt.endswith(ARCHIVEFORMATS):
                     print(f"Found nested Archive file {filename} at path {i}")
                     if os.path.getsize(i) >= NESTEDARCHIVESIZELIMIT:
-                        print(f"The nested file {filename} size is {os.path.getsize(i)}. The number is"
-                              f" too large, thus, hinted potential archive bomb!")
+                        print(
+                            f"The nested file {filename} size is {os.path.getsize(i)}. The number is too large, thus, hinted potential archive bomb!")
                         return True
                     filePath.append(i)
     print(f"Archive content extracted with total uncompressed size of {uncompressedSize} bytes")

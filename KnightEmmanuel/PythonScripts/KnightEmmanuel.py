@@ -977,12 +977,12 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in zipRef.infolist():
+                        totalFileCount += 1
                         DestinationPath = os.path.abspath(f"{TempDir}{entry.filename}")
                         if not DestinationPath.startswith(TempDir):
                             print(f"The uncompressed file name {entry.filename} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
                         if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
-                            totalFileCount += 1
                             if entry.filename.endswith('/'):
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.filename} created at path {DestinationPath}")
@@ -1047,12 +1047,12 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in tarRef.getmembers():
+                        totalFileCount += 1
                         DestinationPath = os.path.abspath(f"{TempDir}{entry.name}")
                         if not DestinationPath.startswith(TempDir):
                             print(f"The uncompressed file name {entry.name} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
                         if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
-                            totalFileCount += 1
                             if "." not in entry.name:
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.name} created at path {DestinationPath}")
@@ -1113,6 +1113,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                     print(f"Creating subdirectories...")
                     """First Extraction Focusing On Checking Extraction Path and Directory Structure"""
                     for entry in rar.infolist():
+                        totalFileCount += 1
                         if entry.needs_password():
                             print(f"Compressed file {entry.filename} required password!")
                             return True
@@ -1121,7 +1122,6 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             print(f"The uncompressed file name {entry.filename} formed an illegal path {DestinationPath} to cause directory transversal attack!")
                             return True
                         if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.filename:
-                            totalFileCount += 1
                             if entry.filename.endswith('/'):
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.filename} created at path {DestinationPath}")

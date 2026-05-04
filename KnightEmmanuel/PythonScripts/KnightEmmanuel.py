@@ -453,7 +453,8 @@ def checkingRealFileExtension(BytesContent: bytes, filename: str) -> str:
         print("Python-Magic did not detect")
         try:
             if BytesContent.decode("ascii").isascii():
-                return "ASCII document or script files"
+                print(f"Detected file extension as ascii/text file")
+                return ".txt"
         except UnicodeDecodeError:
             print("Checking file extension with filetype module...")
             fileExt = filetype.guess(BytesContent)

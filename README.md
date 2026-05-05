@@ -3,7 +3,9 @@
 ## OVERVIEW
 Three pre-built Discord bots with unique functionality. All you need just a discord API,other APIs (will be included as you read this README) and a Linux/MacOS system with Python 3.10+ to host and deploy them to your Discord server.
 
-**NOTE: PROJECT STILL UNDER PROGRESSED!!! THERE MIGHT BE EXPLICIT CONTENT IN THE REPO, SO VIEWER DISCRETION IS ADVISED**
+## NOTE: PROJECT STILL UNDER PROGRESSED!!!
+
+## THERE MIGHT BE EXPLICIT CONTENT IN THE REPO, SO VIEWER DISCRETION IS ADVISED
 
 ## Repo Structure:
 
@@ -20,6 +22,8 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   ├── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
 │   │   │   ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
 │   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
+│   │   │   ├── BlackListPornSites.txt                      # A black list of common porn sites
+│   │   │   ├── NSFWSubreddits.txt                          # A black list of NSFW subreddits
 │   │   │   └── ProfanityLibWordList.txt                    # Customizable list of profane words
 │   ├── PythonScripts                                       # Emmanuel source Code Directory
 │   │   └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code

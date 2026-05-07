@@ -1,0 +1,8 @@
+# Change this file name to .env
+SAMSONGPTANDGEMINILOGPATH=/path/to/KnightSamson/Files/Logs/GPTandGeminiResponses.txt
+SAMSONLOGPATH=/path/to/KnightSamson/Files/Logs/EventLogs.txt
+SAMSONDISCORDAPI="Your Bot Discord API"
+GEMINI_API_KEY="Your Gemini API Key"
+SAMSONGPTAPI="Your OpenAI API Key"
+SAMSONCONFIGPATH=/path/to/KnightSamson/Files/Configuration/SamsonConfiguration.json
+SAMSONLLMUSAGELOGDIR="/path/to/KnightSamson/Files/LLM Usages/"

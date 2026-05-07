@@ -30,14 +30,21 @@ from aiocsv import AsyncWriter
 
 load_dotenv()
 
-"""----Configuration Constants----"""
+"""Initializing Important Constants"""
 COMMAND_USAGE = 7 # Daily application command usage
-DISCORDAPI = os.environ.get("SAMSONDISCORDAPI")
+OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
+
+"""Getting Important File Paths"""
 LOGCOMMANDFILEPATH = os.environ.get("SAMSONLOGPATH")
 CONFIGFILEPATH = os.environ.get("SAMSONCONFIGPATH")
 GPTANDGEMINILOGUSERMESSAGEFILEPATH = os.environ.get("SAMSONGPTANDGEMINILOGPATH")
-GPTAPI = os.environ.get("SAMSONGPTAPI")
 LLMUSAGELOGDIR = os.environ.get("SAMSONLLMUSAGELOGDIR")
+
+"""API Tokens"""
+DISCORDAPI = os.environ.get("SAMSONDISCORDAPI")
+GPTAPI = os.environ.get("SAMSONGPTAPI")
+
+"""Setting Up Important Variables for the OpenAI and Gemini LLM pipeline to function properly"""
 INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please ALWAYS response to the user prompt in medieval style!",
                    "Futuristic": "You are a high tech futuristic machine name Samson! Please ALWAYS response to the user prompt in futuristic style!",
                    "Romantic": "You are a romantic person name Samson! Please ALWAYS response to the user prompt in a romantic style!",
@@ -48,6 +55,7 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please
                    "Viking": "You are a Viking name Samson! Please ALWAYS response to the user prompt with Nordic culture!",
                    "Samurai": "You are an honourable Samurai name Samson! Please ALWAYS response to the user prompt according to the Bushido Code!",
                    "Comedian": "You are a comedian name Samson! Please ALWAYS response to the user prompt with some humor!"}
+
 """
 https://developers.openai.com/api/docs/models 
 OPENAI GPT INFO:
@@ -472,7 +480,6 @@ if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}")
 
-OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
 """Loading Configuration File"""
 with open(CONFIGFILEPATH, "r") as readFile:

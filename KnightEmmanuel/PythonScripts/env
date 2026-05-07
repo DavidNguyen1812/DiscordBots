@@ -1,0 +1,15 @@
+# Change this file name to .env
+EMMANUELDISCORDAPI="Your bot Discord API Key"
+EMMANUELOPENAIAPI="Your OpenAI API Key"
+MANUELTENORAPI="Your Tenor API Key"
+EMMANUELKLIPHYAPI="Your Klipy API Key"
+EMMANUELLOGPATH=/path/to/KnightEmmanuel/Files/Log/EventLogs.txt
+EMMANUELDOWNLOADPATH=/path/to/KnightEmmanuel/DownloadDirectory/ # This is a dedicated directory for Emmanuel to temporary download and scan file, you can make this in the tmp folder if needed
+EMMANUELPROFANITYWORDLISTS=/path/to/KnightEmmanuel/Files/WordLists/ProfanityLibWordList.txt
+EMMANUELNSFWDATA=/path/to/KnightEmmanuel/Files/WordLists/NSFWData.json
+EMMANUELCLEANDATA=/path/to/KnightEmmanuel/Files/WordLists/CleanData.json
+EMMANUELCONFIGPATH=/path/to/KnightEmmanuel/Files/Configuration/EmmanuelConfig.json
+EMMANUELLLMUSAGELOGDIR="/path/to/KnightEmmanuel/Files/LLM Usages/"
+EMMANUELSCRAPEOPSAPI="Your ScrapeOPS API Key"
+EMMANUELBLACKLISTPORNDOMAINS=/path/to/KnightEmmanuel/Files/WordLists/BlackListPornDomains.txt
+EMMANUELBLACKLISTSUBREDDITS=/path/to/KnightEmmanuel/Files/WordLists/NSFWSubreddits.txt

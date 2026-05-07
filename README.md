@@ -75,7 +75,7 @@ Tool | Version |Source |
 | numpy | `== 2.4.4` | https://numpy.org |
 | pandas | `== 3.0.2` | https://pandas.pydata.org |
 | matplotlib | `== 3.10.8` | https://matplotlib.org |
-| fpdf | `== 1.7.2` | http://code.google.com/p/pyfpdf |
+| fpdf | `== 1.7.2` | https://github.com/reingart/pyfpdf |
 | ffmpeg | `== 7.1.1` | https://www.ffmpeg.org/download.html |
 | Discord API key | `N/A` | https://docs.discord.com/developers/reference |
 | Tenor API key | `N/A` | https://tenor.com/gifapi/documentation |

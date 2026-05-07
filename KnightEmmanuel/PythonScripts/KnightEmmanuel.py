@@ -40,13 +40,15 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common import TimeoutException
 from typing import Tuple, Literal
 from aiocsv import AsyncWriter
+from fpdf import FPDF
+from urllib.parse import unquote
 
 load_dotenv()
 
 
 """
                     ---Scan Engine Logic---
-Message text content check - Using two detection methods (Profanity Lib and OpenAI)
+Message text content check - Using three detection methods (Profanity Lib, Black Lists and OpenAI)
 Images, Gif and PDF Frames check - Image converted to PNG format and scan with Nudenet, if nothing detected, convert all to PDF frames and Using OpenAI to scan
 Image Text OCR - Using OpenAI OCR scan
 Video Frames - Using cv2 to extract all video frames to scan with Nudenet, if nothing detected converting 40 video frames into a PDF file for OpenAI to scan the frames
@@ -54,7 +56,7 @@ Audio transcript - Using GPT-40-Transcribe to extract audio script, then Profani
 Archive file - Checking for archive bomb then extracting the image, audio, video, pdf compressed content for scan
 """
 
-"""----Configuration Constants----"""
+"""----Nudenet Inappropriate Classes----"""
 SEXUALTAGS = [
     "FEMALE_GENITALIA_COVERED",
     "BUTTOCKS_EXPOSED",
@@ -68,6 +70,7 @@ SEXUALTAGS = [
     "BUTTOCKS_COVERED",
 ]
 
+"""Define all file extensions Emmanuel will scan"""
 ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns",
                            ".avif", ".odd", ".gif",
 
@@ -97,6 +100,7 @@ ARCHIVEFORMATS = (".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma",
 
 DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml")
 
+"""Getting Important File Paths"""
 NSFWFILEPATH = os.environ.get("EMMANUELNSFWDATA")
 CLEANFILEPATH = os.environ.get("EMMANUELCLEANDATA")
 GPTFLAGGEDFILEPATH = os.environ.get("EMMANUELGPTFLAGGEDWORDSPATH")
@@ -104,13 +108,16 @@ EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
 EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
 LLMUSAGELOGDIR = os.environ.get("EMMANUELLLMUSAGELOGDIR")
+
+"""Initializing Important Constants"""
 DAILYUNCENSORLIMIT = 1
 WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 1311807435627036733, 1312835282852122636, 1288292461310906409, 1334684058919370752, 1330689636309274665, 1361346209360646295]
 FILEDOWNLOADCOUNTER = 0
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
+"""Defining selected OpenAI models"""
 # https://platform.openai.com/docs/pricing
-GPTMODELFORIMAGESCAN = "gpt-5-nano"
+GPTMODELFORIMAGESCAN = "gpt-5-mini"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
 LLMModels = [GPTMODELFORTEXTSCAN, GPTMODELFORIMAGESCAN]
@@ -118,7 +125,7 @@ LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]}
+                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2.0, 2.0]}
                             },
                         GPTMODELFORTEXTSCAN :
                             {
@@ -205,21 +212,28 @@ Emmanuel = EmmanuelBot(command_prefix='/', intents=intents)
 
 with open(EMMANUELCONFIG, "r") as configFile:
     configuration = json.load(configFile)
-print(f"Configuration file successfully loaded:\n{configuration}")
+print(f"Configuration file successfully loaded!")
 
 profanity.load_censor_words_from_file(os.environ.get("EMMANUELPROFANITYWORDLISTS"))
 with open(os.environ.get("EMMANUELPROFANITYWORDLISTS"), "r") as profanityFile:
     WordList = [word.strip("\n") for word in profanityFile.readlines()]
 print("Profanity Wordlist successfully loaded!")
 
+with open(os.environ.get("EMMANUELBLACKLISTPORNDOMAINS"), "r") as pornDomainFile:
+    BlackListDomains= {domain.strip("\n") for domain in pornDomainFile.readlines()}
+print(f"Black List Porn Domains successfully loaded!")
+
+with open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "r") as subredditFile:
+    BlackListSubreddits = {subreddit.strip("\n") for subreddit in subredditFile.readlines()}
+print("Black List Subreddits successfully loaded!")
+
 with open(NSFWFILEPATH, "r") as NSFWFile:
     NSFWData = json.load(NSFWFile)
-print(f"NSFW Data successfully loaded:\n{list(NSFWData.keys())}")
+print(f"NSFW Data successfully loaded!")
 
 with open(CLEANFILEPATH, "r") as CLEANFile:
     CLEANData = json.load(CLEANFile)
-print(f"Clean Data successfully loaded:\n{list(CLEANData.keys())}")
-
+print(f"Clean Data successfully loaded!")
 
 """Retrieving 100 ScrapeOps Mobile Browser Headers"""
 ScrapeOPSResponse = requests.get(
@@ -247,6 +261,13 @@ if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
 
 """Setting Path to Chrome Driver Binary"""
 # service = Service("/usr/bin/chromedriver")
+
+
+"""Compiling important regex pattern"""
+URLPATTERN = re.compile(r'https?://(?:(?!https?://)\S)+')
+WORD = re.compile(r'(\w+)', re.IGNORECASE)
+REDDITDOMAINS = re.compile(r'\b(reddit.com|redditinc.com|redd.it|redditmedia.com|redditspace.com)\b', re.IGNORECASE)
+SUBREDDITPATTERN = re.compile(r'/?r/+(\w)+')
 
 def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
     """
@@ -567,6 +588,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     :param PDFimagePath: Path to the PDF on disk
     :return: GPT scan result
     """
+    print(f"Start scanning PDF frames with GPT {GPTMODELFORIMAGESCAN}")
     with open(PDFimagePath, "rb") as PDFfile:
         fileResponse = await GPTclient.files.create(file=PDFfile, purpose="assistants")
         fileID = fileResponse.id
@@ -575,6 +597,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!"
               )
     inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="Strictly follow the prompt for detailed instructions", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
+    print(f"Input Tokens: {inputPromptTokenCount}")
     if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"]:
         await GPTclient.files.delete(fileID)
         return "MAXIMUM TOKEN LIMIT"
@@ -737,6 +760,23 @@ def PDFConversion(filePath: str) -> str:
             return "Conversion failed"
     os.remove(filePath)
     return PDFPath
+
+
+def AsciiDocumentToPDFConversion(fileData: bytes) -> str:
+    """
+    Description: Convert a text based file (HTML, .py, .txt, .etc.) to PDF
+    :param fileData: The ascii data bytes of the file in memory
+    :return: The output PDF path of the converted file
+    """
+    print(f"Converting ASCII-based file to PDF...")
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdfpath = f"{MAINDOWNLOADDIR}{FILEDOWNLOADCOUNTER}.pdf"
+    pdf.multi_cell(0, 10, fileData.decode('utf-8', errors="replace").encode("latin-1", errors="replace").decode("latin-1"))
+    pdf.output(pdfpath)
+    print(f"Conversion successes!")
+    return pdfpath
 
 
 # Return True if NSFW
@@ -1303,10 +1343,17 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                     return True, f"NSFW Archive Content - The file content {filename} in Archive file has already flagged NSFW! Reason: {NSFWData[hashedFileContent]}"
                 else:
                     if fileExt.endswith(DOCUMENTFILES):
-                        if fileExt.endswith(".html"):
-                            scanResult,  scanResultDetails = await NSFWscanMessage(fileData.decode('utf-8'), False, True)
+                        pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, fileData)
+                        scanResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                        if scanResultDetails.startswith(("Yes", "yes", "YES")):
+                            scanResult = True
+                            scanResultDetails = scanResultDetails.strip("Yes, ")
+                            scanResultDetails = f"NSFW message content in file - {scanResultDetails}"
+                            print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+                            await AddingNewNSFWData(hashedFileContent, scanResultDetails)
                         else:
-                            scanResult,  scanResultDetails = await NSFWscanMessage(fileData.decode('utf-8'))
+                            scanResult = False
+                            await AddingNewCleanData(hashedFileContent, "Document file text is clean!")
                     else:
                         scanResult, scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
                     if scanResult:
@@ -1370,7 +1417,7 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
         return False, f"Clean Audio Transcript - {scanResultDetails}"
 
 
-async def NSFWscanMessage(checkMessage: str, URL: bool=False, HTML: bool=False) -> Tuple[bool, str]:  # Return True if text content is NSFW!
+async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str]:  # Return True if text content is NSFW!
     """
     Description: NSFW scan for ASCII content
     :param checkMessage: ASCII content to be scanned
@@ -1378,22 +1425,41 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False, HTML: bool=False) 
     :param HTML: Specify whether the ASCII content is an HTML or not
     :return: Scan result and reason
     """
-    if not HTML:
-        print("Scanning content using Profanity Library...")
-        if profanity.contains_profanity(checkMessage):
-            print("Profanity Library detected inappropriate message!")
-            if URL:
-                return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
-            else:
-                return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
-        if not URL:
-            for text in SPECIALTEXT:
-                if text in checkMessage:
-                    print("Special NSFW character detected!")
-                    return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
-        print("Profanity Library did not detect, starting GPT scan...")
+    print("Starting Black List check...")
+    if REDDITDOMAINS.findall(unquote(checkMessage).lower()) or SUBREDDITPATTERN.search(unquote(checkMessage).lower()):
+        print(f"Detected reddit url: {checkMessage}")
+        redditUrl = True
     else:
-        print("Scanning HTML content using GPT...")
+        redditUrl = False
+
+    for match in WORD.finditer(unquote(checkMessage).lower()):
+
+        print("Checking for blacklisted domain name...")
+        if match.group(1) in BlackListDomains:
+            print(f"blacklisted domain: {match.group(1)}")
+            return True, f"Message contains blacklisted NSFW domain {match.group(1)}"
+
+        if redditUrl:
+            print(f"Checking for blacklisted NSFW subreddit...")
+            if match.group(1) in BlackListSubreddits:
+                print(f"blacklisted subreddit: /r/{match.group(1)}")
+                return True, f"Message contains blacklisted NSFW subreddit /r/{match.group(1)}"
+
+    print("Black list check passed!")
+
+    print("Scanning content using Profanity Library...")
+    if profanity.contains_profanity(checkMessage):
+        print("Profanity Library detected inappropriate message!")
+        if URL:
+            return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
+        else:
+            return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
+    if not URL:
+        for text in SPECIALTEXT:
+            if text in checkMessage:
+                print("Special NSFW character detected!")
+                return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
+    print("Profanity Library did not detect, starting GPT scan...")
     if not URL:
         DetectedPhrase = await ScanningTextOnlyWithGPT(
             f"Analyze the following message and identify any vulgar or inappropriate words.\n"
@@ -1894,7 +1960,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
             """Checking if a URL in a message and make sure only one URL"""
             if "https://" in after.content or "http://" in after.content:
                 print("Re-Edited Message contains URL link(s)! Checking all the URL(s)...")
-                URLs = re.findall(r'https?://(?:(?!https?://)\S)+', after.content)
+                URLs = URLPATTERN.findall(after.content)
                 URLs = list(set(URLs))
                 for URL in URLs:
                     print(f"Extracting {URL} from message {after.content}")
@@ -2006,6 +2072,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                     else:
                                         UrlContent = await response.read()
                             except Exception as URLQueryError:
+                                statuscode = 403
                                 print(f"Error getting URL: {URLQueryError}.")
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                     await after.delete()
@@ -2080,14 +2147,16 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                 elif URLContentExt.endswith(DOCUMENTFILES):
                                                     print(f"Scanning ASCII text in URL content...")
-                                                    if URLContentExt.endswith(".html"):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'), False, True)
-                                                    else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'))
-                                                    if UrlContentNSFWResult:
+                                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion,UrlContent)
+                                                    UrlContentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                                    if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                                        UrlContentNSFWResult = True
+                                                        UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
                                                         UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
                                                         await AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                     else:
+                                                        UrlContentNSFWResult = False
                                                         await AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
@@ -2189,7 +2258,7 @@ async def on_message(message):
             """Checking if a URL in a message and make sure only one URL"""
             if "https://" in message.content or "http://" in message.content:
                 print("Message contains URL link(s)! Checking all the URL(s)...")
-                URLs = re.findall(r'https?://(?:(?!https?://)\S)+', message.content)
+                URLs = URLPATTERN.findall(message.content)
                 URLs = list(set(URLs))
                 for URL in URLs:
                     textContent = textContent.replace(URL, '')
@@ -2300,6 +2369,7 @@ async def on_message(message):
                                     else:
                                         UrlContent = await response.read()
                             except Exception as URLQueryError:
+                                statuscode = 403
                                 print(f"Error getting URL: {URLQueryError}.")
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                     await message.delete()
@@ -2373,15 +2443,17 @@ async def on_message(message):
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
                                                 elif URLContentExt.endswith(DOCUMENTFILES):
                                                     print(f"Scanning ASCII text in URL content...")
-                                                    if URLContentExt.endswith(".html"):
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'), False, True)
-                                                    else:
-                                                        UrlContentNSFWResult, UrlContentNSFWResultDetails = await NSFWscanMessage(UrlContent.decode('utf-8'))
-                                                    if UrlContentNSFWResult:
+                                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, UrlContent)
+                                                    UrlContentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                                    if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                                        UrlContentNSFWResult = True
+                                                        UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
                                                         UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
+                                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
                                                         await AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                     else:
-                                                        await AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
+                                                        UrlContentNSFWResult = False
+                                                        await AddingNewCleanData(BasedURLToSave, "Document file text is clean!")
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                         else:
@@ -2522,15 +2594,17 @@ async def on_message(message):
                                 if attachmentFileExt.endswith(ARCHIVEFORMATS):
                                     attachmentNSFWResult, attachmentNSFWResultDetails = await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
                                 elif attachmentFileExt.endswith(DOCUMENTFILES):
-                                    print(f"Scanning ASCII text in file content...")
-                                    if attachmentFileExt.endswith(".html"):
-                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'), False, True)
-                                    else:
-                                        attachmentNSFWResult, attachmentNSFWResultDetails = await NSFWscanMessage(attachmentContent.decode('utf-8'))
-                                    if attachmentNSFWResult:
+                                    print(f"Scanning ASCII text in URL content...")
+                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, UrlContent)
+                                    attachmentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                    if attachmentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                        attachmentNSFWResult = True
+                                        attachmentNSFWResultDetails = attachmentNSFWResultDetails.strip("Yes, ")
                                         attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
+                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
                                         await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
                                     else:
+                                        attachmentNSFWResult = False
                                         await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
                                 else:
                                     attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)

@@ -308,126 +308,155 @@ GOOGLE GEMINI TTS INFO:
         + Cost per 1 Million Output Token: $20.00
         + Supported Inputs: Text
 """
+
+# Please NOTE that your LLM models rate limit are subjected your AI project tier
+# https://developers.openai.com/api/docs/guides/rate-limits
+# https://ai.google.dev/gemini-api/docs/rate-limits#current-rate-limits
+
 LLMMODELINFORMATION = {
                         "gemini-2.5-flash":
                             {
                                 "Maximum Input Tokens": 1048576,
-                                "Cost": {"Input Token": [0.3, 0.3], "Output Token": [2.5, 2.5]}
+                                "Cost": {"Input Token": [0.3, 0.3], "Output Token": [2.5, 2.5]},
+                                "TPM": 1000000
                             },
                         "gemini-2.5-pro":
                             {
                                 "Maximum Input Tokens": 1048576,
-                                "Cost": {"Input Token": [1.25, 2.5], "Output Token": [10, 15]}
+                                "Cost": {"Input Token": [1.25, 2.5], "Output Token": [10, 15]},
+                                "TPM": 2000000
                              },
                         "gemini-3.1-pro-preview":
                             {
                                 "Maximum Input Tokens": 1048576,
-                                "Cost": {"Input Token": [2, 4], "Output Token": [12, 18]}
+                                "Cost": {"Input Token": [2, 4], "Output Token": [12, 18]},
+                                "TPM": 2000000
                             },
                         "gpt-5.4":
                             {
                                 "Maximum Input Tokens": 1050000,
-                                "Cost": {"Input Token": [2.5, 5], "Output Token": [15, 22.5]}
+                                "Cost": {"Input Token": [2.5, 5], "Output Token": [15, 22.5]},
+                                "TPM": 400000
                             },
                         "gpt-5.2":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]},
+                                "TPM": 500000
                             },
                         "gpt-5.1":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]},
+                                "TPM": 500000
                             },
                         "gpt-5":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]},
+                                "TPM": 500000
                             },
                         "gpt-5-mini":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2, 2]}
+                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2, 2]},
+                                "TPM": 500000
                             },
                         "gpt-5-nano":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]}
+                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]},
+                                "TPM": 200000
                             },
                         "gpt-5.3-codex":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]},
+                                "TPM": 500000
                             },
                         "gpt-5.2-codex":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]}
+                                "Cost": {"Input Token": [1.75, 1.75], "Output Token": [14, 14]},
+                                "TPM": 500000
                             },
                         "gpt-5.1-codex":
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]}
+                                "Cost": {"Input Token": [1.25, 1.25], "Output Token": [10, 10]},
+                                "TPM": 500000
                             },
                         "gpt-4.1":
                             {
                                 "Maximum Input Tokens": 1047576,
-                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]}
+                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]},
+                                "TPM": 30000
                             },
                         "gpt-4.1-mini":
                             {
                                 "Maximum Input Tokens": 1047576,
-                                "Cost": {"Input Token": [0.4, 0.4], "Output Token": [1.6, 1.6]}
+                                "Cost": {"Input Token": [0.4, 0.4], "Output Token": [1.6, 1.6]},
+                                "TPM": 200000
                             },
                         "gpt-4.1-nano":
                             {
                                 "Maximum Input Tokens": 1047576,
-                                "Cost": {"Input Token": [0.1, 0.1], "Output Token": [0.4, 0.4]}
+                                "Cost": {"Input Token": [0.1, 0.1], "Output Token": [0.4, 0.4]},
+                                "TPM": 200000
                             },
                         "gpt-4o":
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [2.5, 2.5], "Output Token": [10, 10]}
+                                "Cost": {"Input Token": [2.5, 2.5], "Output Token": [10, 10]},
+                                "TPM": 30000
                             },
-                        "gpt-4.0-mini":
+                        "gpt-4o-mini":
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]}
+                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]},
+                                "TPM": 200000
                             },
                         "o4-mini":
                             {
                                 "Maximum Input Tokens": 200000,
-                                "Cost": {"Input Token": [1.10, 1.10], "Output Token": [4.40, 4.40]}
+                                "Cost": {"Input Token": [1.10, 1.10], "Output Token": [4.40, 4.40]},
+                                "TPM": 200000
                             },
                         "o3":
                             {
                                 "Maximum Input Tokens": 200000,
-                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]}
+                                "Cost": {"Input Token": [2, 2], "Output Token": [8, 8]},
+                                "TPM": 30000
                             },
                         "gemini-2.5-flash-preview-tts":
                             {
                                 "Maximum Input Tokens": 8192,
-                                "Cost": {"Input Token": [0.5, 0.5], "Output Token": [10, 10]}
+                                "Cost": {"Input Token": [0.5, 0.5], "Output Token": [10, 10]},
+                                "TPM": 10000
                             },
                         "gemini-2.5-pro-preview-tts":
                             {
                                 "Maximum Input Tokens": 8192,
-                                "Cost": {"Input Token": [1.00, 1.00], "Output Token": [20, 20]}
+                                "Cost": {"Input Token": [1.00, 1.00], "Output Token": [20, 20]},
+                                "TPM": 10000
                             },
                         "gpt-audio":
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]}
+                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]},
+                                "TPM": 250000
                             },
                         "gpt-audio-1.5":
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]}
+                                "Cost": {"Input Token": [2.5, 32], "Output Token": [10, 64]},
+                                "TPM": 250000
                             },
                         "gpt-audio-mini":
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [0.6, 0.6], "Output Token": [2.4, 2.4]}
+                                "Cost": {"Input Token": [0.6, 0.6], "Output Token": [2.4, 2.4]},
+                                "TPM": 250000
                             }
                        }
 
@@ -504,7 +533,7 @@ async def on_ready():
         for guild in Samson.guilds:
             for member in guild.members:
                 if not SamsonConfig.get(str(member.id), ""):
-                    SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": []}
+                    SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [], "Latest Conversation ID": ""}
                     print(f"Adding user: {member.name} - ID: {member.id} from server: {guild.name} - ID: {guild.id} to Samson Configuration File")
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                 await file.write(json.dumps(SamsonConfig, indent=4))
@@ -740,19 +769,25 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
                 ])).input_tokens
 
     logMessage += f"\nTotal Input Tokens: {totalInputToken} tokens"
-    if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+    if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputToken > LLMMODELINFORMATION[model]["TPM"]:
         if not fileUpload:
             if fileUpload[1] != "IMAGE":
                 await GPTclient.files.delete(fileID)
-        logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
-        await LoggingGPTandGeminiOutputs(logMessage)
-        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+        if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+            logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+        else:
+            logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
         if fileUpload is None:
             response = await GPTclient.responses.create(
                 model=model,
                 instructions=instructions,
                 input=userPrompt,
+                store=False # Tell OpenAI to not store the conversation in their server
             )
         else:
             if fileUpload[1] == "IMAGE":
@@ -767,7 +802,8 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
                                 {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
                             ],
                         }
-                    ]
+                    ],
+                    store=False  # Tell OpenAI to not store the conversation in their server
                 )
             else:
                 response = await GPTclient.responses.create(
@@ -781,7 +817,8 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
                                 {"type": "input_file", "file_id": fileID}
                             ]
                         }
-                    ]
+                    ],
+                    store = False  # Tell OpenAI to not store the conversation in their server
                 )
                 await GPTclient.files.delete(fileID)
 
@@ -821,10 +858,15 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
         prompt = userInput
     totalInputTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=prompt)).total_tokens
     logMessage += f"\nTotal Input Tokens: {totalInputTokenCount} tokens"
-    if totalInputTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
-        logMessage += f"\nTotal input tokens exceeding model {model }input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
-        await LoggingGPTandGeminiOutputs(logMessage)
-        return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+    if totalInputTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputTokenCount > LLMMODELINFORMATION[model]["TPM"]:
+        if totalInputTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+            logMessage += f"\nTotal input tokens exceeding model {model } input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+        else:
+            logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} TPM LIMIT OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
         if audio is None:
             response = await GEMINIclient.aio.models.generate_content(model=model, contents=prompt)
@@ -930,6 +972,69 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
         await LoggingGPTandGeminiOutputs(logMessage)
         return reply.choices[0].message.audio.data
+
+
+async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instructions: str, ) -> str:
+    """
+    Description: REST API call to OpenAI text only model with conversation history context enable
+    :param userInput: User's prompt
+    :param userDiscordID: A list of user Discord ID and Discord name
+    :param instructions: System instructions
+    :return: API responses from the API call
+    """
+    model = "gpt-5.4"
+    userID = userDiscordID[0]
+    userName = userDiscordID[1]
+    if SamsonConfig[str(userID)]["Latest Conversation ID"]:
+        lastChatResponseID = SamsonConfig[str(userID)]["Latest Conversation ID"]
+        totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, previous_response_id=lastChatResponseID, input=userInput)).input_tokens
+    else:
+        lastChatResponseID = None
+        totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=userInput)).input_tokens
+
+    logMessage = f"{time.ctime(time.time())}\n{userName}: {userInput}\nUser instructions: {instructions}\nTotal Input Tokens: {totalInputToken} tokens"
+
+    if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputToken > LLMMODELINFORMATION[model]["TPM"]:
+        if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+            logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+        else:
+            logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
+    else:
+        if lastChatResponseID:
+            response = await GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=userInput,
+                previous_response_id=lastChatResponseID,
+                store=True # Tell OpenAI to store the conversation in their server, this enables user conversation history context
+            )
+        else:
+            response = await GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=userInput,
+                store=True
+            )
+        SamsonConfig[str(userID)]["Latest Conversation ID"] = response.id
+        async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+            await file.write(json.dumps(SamsonConfig, indent=4))
+        reply = response.output_text
+        totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
+        logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
+        await LoggingGPTandGeminiOutputs(logMessage)
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
+        totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
+        return reply
+
+
+
 
 
 @tasks.loop(hours=24)  # A task every 24 hours
@@ -1764,7 +1869,7 @@ async def clear_samson_dm_messages(ctx):
 @Samson.event
 async def on_member_join(member):
     async with ConfigLock:
-        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": []}
+        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [], "Latest Conversation ID": ""}
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
             await file.write(json.dumps(SamsonConfig, indent=4))
 
@@ -1797,15 +1902,15 @@ async def on_message(message):
         return
 
     if isDMChannel(message.channel):
-        reply = await gpt_text_and_picture_inputs_only(message.content, message.author.name, "gpt-5.4", INSTRUCTION_LISTS[SamsonConfig[str(message.author.id)]["Samson Roleplay"]])
+        reply = await gpt_text_interactive_chat(message.content,[message.author.id, message.author.name], INSTRUCTION_LISTS[SamsonConfig[str(message.author.id)]["Samson Roleplay"]])
         if len(reply) > 1500:
             buffer = BytesIO()
             buffer.write(reply.encode('utf-8'))
             buffer.seek(0)
             replyFile = discord.File(fp=buffer, filename="reply.txt")
-            await message.author.send("", file=replyFile)
+            await message.reply("", file=replyFile)
         else:
-            await message.author.send(reply)
+            await message.reply(reply)
 
 
 Samson.run(DISCORDAPI)

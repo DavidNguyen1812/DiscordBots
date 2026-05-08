@@ -103,7 +103,6 @@ DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml")
 """Getting Important File Paths"""
 NSFWFILEPATH = os.environ.get("EMMANUELNSFWDATA")
 CLEANFILEPATH = os.environ.get("EMMANUELCLEANDATA")
-GPTFLAGGEDFILEPATH = os.environ.get("EMMANUELGPTFLAGGEDWORDSPATH")
 EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
 EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
 MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
@@ -268,6 +267,8 @@ URLPATTERN = re.compile(r'https?://(?:(?!https?://)\S)+')
 WORD = re.compile(r'(\w+)', re.IGNORECASE)
 REDDITDOMAINS = re.compile(r'\b(reddit.com|redditinc.com|redd.it|redditmedia.com|redditspace.com)\b', re.IGNORECASE)
 SUBREDDITPATTERN = re.compile(r'/?r/+(\w)+')
+SUBREDDITPATTERN2 = re.compile(r'r(\w+)')
+SANITIZE = re.compile(r'[^a-zA-Z0-9]')
 
 def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
     """
@@ -617,6 +618,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
         )
 
         await GPTclient.files.delete(fileID)
+        os.remove(PDFimagePath)
 
         print(f"GPT image NSFW scan results: {response.output_text}")
         outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
@@ -886,7 +888,6 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
         print("Error converting media content to PDF frames!")
         return False, ""
     mediaScanResult = await scanningPDFPagesWithGPT(pdfPath)
-    os.remove(pdfPath)
     if mediaScanResult.startswith(("Yes", "yes", "YES")):
         mediaScanResult =  mediaScanResult.strip("Yes, ")
         if mediaName.endswith(PICTUREFORMATS):
@@ -1444,7 +1445,23 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
             if match.group(1) in BlackListSubreddits:
                 print(f"blacklisted subreddit: /r/{match.group(1)}")
                 return True, f"Message contains blacklisted NSFW subreddit /r/{match.group(1)}"
+    print("Black list check passed!")
 
+    print("Starting Black List check on sophisticated message...")
+    resolvedMessage = SANITIZE.sub('', unquote(checkMessage).lower())
+    match = SUBREDDITPATTERN2.search(resolvedMessage)
+    if match:
+        print(f"Detected subreddit: /r/{match.group(1)}")
+        if match.group(1) in BlackListSubreddits:
+            print(f"blacklisted subreddit: /r/{match.group(1)}")
+            return True, f"Message contains blacklisted NSFW subreddit /r/{match.group(1)}"
+        print("Subreddit check passed!")
+    print(f"Resolved message: {resolvedMessage}")
+    for match in WORD.finditer(resolvedMessage):
+        print("Checking for blacklisted domain name on sophisticated message...")
+        if match.group(1) in BlackListDomains:
+            print(f"blacklisted domain: {match.group(1)}")
+            return True, f"Message contains blacklisted NSFW domain {match.group(1)}"
     print("Black list check passed!")
 
     print("Scanning content using Profanity Library...")
@@ -1476,6 +1493,13 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
             f"Message: '{checkMessage}'\n")
     if DetectedPhrase.startswith(("Yes", "yes", "YES")):
         print("GPT detected inappropriate content!")
+        if redditUrl:
+            match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
+            if match:
+                newNSFWsubreddit = match.group(1).replace('/r/', '')
+                BlackListSubreddits.add(newNSFWsubreddit)
+                async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
+                    await file.write(newNSFWsubreddit + '\n')
         return True, DetectedPhrase.strip("Yes,")
     print("GPT scan result is clean!")
     return False, DetectedPhrase.strip("No, ")

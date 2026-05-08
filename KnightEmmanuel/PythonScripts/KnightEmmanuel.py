@@ -124,12 +124,14 @@ LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2.0, 2.0]}
+                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2.0, 2.0]},
+                                "TPM": 500000
                             },
                         GPTMODELFORTEXTSCAN :
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]}
+                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]},
+                                "TPM": 200000
                             }
                        }
 
@@ -591,7 +593,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     """
     print(f"Start scanning PDF frames with GPT {GPTMODELFORIMAGESCAN}")
     with open(PDFimagePath, "rb") as PDFfile:
-        fileResponse = await GPTclient.files.create(file=PDFfile, purpose="assistants")
+        fileResponse = await GPTclient.files.create(file=PDFfile, purpose="user_data")
         fileID = fileResponse.id
     prompt = ("Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
               " animal porn, reference to adult or NSFW websites, or even consider NSFW? Please taking into account that people in light clothing like thongs and bikini SHOULD BE consider NSFW!\n"
@@ -599,7 +601,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
               )
     inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="Strictly follow the prompt for detailed instructions", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
     print(f"Input Tokens: {inputPromptTokenCount}")
-    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"]:
+    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["TPM"]:
         await GPTclient.files.delete(fileID)
         return "MAXIMUM TOKEN LIMIT"
     else:
@@ -638,7 +640,7 @@ async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
     :return: GPT scan result
     """
     inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="Strictly follow the prompt for detailed instructions", input=textToBeScanned)).input_tokens
-    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["Maximum Input Tokens"]:
+    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["TPM"]:
         print("MAXIMUM TOKEN LIMIT")
         return "MAXIMUM TOKEN LIMIT"
     else:

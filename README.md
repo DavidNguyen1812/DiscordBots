@@ -259,3 +259,5 @@ Tool | Version |Source |
 /google_gemini_audio -> Integrating Google Gemini audio TTS models. This works with ONLY text prompt.
 ```
 
+**DM Channel**
+Knight Samson can interact with user like a chatbot in private DM channel integrated with OpenAI model. The "Lastest Response ID" from the last conversation with user is being used to enhance the response with contextual awareness.

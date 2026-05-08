@@ -2,16 +2,19 @@
     "UserDiscordUserID1": {
         "Current command usage limit": 7,
         "Samson Roleplay": "Medieval",
-        "Banned Application Commands": []
+        "Banned Application Commands": [],
+        "Latest Conversation ID": "resp_1234567890" 
     },
     "UserDiscordUserID2": {
         "Current command usage limit": 7,
         "Samson Roleplay": "Samurai",
-        "Banned Application Commands": ["/clear_last_message"]
+        "Banned Application Commands": ["/clear_last_message"],
+        "Latest Conversation ID": "resp_24351vaeeve" 
     },
     "UserDiscordUserID3": {
         "Current command usage limit": 7,
         "Samson Roleplay": "Viking",
-        "Banned Application Commands": ["/openai_gpt_chat"]
+        "Banned Application Commands": ["/openai_gpt_chat"],
+        "Latest Converstaion ID": "resp_25eave3b"
     }
 }

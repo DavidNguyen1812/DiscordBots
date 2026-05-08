@@ -1467,10 +1467,18 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
     print("Scanning content using Profanity Library...")
     if profanity.contains_profanity(checkMessage):
         print("Profanity Library detected inappropriate message!")
+        if redditUrl:
+            match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
+            if match:
+                newNSFWsubreddit = match.group(1).replace('/r/', '')
+                BlackListSubreddits.add(newNSFWsubreddit)
+                async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
+                    await file.write(newNSFWsubreddit + '\n')
         if URL:
             return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
         else:
             return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
+
     if not URL:
         for text in SPECIALTEXT:
             if text in checkMessage:

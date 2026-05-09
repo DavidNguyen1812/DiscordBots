@@ -595,11 +595,15 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     with open(PDFimagePath, "rb") as PDFfile:
         fileResponse = await GPTclient.files.create(file=PDFfile, purpose="user_data")
         fileID = fileResponse.id
-    prompt = ("Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
-              " animal porn, reference to adult or NSFW websites, or even consider NSFW? Please taking into account that people in light clothing like thongs and bikini SHOULD BE consider NSFW!\n"
-              "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!"
+    prompt = ("# ASK\n"
+              "Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
+              " animal porn, reference to adult or NSFW websites, or even consider NSFW?\n"
+              "# IMPORTANT RULE\n"
+              "Please taking into account that people in light clothing like thongs and bikini SHOULD BE consider NSFW!\n"
+              "# RESPONSE FORMAT\n"
+              "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!"
               )
-    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="Strictly follow the prompt for detailed instructions", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
+    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="You are an NSFW content moderator", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
     print(f"Input Tokens: {inputPromptTokenCount}")
     if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["TPM"]:
         await GPTclient.files.delete(fileID)
@@ -607,7 +611,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     else:
         response = await GPTclient.responses.create(
             model=GPTMODELFORIMAGESCAN,
-            instructions="Strictly follow the prompt for detailed instructions",
+            instructions="You are an NSFW content moderator",
             input=[
                 {
                     "role": "user",
@@ -629,24 +633,23 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
         totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
-
         return response.output_text
 
 
-async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
+async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
     """
     Description: Scanning text content with GPT pre-train model
     :param textToBeScanned: The text content to be scanned
     :return: GPT scan result
     """
-    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="Strictly follow the prompt for detailed instructions", input=textToBeScanned)).input_tokens
+    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="You are an NSFW moderator on text messages that may also contains URL", input=textToBeScanned)).input_tokens
     if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["TPM"]:
         print("MAXIMUM TOKEN LIMIT")
         return "MAXIMUM TOKEN LIMIT"
     else:
         response = await GPTclient.responses.create(
             model=GPTMODELFORTEXTSCAN,
-            instructions="Strictly follow the prompt for detailed instructions",
+            instructions="You are an NSFW moderator on text messages that may also contains URL",
             input=textToBeScanned
         )
         outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
@@ -655,8 +658,36 @@ async def ScanningTextOnlyWithGPT(textToBeScanned: str) -> str:
         totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
         await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
-        reply = response.output_text
-        return reply
+        return response.output_text
+
+async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
+    """
+    Description: Scanning web content with web search tool
+    :param url: The URL to be scanned
+    :return: The scan result
+    """
+    # https://developers.openai.com/api/docs/pricing#built-in-tools
+
+    response = await GPTclient.responses.create(model=GPTMODELFORIMAGESCAN,
+                                                tools=[{"type": "web_search",}],
+                                                instructions="You are a web content moderator",
+                                                input=f"# ACTION\n"
+                                                      f"Perform a search on a website url and determine if the website contains NSFW content\n "
+                                                      f"# URL\n"
+                                                      f"{url}\n"
+                                                      f"# RESPONSE FORMAT\n"
+                                                      f"1. If the website can not be access, just reply CAN NOT ACCESS WEBSITE.\n"
+                                                      f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN  30 WORDS!\n"
+                                                      f"3. If the website does not have any NSFW content, just reply No."
+                                                )
+    inputPromptTokenCount = response.usage.input_tokens
+    outputPromptTokenCount = response.usage.output_tokens
+    cMonth = time.ctime(time.time()).split()[1]
+    cDay = time.ctime(time.time()).split()[2]
+    totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount) + 0.01 # Web Search cost $10/1K request
+    await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
+    await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], YearlyCSVLock)
+    return response.output_text
 
 
 async def isTenorURLValid(gifURL: str) -> str:
@@ -1487,21 +1518,37 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
                 print("Special NSFW character detected!")
                 return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
     print("Profanity Library did not detect, starting GPT scan...")
-    if not URL:
-        DetectedPhrase = await ScanningTextOnlyWithGPT(
-            f"Analyze the following message and identify any vulgar or inappropriate words.\n"
-            f"Consider the context—only flag words as NSFW if they are being used in an inappropriate or sexual manner or even give hint to it.\n"
-            f"Taking into measure the text could be written in other language than English, this does means that some characters in the text may be another language alphabet or a letter emoji.\n"
-            f"Response MUST start with a Yes or No! If and only if IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
-            f"Message: '{checkMessage}'\n")
-    else:
-        DetectedPhrase = await ScanningTextOnlyWithGPT(
-            f"Analyze the following URL query and identify any vulgar or inappropriate words.\n"
-            f"Consider the context—only flag words as NSFW if they are being used in an inappropriate or sexual manner or even give hint to it.\n"
-            f"Taking into measure the text could be written in other language than English, this does means that some characters in the text may be another language alphabet or a letter emoji.\n"
-            f"Response MUST start with a Yes or No! If and only if IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN  30 WORDS!\n"
-            f"Message: '{checkMessage}'\n")
-    if DetectedPhrase.startswith(("Yes", "yes", "YES")):
+
+    '''
+    # The web search tool is very expensive, so I disable it, if you can afford, then just uncomment this section!
+    if URL:
+        print("Scanning URL content using web_search tool...")
+        scanResult = await scanWebContentUsingWebSearchWithGPT(checkMessage)
+        if scanResult.startswith(("Yes", "yes", "YES")):
+            print("GPT detected inappropriate content in web content!")
+            if redditUrl:
+                match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
+                if match:
+                    newNSFWsubreddit = match.group(1).replace('/r/', '')
+                    BlackListSubreddits.add(newNSFWsubreddit)
+                    async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
+                        await file.write(newNSFWsubreddit + '\n')
+            return True, scanResult.strip("Yes,")
+    '''
+    
+    scanResult = await scanningTextOnlyWithGPT(
+        f"# ASK\n"
+        f"Analyze the following message and identify any vulgar or inappropriate words.\n"
+        f"# MESSAGE\n"
+        f"Message: '{checkMessage}'\n"
+        f"# IMPORTANT RULE\n"
+        f"1. Consider the context—only, flag words as NSFW if they are being used in an inappropriate or sexual manner or even give hint to it.\n"
+        f"2. Taking into measure the text could be written in other language than English.\n"
+        f"3. Consider text may be letter emoji or contains a sequence of emojis that can hint NSFW.\n"
+        f"# RESPONSE FORMAT\n"
+        f"Response MUST start with a Yes or No! If and only if IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
+    )
+    if scanResult.startswith(("Yes", "yes", "YES")):
         print("GPT detected inappropriate content!")
         if redditUrl:
             match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
@@ -1510,9 +1557,9 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
                 BlackListSubreddits.add(newNSFWsubreddit)
                 async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
                     await file.write(newNSFWsubreddit + '\n')
-        return True, DetectedPhrase.strip("Yes,")
+        return True, scanResult.strip("Yes,")
     print("GPT scan result is clean!")
-    return False, DetectedPhrase.strip("No, ")
+    return False, scanResult.strip("No, ")
 
 
 async def AdvanceBackTrackMessageScan(message: discord.Message) -> None:

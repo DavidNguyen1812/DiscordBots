@@ -12,6 +12,7 @@ import wave
 import asyncio
 import aiofiles
 import zipfile
+import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -27,6 +28,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from io import BytesIO
 from aiocsv import AsyncWriter
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -1034,7 +1036,7 @@ async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instruc
         return reply
 
 
-@tasks.loop(hours=24)  # A task every 24 hours
+@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
 async def update_user_command_limit_and_llm_usage():
     global previousDate, previousMonth, previousYear
 

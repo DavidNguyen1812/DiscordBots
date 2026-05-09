@@ -22,6 +22,7 @@ import asyncio
 import aiohttp
 import aiofiles
 import math
+import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -42,6 +43,7 @@ from typing import Tuple, Literal
 from aiocsv import AsyncWriter
 from fpdf import FPDF
 from urllib.parse import unquote
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -1535,7 +1537,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
                         await file.write(newNSFWsubreddit + '\n')
             return True, scanResult.strip("Yes,")
     '''
-    
+
     scanResult = await scanningTextOnlyWithGPT(
         f"# ASK\n"
         f"Analyze the following message and identify any vulgar or inappropriate words.\n"
@@ -1655,7 +1657,7 @@ async def clear_emmanuel_dm_messages(ctx):
     await ctx.followup.send("All DM messages by me have been deleted.")
 
 
-@tasks.loop(hours=24)  # A task every 24 hours
+@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
 async def reset_user_uncensor_value_and_update_llm_usage():
     global previousDate, previousMonth, previousYear
 

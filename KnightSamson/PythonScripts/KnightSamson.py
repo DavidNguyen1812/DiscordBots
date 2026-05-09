@@ -1034,9 +1034,6 @@ async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instruc
         return reply
 
 
-
-
-
 @tasks.loop(hours=24)  # A task every 24 hours
 async def update_user_command_limit_and_llm_usage():
     global previousDate, previousMonth, previousYear

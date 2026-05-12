@@ -3,8 +3,6 @@
 ## OVERVIEW
 Three pre-built Discord bots with unique functionality. All you need just a discord API,other APIs (will be included as you read this README) and a Linux/MacOS system with Python 3.10+ to host and deploy them to your Discord server.
 
-## NOTE: PROJECT STILL UNDER PROGRESSED!!!
-
 ## THERE ARE EXPLICIT AND NSFW CONTENT IN THE REPO, SO VIEWER DISCRETION IS ADVISED
 
 ## Repo Structure:

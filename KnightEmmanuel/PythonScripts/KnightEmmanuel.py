@@ -1303,6 +1303,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             print(f"{fileName} is written to path {DestinationPath}")
                         DuplicatedFileDetection.append(hashedData)
                     else:
+                        totalDuplicatedFile += 1
                         if checkingFileExtension(fileData, fileName).endswith(ARCHIVEFORMATS):
                             totalDuplicatedArchive += 1
                             print(f"Duplicated archive/disk file at path {DestinationPath}")
@@ -1310,6 +1311,8 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                 return True
                         else:
                             print(f"Duplicated file at path {DestinationPath}")
+                    if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                        return True
                 except OSError as error:
                     print(f"OSError: {error}")
                     pass
@@ -1321,7 +1324,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
 
         archiveLayer += 1
         filePath.clear()
-        for dirpath, dirnames, filenames in os.walk(TempDir):
+        for dirpath, _, filenames in os.walk(TempDir):
             for filename in filenames:
                 i = os.path.join(dirpath, filename)
                 with open(i, "rb") as file:
@@ -1330,8 +1333,7 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                 if fileExt.endswith(ARCHIVEFORMATS):
                     print(f"Found nested Archive file {filename} at path {i}")
                     if os.path.getsize(i) >= NESTEDARCHIVESIZELIMIT:
-                        print(
-                            f"The nested file {filename} size is {os.path.getsize(i)}. The number is too large, thus, hinted potential archive bomb!")
+                        print(f"The nested file {filename} size is {os.path.getsize(i)}. The number is too large, thus, hinted potential archive bomb!")
                         return True
                     filePath.append(i)
     print(f"Archive content extracted with total uncompressed size of {uncompressedSize} bytes")

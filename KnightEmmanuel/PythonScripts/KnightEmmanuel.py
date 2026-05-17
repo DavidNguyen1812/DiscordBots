@@ -378,7 +378,7 @@ def calculateUsageCost(model: str, totalInputTokens: int, totalOutputTokens: int
    :return: The final calculated usage cost
    """
    totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
-   return round(totalCost, 8)
+   return round(totalCost, 5)
 
 
 def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> Tuple[int, bytes]:

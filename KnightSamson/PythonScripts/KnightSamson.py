@@ -1077,7 +1077,7 @@ async def update_user_command_limit_and_llm_usage():
                         dailyTotalCost += row["Total Cost"]
                 monthlyTotalInputToken.append(dailyTotalInputToken)
                 monthlyTotalOutputToken.append(dailyTotalOutputToken)
-                monthlyTotalCost.append(dailyTotalCost)
+                monthlyTotalCost.append(round(dailyTotalCost, 5))
             datasets = [
                 {"values": monthlyTotalInputToken, "title": "Total Input Tokens", "color": "Blue"},
                 {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
@@ -1129,7 +1129,7 @@ async def update_user_command_limit_and_llm_usage():
                         monthlyTotalCost += row["Total Cost"]
                 monthlyTotalInputTokens.append(monthlyTotalInputToken)
                 monthlyTotalOutputTokens.append(monthlyTotalOutputToken)
-                monthlyTotalCosts.append(monthlyTotalCost)
+                monthlyTotalCosts.append(round(monthlyTotalCost, 5))
             datasets = [
                 {"values": monthlyTotalInputTokens, "title": "Total Input Tokens", "color": "Blue"},
                 {"values": monthlyTotalOutputTokens, "title": "Total Output Tokens", "color": "Green"},

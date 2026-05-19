@@ -1550,7 +1550,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
         f"2. Taking into measure the text could be written in other language than English.\n"
         f"3. Consider text may be letter emoji or contains a sequence of emojis that can hint NSFW.\n"
         f"# RESPONSE FORMAT\n"
-        f"Response MUST start with a Yes or No! If and only if IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
+        f"Response MUST start with a Yes or No! **IF AND ONLY IF** IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
     )
     if scanResult.startswith(("Yes", "yes", "YES")):
         print("GPT detected inappropriate content!")

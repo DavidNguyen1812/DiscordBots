@@ -51,7 +51,7 @@ Main functionality is scanning Discord text message and media file attachment fo
 
 **System Requirements**
 
-Tool | Version |Source |
+| Tool | Version | Source |
 |---|---|---|
 | Python | `>= 3.11.0` | https://www.python.org/downloads |
 | better-profanity | `== 0.7.0` | https://github.com/snguyenthanh/better_profanity |

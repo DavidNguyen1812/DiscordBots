@@ -17,14 +17,14 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   │   └── LLMYearlyUsage.csv                          # Keep track of Emmanuel yearly LLM usage
 │   │   ├── Log                                             # Log
 │   │   │   └── EventLogs.txt                               # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
-│   │   ├── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
-│   │   │   ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
-│   │   │   ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
-│   │   │   ├── BlackListPornSites.txt                      # A black list of common porn sites
-│   │   │   ├── NSFWSubreddits.txt                          # A black list of NSFW subreddits
-│   │   │   └── ProfanityLibWordList.txt                    # Customizable list of profane words
-│   ├── PythonScripts                                       # Emmanuel source Code Directory
-│   │   └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
+│   │   └── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
+│   │       ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
+│   │       ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
+│   │       ├── BlackListPornSites.txt                      # A black list of common porn sites
+│   │       ├── NSFWSubreddits.txt                          # A black list of NSFW subreddits
+│   │       └── ProfanityLibWordList.txt                    # Customizable list of profane words
+│   └──  PythonScripts                                       # Emmanuel source Code Directory
+│       └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
 ├── KnightNexus                                             # Discord Bot with Python Cryptography modules
 │   ├── KnightNexus.py                                      # Nexus source code in Python
 │   └── NexusCryptoUtilities.py                             # Separate Python Code that contains all the essential crypto utilities for Nexus to use
@@ -35,11 +35,11 @@ Three pre-built Discord bots with unique functionality. All you need just a disc
 │   │   ├── LLM Usages
 │   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Samson monthly LLM usage
 │   │   │   └── LLMYearlyUsage.csv                          # Keep track of Samson yearly LLM usage
-│   │   ├── Logs
-│   │   │   ├── EventLogs.txt                               # A log file that log detail an event a user calling Samson application command and Samson cron tasks
-│   │   │   └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
-│   ├── PythonScripts                                       # Samson source Code Directory
-│   │   └── KnightSamson.py                                 # Samson source code in Python
+│   │   └── Logs
+│   │       ├── EventLogs.txt                               # A log file that log detail an event a user calling Samson application command and Samson cron tasks
+│   │       └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
+│   └── PythonScripts                                       # Samson source Code Directory
+│       └── KnightSamson.py                                 # Samson source code in Python
 └──README.md                                                # This file
 ```
 

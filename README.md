@@ -1,260 +1,264 @@
-# Pre-built Discord Bots
+# Pre-Built Discord Bots
 
-## OVERVIEW
-Three pre-built Discord bots with unique functionality. All you need just a discord API,other APIs (will be included as you read this README) and a Linux/MacOS system with Python 3.10+ to host and deploy them to your Discord server.
+> **Viewer Discretion Advised**
+> This repository contains explicit and NSFW-related content as part of its detection and testing functionality. Please exercise discretion when browsing the source material.
 
-## THERE ARE EXPLICIT AND NSFW CONTENT IN THE REPO, SO VIEWER DISCRETION IS ADVISED
+---
 
-## Repo Structure:
+## Overview
+
+This repository contains three independently deployable Discord bots, each designed around a distinct operational domain. All bots are self-hosted and require a Linux or macOS system running **Python 3.11+**, along with their respective API keys as detailed in each bot's system requirements section.
+
+---
+
+## Prerequisites
+
+| Requirement | Details |
+|-------------|---------|
+| **Operating System** | Linux or macOS |
+| **Python Version** | `>= 3.11.0` |
+| **Discord API Key** | Required by all bots — [Developer Portal](https://docs.discord.com/developers/reference) |
+| **Additional API Keys** | Per-bot requirements detailed in each section below |
+
+---
+
+## Repository Structure
 
 ```
-├── KnightEmmanuel                                          # Discord Bot for NSFW detection        
-│   ├── Files                                               # Essential files to run Emmanuel
-│   │   ├── Configuration                                   # Configruation
-│   │   │   └── EmmanuelConfig.json                         # Essential to keep track of members and channels permitted by the server owner to monitor or not as well as each member daily uncensor limit 
-│   │   ├── LLM Usages
-│   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Emmanuel monthly LLM usage
-│   │   │   └── LLMYearlyUsage.csv                          # Keep track of Emmanuel yearly LLM usage
-│   │   ├── Log                                             # Log
-│   │   │   └── EventLogs.txt                               # Emmanuel log file that log all the detail timestamp of Emmanuel monitoring result                                      
-│   │   └── WordlLists                                      # Word lists to keep track of SHA512 hash of file content that has been scanned as clean or NSFW
-│   │       ├── CleanData.json                              # SHA512 hashes of file content scanned as clean
-│   │       ├── NSFWData.json                               # SHA512 hashes of file content scanned as NSFW
-│   │       ├── BlackListPornSites.txt                      # A black list of common porn sites
-│   │       ├── NSFWSubreddits.txt                          # A black list of NSFW subreddits
-│   │       └── ProfanityLibWordList.txt                    # Customizable list of profane words
-│   └──  PythonScripts                                       # Emmanuel source Code Directory
-│       └── KnightEmmanuel.py                               # Emmanuel source code in Python, detail commentations are in the code
-├── KnightNexus                                             # Discord Bot with Python Cryptography modules
-│   ├── KnightNexus.py                                      # Nexus source code in Python
-│   └── NexusCryptoUtilities.py                             # Separate Python Code that contains all the essential crypto utilities for Nexus to use
-├── KnightSamson                                            # Discord Bot with OpenAI and Google Gemini integration
-│   ├── Files                                               # Essential files to run Samson
-│   │   ├── Configuration
-│   │   │   └── SamsonConfiguration.json                    # Keep track of all members in any server that Knight Samson is in to ensure the member can only execute Samson application command accordance to the preset daily limit.
-│   │   ├── LLM Usages
-│   │   │   ├── LLMMontlyUsage.csv                          # Keep track of Samson monthly LLM usage
-│   │   │   └── LLMYearlyUsage.csv                          # Keep track of Samson yearly LLM usage
-│   │   └── Logs
-│   │       ├── EventLogs.txt                               # A log file that log detail an event a user calling Samson application command and Samson cron tasks
-│   │       └── GPTandGeminiResponses.txt                   # A log file that log detail an OpenAI and Gemini API call to keep track of API usage
-│   └── PythonScripts                                       # Samson source Code Directory
-│       └── KnightSamson.py                                 # Samson source code in Python
-└──README.md                                                # This file
+├── KnightEmmanuel/                         # NSFW Content Detection Bot
+│   ├── Files/
+│   │   ├── Configuration/
+│   │   │   └── EmmanuelConfig.json         # Tracks monitored members, channels, and daily uncensor limits
+│   │   ├── LLM Usages/
+│   │   │   ├── LLMMonthlyUsage.csv         # Monthly LLM API usage metrics
+│   │   │   └── LLMYearlyUsage.csv          # Yearly LLM API usage metrics
+│   │   ├── Log/
+│   │   │   └── EventLogs.txt               # Timestamped monitoring event log
+│   │   └── WordLists/
+│   │       ├── CleanData.json              # SHA-512 hashes of file content verified as clean
+│   │       ├── NSFWData.json               # SHA-512 hashes of file content flagged as NSFW
+│   │       ├── BlackListPornSites.txt       # Blocklist of known adult content domains
+│   │       ├── NSFWSubreddits.txt          # Blocklist of known NSFW subreddit communities
+│   │       └── ProfanityLibWordList.txt     # Customizable profane word reference list
+│   └── PythonScripts/
+│       └── KnightEmmanuel.py               # Primary source code (inline documentation included)
+│
+├── KnightNexus/                            # Cryptography Utilities Bot
+│   ├── KnightNexus.py                      # Primary source code
+│   └── NexusCryptoUtilities.py             # Cryptographic utility functions and helper modules
+│
+├── KnightSamson/                           # OpenAI & Google Gemini Integration Bot
+│   ├── Files/
+│   │   ├── Configuration/
+│   │   │   └── SamsonConfiguration.json    # Per-member command usage limits across all servers
+│   │   ├── LLM Usages/
+│   │   │   ├── LLMMonthlyUsage.csv         # Monthly LLM API usage metrics
+│   │   │   └── LLMYearlyUsage.csv          # Yearly LLM API usage metrics
+│   │   └── Logs/
+│   │       ├── EventLogs.txt               # Application command invocations and scheduled task log
+│   │       └── GPTandGeminiResponses.txt   # OpenAI and Gemini API call audit log
+│   └── PythonScripts/
+│       └── KnightSamson.py                 # Primary source code
+│
+└── README.md
 ```
+
+---
 
 ## Knight Emmanuel
 
-**Overview**
+### Overview
 
-Main functionality is scanning Discord text message and media file attachment for any NSFW content utilizing OpenAI LLM vision model via stateless REST API call and open source pre-trained NSFW model Nudenet.
+**Knight Emmanuel** is an automated NSFW content moderation bot designed to monitor Discord server text messages and media file attachments. It employs a multi-layered detection pipeline combining the **OpenAI LLM Vision API** and the open-source pre-trained **NudeNet** model to identify and remediate explicit content in real time.
 
-**System Requirements**
+---
 
-| Tool | Version | Source |
-|---|---|---|
-| Python | `>= 3.11.0` | https://www.python.org/downloads |
-| better-profanity | `== 0.7.0` | https://github.com/snguyenthanh/better_profanity |
-| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
-| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
-| filetype | `== 1.2.0` | https://github.com/h2non/filetype.py |
-| nudenet | `== 3.4.2` | https://github.com/notAI-tech/nudenet |
-| openai | `== 2.26.0` | https://github.com/openai/openai-python |
-| opencv-python | `== 4.13.0.92` | https://github.com/opencv/opencv-python |
-| pillow | `== 11.3.0` | https://python-pillow.github.io |
-| python-magic | `== 0.4.27` | http://github.com/ahupp/python-magic |
-| rarfile | `== 4.2` | https://github.com/markokr/rarfile |
-| requests | `== 2.32.4` | https://requests.readthedocs.io |
-| selenium-wire-2 | `== 0.2.1` | https://github.com/7x11x13/selenium-wire-2 |
-| blinker | `== 1.9.0` | https://github.com/pallets-eco/blinker |
-| webdriver-manager | `== 4.0.2` | https://github.com/SergeyPirogov/webdriver_manager |
-| aiofiles | `== 25.1.0` | https://github.com/Tinche/aiofiles |
-| aiocsv | `== 1.4.0` | https://github.com/MKuranowski/aiocsv |
-| numpy | `== 2.4.4` | https://numpy.org |
-| pandas | `== 3.0.2` | https://pandas.pydata.org |
-| matplotlib | `== 3.10.8` | https://matplotlib.org |
-| fpdf | `== 1.7.2` | https://github.com/reingart/pyfpdf |
-| ffmpeg | `== 7.1.1` | https://www.ffmpeg.org/download.html |
-| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
-| Tenor API key | `N/A` | https://tenor.com/gifapi/documentation |
-| Klipy API key | `N/A` | https://klipy.com |
-| ScrapeOps API key | `N/A` | https://scrapeops.io |
-| OpenAI API key | `N/A` | https://openai.com/api/ |
+### System Requirements
 
-**Application Commands**
+| Dependency | Version | Source |
+|-----------|---------|--------|
+| Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
+| better-profanity | `== 0.7.0` | [GitHub](https://github.com/snguyenthanh/better_profanity) |
+| discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
+| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| filetype | `== 1.2.0` | [GitHub](https://github.com/h2non/filetype.py) |
+| nudenet | `== 3.4.2` | [GitHub](https://github.com/notAI-tech/nudenet) |
+| openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
+| opencv-python | `== 4.13.0.92` | [GitHub](https://github.com/opencv/opencv-python) |
+| pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
+| python-magic | `== 0.4.27` | [GitHub](https://github.com/ahupp/python-magic) |
+| rarfile | `== 4.2` | [GitHub](https://github.com/markokr/rarfile) |
+| requests | `== 2.32.4` | [docs.python-requests.org](https://requests.readthedocs.io) |
+| selenium-wire-2 | `== 0.2.1` | [GitHub](https://github.com/7x11x13/selenium-wire-2) |
+| blinker | `== 1.9.0` | [GitHub](https://github.com/pallets-eco/blinker) |
+| webdriver-manager | `== 4.0.2` | [GitHub](https://github.com/SergeyPirogov/webdriver_manager) |
+| aiofiles | `== 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |
+| aiocsv | `== 1.4.0` | [GitHub](https://github.com/MKuranowski/aiocsv) |
+| numpy | `== 2.4.4` | [numpy.org](https://numpy.org) |
+| pandas | `== 3.0.2` | [pandas.pydata.org](https://pandas.pydata.org) |
+| matplotlib | `== 3.10.8` | [matplotlib.org](https://matplotlib.org) |
+| fpdf | `== 1.7.2` | [GitHub](https://github.com/reingart/pyfpdf) |
+| ffmpeg | `== 7.1.1` | [ffmpeg.org](https://www.ffmpeg.org/download.html) |
+| **Discord API Key** | N/A | [Discord Developer Portal](https://docs.discord.com/developers/reference) |
+| **Tenor API Key** | N/A | [Tenor GIF API](https://tenor.com/gifapi/documentation) |
+| **Klipy API Key** | N/A | [Klipy](https://klipy.com) |
+| **ScrapeOps API Key** | N/A | [ScrapeOps](https://scrapeops.io) |
+| **OpenAI API Key** | N/A | [OpenAI Platform](https://openai.com/api/) |
 
-```
-/emmanuel -> Introduce the bot and it purpose
+---
 
-/clear_emmanuel_dm_messages -> Clear all Emmanuel DM messages
+### Key Features
 
-/list_supported_file -> Show all file formats that Emmanuel can process
+1. **Profanity Detection** — Scans message text content and ASCII content embedded in document file attachments for profane language using `better_profanity` and OpenAI GPT model verification.
 
-The following commands can only be used by the server owner or the bot owner only!
+2. **Image & Video NSFW Analysis** — Leverages Pillow and OpenCV to convert images and video frames to PNG format for NudeNet model inference. If no violations are detected, frames are converted to PDF and submitted to the OpenAI Vision API for secondary analysis.
 
-/uncensored_members -> List all server members that are on the server uncensored list
+3. **Audio Transcript NSFW Analysis** — Extracts audio transcripts from audio file attachments using the **OpenAI GPT-4o Transcribe** model and evaluates the transcript for NSFW content.
 
-/add_uncensored_member -> Add a server member to the server uncensored list
+4. **Archive Bomb Detection & Extraction** — Inspects archive file attachments for decompression bomb patterns prior to extraction, then recursively scans all extracted content for NSFW material.
 
-/remove_uncensored_member -> Remove a server member from the server uncensored list
+5. **SHA-512 Hash Signature Store** — Maintains a persistent hash record of all previously scanned file content to enable instantaneous verdict lookups without redundant re-analysis.
 
-/add_uncensored_channel -> Add a server channel to the server uncensored list. This tells Emmanuel to not bother monitoring that specific server channel.
+6. **Comprehensive Event Logging** — Records detailed timestamped logs of all content monitoring events performed by Knight Emmanuel.
 
-/remove_uncensored_channel -> Add a server channel from the server uncensored list.
+7. **Authenticated Web Content Retrieval** — Utilizes Selenium Wire in conjunction with ScrapeOps fake browser headers to retrieve website HTML content for NSFW analysis, bypassing common bot-detection mechanisms.
 
-/uncensored_channels -> List all uncensored channles that are on the server uncensored list
-```
+8. **Tenor & Klipy GIF Integration** — Supports authenticated retrieval and scanning of GIF content from Tenor and Klipy platforms.
 
-**Key Features**
+9. **Server Owner Access Control Commands** — Provides application commands enabling the server or bot owner to configure which members and channels are subject to Emmanuel's monitoring.
 
-```
-  1. Checking for a member message text content AND ASCII content in any document file for any profane words pre-defined in the ProfanityLibWordList.txt with better_profanity and OpenAI model.
+10. **LLM API Usage Tracking** — Records and aggregates OpenAI API usage metrics for cost monitoring and audit purposes.
 
-  2. Utilizing Pillow, Open CV2 module to convert all images/video frames to PNG format for Nudenet model to scan, if nothing detected, PDF conversion is called and REST API request to OpenAI model to analyze the PDF frames.
+---
 
-  3. Audio Transcript extraction from audio file with OpenAI GPT-4o-Transcribe model to scan for NSFW audio.
+### Application Commands
 
-  4. Archive file extraction safety check for any malicious archive bomb and extracting all the archive content for scan.
+| Command | Access Level | Description |
+|---------|-------------|-------------|
+| `/emmanuel` | All Members | Displays an introduction to the bot and its purpose |
+| `/clear_emmanuel_dm_messages` | All Members | Clears all Knight Emmanuel direct messages from the user's DM channel |
+| `/list_supported_file` | All Members | Displays all file formats supported by Emmanuel's content analysis pipeline |
+| `/uncensored_members` | Server / Bot Owner | Lists all server members currently on the server's uncensored allowlist |
+| `/add_uncensored_member` | Server / Bot Owner | Adds a server member to the uncensored allowlist, exempting them from content monitoring |
+| `/remove_uncensored_member` | Server / Bot Owner | Removes a server member from the uncensored allowlist |
+| `/add_uncensored_channel` | Server / Bot Owner | Adds a server channel to the uncensored allowlist, excluding it from real-time monitoring |
+| `/remove_uncensored_channel` | Server / Bot Owner | Removes a server channel from the uncensored allowlist |
+| `/uncensored_channels` | Server / Bot Owner | Lists all server channels currently on the uncensored allowlist |
 
-  5. Utilizing SHA512 hash to keep record of all file content scan
+---
 
-  6. Comprhensive monitor logging that logs all the event Knight Emmanuel scan the server messages.
+### Known Limitations
 
-  7. Using selenium wire with ScrapeOPS fake browser headers to retrieve website HTML content for NSFW analyzation.
+| # | Limitation |
+|---|-----------|
+| 1 | Content analysis is restricted to file formats explicitly supported by the scanning pipeline |
+| 2 | File content exceeding the OpenAI input token limit for the configured model will not be scanned and will receive a clean verdict by default |
+| 3 | Image, video, and archive file analysis throughput is subject to processing latency depending on file size and host hardware |
 
-  8. Integration of Tenor and Klipy for authenticated Tenor and Klipy gifs retrieval for scan.
-
-  9. Application commands for the server/bot owner to control which member or chat channel to be monitored or not by Knight Emmanuel.
-
-  10. Comprehensive logging OpenAI scan usage
-```
-
-**Limitations**
-
-```
-  1. Emmanuel only limited to scan certain file formats as NOTED in the source code.
-
-  2. File content that exceed OpenAI input token limitation per model used WILL NOT BE SCANNED!!
-
-  3. The image, video and archive file scan speed is not very fast.
-```
+---
 
 ## Knight Nexus
-Main functionality is integrating Cryptography command to Discord using Open-Source Python Crypto Library pycryptodome
 
-**System Requirement**
+### Overview
 
-Tool | Version |Source |
-|---|---|---|
-| Python | `>= 3.11.0` | https://www.python.org/downloads |
-| better-profanity | `== 0.7.0` | https://github.com/snguyenthanh/better_profanity |
-| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
-| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
-| pycryptodome | `== 3.23.0` | https://www.pycryptodome.org |
-| vigenere | `== 1.1.0` | https://github.com/GuptaAyush19/Vigenere-Cipher |
-| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
+**Knight Nexus** is a cryptographic utility bot that integrates a comprehensive suite of classical and modern cryptographic algorithms into Discord, powered by the open-source Python library **PyCryptodome**. It supports symmetric encryption, asymmetric encryption, digital signatures, hash functions, and classical cipher schemes — all accessible as Discord application commands.
 
-**Application Commands**
-```
-/nexus -> Introduce the bot and it purpose
+---
 
-/david_cipher -> A symmetric self-made cryptographic algorithm by me with a combination of Ceasar's shift and random list shuffle
+### System Requirements
 
-/rc4 -> A legacy symmetric encryption used in previous TLS/SSL, HTTPS, WiFi WEP, VPN, and file encryption
+| Dependency | Version | Source |
+|-----------|---------|--------|
+| Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
+| discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
+| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| pycryptodome | `== 3.23.0` | [pycryptodome.org](https://www.pycryptodome.org) |
+| vigenere | `== 1.1.0` | [GitHub](https://github.com/GuptaAyush19/Vigenere-Cipher) |
+| **Discord API Key** | N/A | [Discord Developer Portal](https://docs.discord.com/developers/reference) |
 
-/hash_func -> Providing hash multiple hash algorithms from MD5, SHA1, SHA2, SHA3, SHAKE, and BLAKE
+---
 
-/morse_decode -> Decoding a Morse code
+### Application Commands
 
-/tap_code_decode -> Decoding a Tap code
+| Command | Type | Description |
+|---------|------|-------------|
+| `/nexus` | General | Displays an introduction to the bot and its purpose |
+| `/david_cipher` | Symmetric | A custom symmetric cipher combining Caesar shift and randomized list shuffling |
+| `/rc4` | Symmetric | RC4 stream cipher — a legacy algorithm previously used in TLS/SSL, HTTPS, Wi-Fi WEP, and VPN protocols |
+| `/hash_func` | Hashing | Multi-algorithm hash function supporting MD5, SHA-1, SHA-2, SHA-3, SHAKE, and BLAKE families |
+| `/morse_decode` | Classical | Decodes a Morse code input string |
+| `/tap_code_decode` | Classical | Decodes a Tap code input string |
+| `/rail_fence_cipher` | Symmetric | Rail Fence transposition cipher |
+| `/random_string_subs_cipher` | Symmetric | Caesar cipher with a randomized shift value |
+| `/vigenere_cipher` | Symmetric | Vigenère polyalphabetic substitution cipher |
+| `/square_code` | Symmetric | Square Code transposition cipher |
+| `/text_book_rsa_key_generation` | Asymmetric | Key derivation for the academic Textbook RSA algorithm |
+| `/textbook_rsa_cipher` | Asymmetric | Textbook RSA encryption and decryption |
+| `/crypto_rsa_key_generation` | Asymmetric | Key derivation for standard RSA (PKCS#1 OAEP) |
+| `/crypto_rsa_pkcs1_oaep_cipher` | Asymmetric | RSA encryption and decryption using PKCS#1 OAEP padding |
+| `/crypto_pss_rsa_digital_signature` | Digital Signature | RSA digital signature using PSS padding scheme |
+| `/crypto_aes_ocb_key_generation` | Symmetric | Key derivation for AES-OCB (Offset Codebook Mode) — provides both confidentiality and integrity |
+| `/crypto_aes_ocb_cipher` | Symmetric | AES encryption and decryption in OCB mode |
+| `/crypto_ecc_key_generation` | Asymmetric | Key derivation for Elliptic Curve Cryptography (ECC) |
+| `/crypto_ecdsa` | Digital Signature | Elliptic Curve Digital Signature Algorithm (ECDSA) |
+| `/clear_nexus_dm_messages` | Utility | Deletes all past direct messages sent by Nexus to the user |
 
-/rail_fence_cipher -> A symmetric rail fence cryptographic algorithm
-
-/random_string_subs_cipher -> A symmetric Caesar's cipher with random shift
-
-/vigenere_cipher -> A symmetric Vigenere's cipher
-
-/text_book_rsa_key_generation -> A key derivation for the textbook RSA algorithm
-
-/textbook_rsa_cipher -> An assymetric textbook RSA algorithm
-
-/crypto_rsa_key_generation -> A key derivation for standard RSA algorithm
-
-/crypto_aes_ocb_key_generation -> A key derivation for symmetric AES cryptographic algorithm with OCB (Offset Code Block) mode for data confidentiality and integrity
-
-/crypto_aes_ocb_cipher -> A symmetric AES cryptographic with OCB (Offset Code Block) mode for data confidentiality and integrity
-
-/clear_nexus_dm_messages -> Deleting all past DM messages from Nexus (Knight Nexus was designed with no DM functionailty, this command serve in case Nexus send DM to the user about encrytion key, ..etc..)
-
-/crypto_ecc_key_generation -> A key derivation for assymetric ECC cryptographic algorithm
-
-/crypto_rsa_pkcs1_oaep_cipher -> An assymetric RSA cryptographic algorithm in Pkcs1_oaep mode
-
-/crypto_pss_rsa_digital_signature -> A digital signature with RSA
-
-/crypto_ecdsa -> A digital signature for ECC
-
-/square_code -> A symmetric square code cryptographic algorithm 
-```
+---
 
 ## Knight Samson
 
-**Overview**
+### Overview
 
-Main functionality is integrating OpenAI and Google Gemini models to Discord. Samson can also manage server channel by reacting to user message, deleting channel messages **ONLY WITH GRANTED PERMISSION**, DM user and interacting with user DM with OpenAI chat model **ONLY WHEN USER ENABLE DM WITH SAMSON**.
+**Knight Samson** is an AI-powered assistant bot that integrates **OpenAI GPT** and **Google Gemini** large language models directly into Discord. In addition to multi-modal AI interactions (text, image, and audio), Samson provides server management utilities including channel message administration and private DM-based conversational AI — all governed by configurable per-member command usage limits.
 
-**System Requirements**
+---
 
-Tool | Version |Source |
-|---|---|---|
-| Python | `>= 3.11.0` | https://www.python.org/downloads |
-| discord-py | `== 2.5.2` | https://github.com/Rapptz/discord.py |
-| dotenv | `== 0.9.9` | https://github.com/pedroburon/dotenv |
-| openai | `== 2.26.0` | https://github.com/openai/openai-python |
-| google-genai | `== 1.66.0` | https://github.com/googleapis/python-genai |
-| pillow | `== 11.3.0` | https://python-pillow.github.io |
-| aiofiles | `== 25.1.0` | https://github.com/Tinche/aiofiles |
-| aiocsv | `== 1.4.0` | https://github.com/MKuranowski/aiocsv |
-| numpy | `== 2.4.4` | https://numpy.org |
-| pandas | `== 3.0.2` | https://pandas.pydata.org |
-| matplotlib | `== 3.10.8` | https://matplotlib.org |
-| Discord API key | `N/A` | https://docs.discord.com/developers/reference |
-| ScrapeOps API key | `N/A` | https://scrapeops.io |
-| OpenAI API key | `N/A` | https://openai.com/api/ |
-| Google Gemini API key | `N/A` | https://ai.google.dev/gemini-api/docs |
+### System Requirements
 
-**Application Commands**
+| Dependency | Version | Source |
+|-----------|---------|--------|
+| Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
+| discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
+| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
+| google-genai | `== 1.66.0` | [GitHub](https://github.com/googleapis/python-genai) |
+| pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
+| aiofiles | `== 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |
+| aiocsv | `== 1.4.0` | [GitHub](https://github.com/MKuranowski/aiocsv) |
+| numpy | `== 2.4.4` | [numpy.org](https://numpy.org) |
+| pandas | `== 3.0.2` | [pandas.pydata.org](https://pandas.pydata.org) |
+| matplotlib | `== 3.10.8` | [matplotlib.org](https://matplotlib.org) |
+| **Discord API Key** | N/A | [Discord Developer Portal](https://docs.discord.com/developers/reference) |
+| **ScrapeOps API Key** | N/A | [ScrapeOps](https://scrapeops.io) |
+| **OpenAI API Key** | N/A | [OpenAI Platform](https://openai.com/api/) |
+| **Google Gemini API Key** | N/A | [Google AI Studio](https://ai.google.dev/gemini-api/docs) |
 
-```
-/view_application_command_config -> Viewing Samson application command configuration
+---
 
-/application_command_config -> Permanently ban or unban a member in the server to use specific Samson's application command(s)
+### Application Commands
 
-/add_command -> Increase/Decrease member current application command usage
+| Command | Description |
+|---------|-------------|
+| `/samson` | Displays an introduction to the bot and its purpose |
+| `/view_application_command_config` | Retrieves the current per-member application command configuration |
+| `/application_command_config` | Permanently bans or unbans a member from using specific Samson application commands |
+| `/add_command` | Increases or decreases a member's current application command usage allocation |
+| `/get_user_list_of_permissions` | Retrieves a complete list of Discord server permissions assigned to a specified member *(Samson must hold a higher server role than the target member)* |
+| `/roleplay` | Configures the LLM response style and persona to the user's preference |
+| `/clear_last_message` | Deletes the last specified number of messages in a server channel *(requires message deletion permission)* |
+| `/clear_all_message` | Deletes all historical messages in a server channel *(requires message deletion permission)* |
+| `/clear_user_message` | Deletes the last specified number of messages from a specific user *(requires message deletion permission)* |
+| `/direct_message` | Sends a customized direct message to a specified server member *(recipient must have DMs enabled with Samson)* |
+| `/clear_samson_dm_messages` | Deletes all past direct messages sent by Samson to the user |
+| `/openai_gpt_chat` | Submits a text or image prompt to an OpenAI GPT chat model and returns the model's response |
+| `/google_gemini_chat` | Submits a text or image prompt to a Google Gemini chat model and returns the model's response |
+| `/openai_gpt_audio` | Submits an audio or text prompt to an OpenAI audio model for processing |
+| `/google_gemini_audio` | Submits a text prompt to a Google Gemini TTS model for audio generation *(text prompt only)* |
 
-/get_user_list_of_permissions -> Get a list of all server permissions assigned to a member (NOTE: Samson must have higher role than the member for this command to work)
+---
 
-/samson -> Introduce the bot and it purpose
+### DM Channel — Contextual AI Conversation
 
-/roleplay -> Configure LLM response style of user choice
+Knight Samson supports private **Direct Message (DM) channel** interactions, functioning as a persistent AI chatbot powered by OpenAI GPT. Conversational context is maintained by chaining the **Latest Response ID** from the preceding exchange, enabling contextually aware multi-turn dialogue.
 
-/clear_last_message -> Delete last specified number of messages in a server channel (NOTE: Samson must have permission to delete message)
-
-/clear_all_message -> Delete all messages in the past in a server channel (NOTE: Samson must have permission to delete message)
-
-/clear_user_message -> Delete last sepcified number of messages from a specific user ((NOTE: Samson must have permission to delete message)
-
-/direct_message -> Make Samson send a customized DM to a user in the server (NOTE: User must enable DM with Samson)
-
-/clear_samson_dm_messages -> Delete all of Samson past DM messages
-
-/openai_gpt_chat -> Integrating OpenAI GPT chat models. This works with picture and text prompt.
-
-/google_gemini_chat -> Integrating Google Gemini chat models. This works with picture and text prompt.
-
-/openai_gpt_audio -> Integrating OpenAI audio models. This works with audio and text prompt.
-
-/google_gemini_audio -> Integrating Google Gemini audio TTS models. This works with ONLY text prompt.
-```
-
-**DM Channel**: Knight Samson can interact with user like a chatbot in private DM channel integrated with OpenAI model. The "Lastest Response ID" from the last conversation with user is being used to enhance the response with contextual awareness. Please **NOTE** that adding a context chaining will **increase the API cost**!
+> **Note:** Enabling conversation context chaining will incrementally increase API token consumption and associated costs with each conversational turn. This should be considered when configuring usage limits for high-volume servers.

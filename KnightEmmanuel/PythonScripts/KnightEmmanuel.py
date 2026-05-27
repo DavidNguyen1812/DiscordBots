@@ -1,3 +1,26 @@
+import subprocess
+
+print("Checking Essential System Binaries")
+systembinaries = ["unar", "ffmpeg"]
+for systembinary in systembinaries:
+    result = subprocess.run(["which", systembinary], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if f"{result.stderr}{result.stdout}":
+        if "not found" in f"{result.stderr}{result.stdout}":
+            raise ModuleNotFoundError(f"System binary {systembinary} NOT FOUND. Please install the system binary via brew or apt or compiled from source code for Knight Emmanuel to function")
+        else:
+            print(f"System binary {systembinary} FOUND.")
+    else:
+        raise ModuleNotFoundError(f"System binary {systembinary} NOT FOUND. Please install the system binary via brew or apt or compiled from source code for Knight Emmanuel to function")
+
+print("Checking Python Dependencies")
+dependencies = ["better-profanity", "discord-py", "dotenv", "filetype", "nudenet", "openai", "opencv-python", "pillow", "python-magic", "rarfile", "requests", "selenium-wire-2", "blinker", "webdriver-manager", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib", "fpdf"]
+for dependency in dependencies:
+    result = subprocess.run(["pip", "show", dependency], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if "not found" in f"{result.stderr} {result.stdout}":
+        raise ModuleNotFoundError(f"Python dependency {dependency} NOT FOUND. Please install the dependency via pip in order for Knight Emmanuel to function")
+    else:
+        print(f"Python dependency {dependency} FOUND.")
+
 import os
 import re
 import time
@@ -16,7 +39,6 @@ import filetype
 import discord
 import mimetypes
 import magic
-import subprocess
 import random
 import asyncio
 import aiohttp
@@ -76,31 +98,31 @@ SEXUALTAGS = [
 ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns",
                            ".avif", ".odd", ".gif",
 
-                           ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".ogg",
+                           ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".ogv",
                            ".wmv", ".dv", ".mts", ".m2ts", ".vob",
 
                            ".mp3", ".wav", ".oga", ".m4a", ".flac", ".weba", ".aac", ".ac3", ".aif", ".aiff", ".aifc",
-                           ".amr", ".au", ".caf", ".m4b", ".wma", ".opus", ".ogv",
+                           ".amr", ".au", ".caf", ".m4b", ".wma", ".opus", ".ogg", ".dss",
 
                            ".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz",
                            ".rar", ".bz2", ".xz", ".lzma",
                            
-                           ".txt", ".html", ".json", ".yaml")
+                           ".txt", ".html", ".json", ".yaml", ".xml")
 
 
 PICTUREFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns", ".avif",
                   ".odd", ".gif")
 
-VIDEOFORMATS = (".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".ogg", ".wmv", ".dv",
-                ".mts", ".m2ts", ".vob", ".ogv")
+VIDEOFORMATS = (".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".wmv", ".dv", ".mts",
+                ".m2ts", ".vob", ".ogv")
 
-AUDIOFORMATS = (".mp3", ".wav", ".oga", ".m4a", ".flac", ".weba", ".aac", ".ac3", ".aif", ".aiff", ".aifc", ".amr",
-                ".au", ".caf", ".dss", ".m4a", ".m4b", ".wma", ".opus", ".webm", ".ogg")
+AUDIOFORMATS = (".mp3", ".wav", ".oga", ".ogg", ".flac", ".weba", ".aac", ".ac3", ".aif", ".aiff", ".aifc", ".amr",
+                ".au", ".caf", ".dss", ".m4a", ".m4b", ".wma", ".opus", ".dss")
 
 ARCHIVEFORMATS = (".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz", ".rar",
                   ".bz2", ".xz", ".lzma")
 
-DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml")
+DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml", ".xml")
 
 """Getting Important File Paths"""
 NSFWFILEPATH = os.environ.get("EMMANUELNSFWDATA")
@@ -118,7 +140,7 @@ OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're
 
 """Defining selected OpenAI models"""
 # https://platform.openai.com/docs/pricing
-GPTMODELFORIMAGESCAN = "gpt-5-mini"
+GPTMODELFORIMAGESCAN = "gpt-5-nano"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
 LLMModels = [GPTMODELFORTEXTSCAN, GPTMODELFORIMAGESCAN]
@@ -126,8 +148,8 @@ LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.25, 0.25], "Output Token": [2.0, 2.0]},
-                                "TPM": 500000
+                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]},
+                                "TPM": 200000
                             },
                         GPTMODELFORTEXTSCAN :
                             {
@@ -177,6 +199,7 @@ SPECIALTEXT = [
     "𓀐"
 ]
 
+
 """----API Tokens----"""
 DISCORDAPI = os.environ.get("EMMANUELDISCORDAPI")
 TENORAPI = os.environ.get("EMMANUELTENORAPI")
@@ -207,6 +230,7 @@ NSFWDataLock = asyncio.Lock()
 LogLock = asyncio.Lock()
 YearlyCSVLock = asyncio.Lock()
 MonthlyCSVLock = asyncio.Lock()
+CheckServerExistLock = asyncio.Lock()
 
 
 """Initializing data container to load essential files and setting up Discord Intents for Emmanuel"""
@@ -356,7 +380,7 @@ def plotModelCalls(LLMModelUses: list[int], savePath: str):
 
 async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, ObjectLock: asyncio.locks.Lock) -> None:
     """
-    Description: Executing read and write only operation on the csv files related to logging Samson LLM Usage
+    Description: Executing read and write only operation on the csv files related to logging Emmanuel LLM Usage
     :param csvPath: The path to the csv file
     :param mode: Must be 'w' or 'a'
     :param data: The data to write
@@ -497,6 +521,7 @@ def checkingRealFileExtension(BytesContent: bytes, filename: str) -> str:
     print(f"File extension can not be determined!")
     return "Can't be determined"
 
+
 async def writingLog(logData: str) -> None:
     """
     Description: Writing scanning log Emmanuel log file
@@ -524,7 +549,7 @@ async def AddingNewCleanData(Hash: str, Reason: str) -> None:
         print(f"Clean data updated!")
 
 
-async def AddingNewNSFWData(Hash, Reason):
+async def AddingNewNSFWData(Hash: str, Reason: str) -> None:
     """
     Description: Adding new SHA512 hash to Emmanuel NSFW data JSON file and the reason
     :param Hash: SHA512 hash to be added
@@ -545,8 +570,8 @@ async def checkServerExistInConfigFile(serverID: str) -> None:
     :param serverID: The server ID to be checked
     :return: Nothing is returned. If the server ID does not exist in the configuration file, then it will be automatically created with all the default values.
     """
-    async with ConfigLock:
-        if configuration.get(serverID) is None:
+    async with CheckServerExistLock:
+        if configuration.get(serverID, None) is None:
             configuration[serverID] = {}
             configuration[serverID]["Uncensored-members"] = WHITELISTMEMBERS
             configuration[serverID]["Uncensored-channels"] = []
@@ -556,10 +581,11 @@ async def checkServerExistInConfigFile(serverID: str) -> None:
                 if member.id not in WHITELISTMEMBERS:
                     members[str(member.id)] = DAILYUNCENSORLIMIT
             configuration[serverID]["User-Uncensor-Limit"] = members
-            async with aiofiles.open(EMMANUELCONFIG, "w") as file:
-                await file.write(json.dumps(configuration, indent=4))
+            async with ConfigLock:
+                async with aiofiles.open(EMMANUELCONFIG, "w") as file:
+                    await file.write(json.dumps(configuration, indent=4))
             await writingLog(f"New server ID {serverID} added to config file!\n\n")
-            print(f"New server ID {serverID} added to config file!")
+            print(f"New server ID {serverID} added to config file!\n\n")
 
 
 async def getHashValueofAttachmentFileData(filepath: str) -> str:
@@ -679,7 +705,7 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
                                                       f"{url}\n"
                                                       f"# RESPONSE FORMAT\n"
                                                       f"1. If the website can not be access, just reply CAN NOT ACCESS WEBSITE.\n"
-                                                      f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN  30 WORDS!\n"
+                                                      f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
                                                       f"3. If the website does not have any NSFW content, just reply No."
                                                 )
     inputPromptTokenCount = response.usage.input_tokens
@@ -1063,8 +1089,6 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             if entry.filename.endswith('/'):
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.filename} created at path {DestinationPath}")
-                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
-                            return True
 
                     print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
@@ -1133,8 +1157,6 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             if "." not in entry.name:
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.name} created at path {DestinationPath}")
-                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
-                            return True
 
                     print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
@@ -1156,25 +1178,25 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                                         print(f"The total uncompressed size has reached the limit threshold!")
                                         return True
-                                if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
-                                    if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
-                                        hashedData = hashlib.sha256(fileData).hexdigest()
-                                        if hashedData not in DuplicatedFileDetection:
-                                            with open(DestinationPath, 'wb') as f:
-                                                f.write(fileData)
-                                            print(f"{entry.name} is written to path {DestinationPath}")
-                                            DuplicatedFileDetection.append(hashedData)
+                            if "__MACOSX" not in DestinationPath and not os.path.basename(DestinationPath).startswith("._") and not ".DS_Store" in entry.name:
+                                if checkingFileExtension(fileData, DestinationPath).endswith(ALLSCANNABLEFILEFORMATS):
+                                    hashedData = hashlib.sha256(fileData).hexdigest()
+                                    if hashedData not in DuplicatedFileDetection:
+                                        with open(DestinationPath, 'wb') as f:
+                                            f.write(fileData)
+                                        print(f"{entry.name} is written to path {DestinationPath}")
+                                        DuplicatedFileDetection.append(hashedData)
+                                    else:
+                                        totalDuplicatedFile += 1
+                                        if checkingFileExtension(fileData, DestinationPath).endswith(ARCHIVEFORMATS):
+                                            totalDuplicatedArchive += 1
+                                            print(f"Duplicated archive/disk file at path {DestinationPath}")
+                                            if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
+                                                return True
                                         else:
-                                            totalDuplicatedFile += 1
-                                            if checkingFileExtension(fileData, DestinationPath).endswith(ARCHIVEFORMATS):
-                                                totalDuplicatedArchive += 1
-                                                print(f"Duplicated archive/disk file at path {DestinationPath}")
-                                                if totalDuplicatedArchive >= DUPLICATEDARCHIVELIMIT:
-                                                    return True
-                                            else:
-                                                print(f"Duplicated file at path {DestinationPath}")
-                                if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
-                                    return True
+                                            print(f"Duplicated file at path {DestinationPath}")
+                            if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
+                                return True
                         except tarfile.TarError as error:
                             print(f"Tar file error: {error}")
                             pass
@@ -1202,8 +1224,6 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                             if entry.filename.endswith('/'):
                                 os.makedirs(DestinationPath, exist_ok=True)
                                 print(f"Directory {entry.filename} created at path {DestinationPath}")
-                        if totalFileCount // (totalDuplicatedFile + 1) <= 0.10:
-                            return True
 
                     print(f"Extracting compressed file contents...")
                     """Second Extraction Focusing On Extracting All the Compressed Files"""
@@ -1267,28 +1287,28 @@ def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bo
                         with bz2.BZ2File(filePath[i], 'rb') as bz2File:
                             while True:
                                 dataChunk = bz2File.read(CHUNKSIZE)
-                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
-                                    break
                                 fileData += dataChunk
                                 uncompressedSize += len(dataChunk)
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
+                                    break
                     elif fileExt.endswith(".gz"):
                         print("Archive is a gzip file!")
                         with gzip.open(filePath[i], 'rb') as gzipRef:
                             while True:
                                 dataChunk = gzipRef.read(CHUNKSIZE)
-                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
-                                    break
                                 fileData += dataChunk
                                 uncompressedSize += len(dataChunk)
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
+                                    break
                     elif fileExt.endswith((".xz", ".lzma")):
                         print("Archive is in xz and lzma category!")
                         with lzma.open(filePath[i], 'rb') as lzFile:
                             while True:
                                 dataChunk = lzFile.read(CHUNKSIZE)
-                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
-                                    break
                                 fileData += dataChunk
                                 uncompressedSize += len(dataChunk)
+                                if not dataChunk or uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
+                                    break
                     if uncompressedSize >= UNCOMPRESSEDSIZELIMIT:
                         print(f"The total uncompressed size has reached the limit threshold!")
                         return True
@@ -1357,7 +1377,7 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
     if await asyncio.to_thread(ArchivesBombAnalysisAndExtraction, [mainArchiveFilePath]):
         await AddingNewNSFWData(hashedArchiveFileData, "Archive File - Potential Archive Bomb!")
         print("The Archive File is flagged as potential archive bomb!")
-        return False, ""  # Cyber bot will delete the archive bomb!
+        return True, "Archive File - Potential Archive Bomb!"
     TempDir = f"{MAINDOWNLOADDIR}{archiveFileName.split('.')[0]}"
     print(f"Scanning content in temp directory: {TempDir}...\n\n")
     for dirpath, _, filenames in os.walk(TempDir):
@@ -1460,7 +1480,6 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
     Description: NSFW scan for ASCII content
     :param checkMessage: ASCII content to be scanned
     :param URL: Specify whether the ASCII content is a URL or not
-    :param HTML: Specify whether the ASCII content is an HTML or not
     :return: Scan result and reason
     """
     print("Starting Black List check...")
@@ -1551,6 +1570,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
         f"3. Consider text may be letter emoji or contains a sequence of emojis that can hint NSFW.\n"
         f"# RESPONSE FORMAT\n"
         f"Response MUST start with a Yes or No! **IF AND ONLY IF** IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
+        f"DO NOT explain the reason, if the response is No!"
     )
     if scanResult.startswith(("Yes", "yes", "YES")):
         print("GPT detected inappropriate content!")
@@ -1638,12 +1658,11 @@ async def emmanuel(ctx):
 async def list_supported_file(ctx):
     await ctx.response.defer(ephemeral=True)
     await ctx.followup.send(
-        "Image Formats: .jpg, .png, .jpeg, .raw, .pdf, .bmp, .webp, .tiff, .tif, .ico, .icns, .avif, .odd, .eps, .gif\n"
-        "Video Formats: .mp4, .mov, .mkv, .avi, .m4v, .flv, .mpeg, mpg, .ts, .wmv, .dv, .mts, .m2ts, .vob, .ogv\n"
-        "Audio Formats: .mp3, .wav, .oga, .m4a, .flac, .weba, .aac, .ac3, .aif, .aiff, .aifc, .amr, .au, .caf, .m4a,"
-        " .m4b, .wma, .opus, .webm, .ogg\n"
-        "Archive Formats: .zip, .tar, .tar.gz, .tar.bz2, .tar.xz, .tar.lzma, .tgz, .tbz2, .txz, .gz, .rar, .bz2, .xz, .lzma\n"
-        "ASCII-based file: .txt, .json, .csv, .yaml, and script files"
+        f"Image Formats: {PICTUREFORMATS}\n"
+        f"Video Formats: {VIDEOFORMATS}\n"
+        f"Audio Formats: {AUDIOFORMATS}\n"
+        f"Archive Formats: {ARCHIVEFORMATS}\n"
+        f"ASCII-based file: {DOCUMENTFILES}"
     )
 
 
@@ -1827,34 +1846,43 @@ async def on_ready():
 
 @Emmanuel.event
 async def on_member_join(member):
-    if member.id != WHITELISTMEMBERS:
-        serverID = member.guild.id
-        async with ConfigLock:
-            if configuration.get(str(serverID), ""):
-                if configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), "") == "":
-                    configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)] = DAILYUNCENSORLIMIT
-                    async with aiofiles.open(EMMANUELCONFIG, "w") as file:
-                        await file.write(json.dumps(configuration, indent=4))
-                    await writingLog(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}\n\n")
-                    print(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}")
-            else:
-                await checkServerExistInConfigFile(serverID)
+    await asyncio.sleep(1)
+    serverID = member.guild.id
+    await writingLog(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}\n\n")
+    print(f"Member {member.name} ID {member.id} join server {member.guild.name} ID {member.guild.id}\n\n")
+    await checkServerExistInConfigFile(str(serverID))
+    if configuration.get(str(serverID), ""):
+        if not configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), ""):
+            configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)] = DAILYUNCENSORLIMIT
+            async with ConfigLock:
+                async with aiofiles.open(EMMANUELCONFIG, "w") as file:
+                    await file.write(json.dumps(configuration, indent=4))
 
 
 @Emmanuel.event
 async def on_member_remove(member):
-    if member.id != WHITELISTMEMBERS:
-        serverID = member.guild.id
-        async with ConfigLock:
-            if configuration.get(str(serverID), ""):
-                if configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), ""):
-                    del configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)]
+    serverID = member.guild.id
+    if member.id == Emmanuel.user.id:
+        await writingLog(f"Knight Emmanuel was kicked from server {member.guild.name} ID {member.guild.id}\n\n")
+        print(f"Knight Emmanuel was kicked from server {member.guild.name} ID {member.guild.id}\n\n")
+        if configuration.get(str(serverID), ""):
+            del configuration[str(serverID)]
+            print(f"Removed server ID {serverID} from Emmanuel Configuration!\n\n")
+            async with ConfigLock:
+                async with aiofiles.open(EMMANUELCONFIG, "w") as file:
+                    await file.write(json.dumps(configuration, indent=4))
+    else:
+        await asyncio.sleep(1)
+        await writingLog(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}\n\n")
+        print(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}\n\n")
+        await checkServerExistInConfigFile(str(serverID))
+        if configuration.get(str(serverID), ""):
+            if configuration[str(serverID)]["User-Uncensor-Limit"].get(str(member.id), ""):
+                del configuration[str(serverID)]["User-Uncensor-Limit"][str(member.id)]
+                async with ConfigLock:
                     async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                         await file.write(json.dumps(configuration, indent=4))
-                    await writingLog(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}\n\n")
-                    print(f"Member {member.name} ID {member.id} left server {member.guild.name} ID {member.guild.id}")
-            else:
-                await checkServerExistInConfigFile(serverID)
+
 
 # Command for Creator and Server Owner Only!
 @Emmanuel.tree.command(
@@ -2042,10 +2070,10 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
             logUserAction = f"User: {after.author.name} ID {after.author.id} re-edited message '{before.content}' to new message '{after.content}' in channel '{after.channel.name}' - ID {after.channel.id} in Server '{after.guild.name}' - ID {after.guild.id}"
             textContent = after.content
 
-            """Checking if a URL in a message and make sure only one URL"""
-            if "https://" in after.content or "http://" in after.content:
+            """Checking if at least one URL in a message"""
+            URLs = URLPATTERN.findall(after.content.replace(" ", ""))
+            if URLs:
                 print("Re-Edited Message contains URL link(s)! Checking all the URL(s)...")
-                URLs = URLPATTERN.findall(after.content.replace(" ", ""))
                 URLs = list(set(URLs))
                 for URL in URLs:
                     print(f"Extracting {URL} from message {after.content}")
@@ -2153,7 +2181,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                 async with Emmanuel.session.get(URL) as response:
                                     statuscode = response.status
                                     if statuscode in range(400, 500):
-                                        statuscode, UrlContent = await asyncio.to_thread(SeleniumHTMLRetrieval, random.choice(SCRAPEOPSMOBILEBROWSERHEADERS), URL) # Setting heavy I/O synchronous Selenium function as thread to allow async operation and prevent blocking.
+                                        statuscode, UrlContent = await asyncio.to_thread(SeleniumHTMLRetrieval, random.choice(SCRAPEOPSMOBILEBROWSERHEADERS), URL)
                                     else:
                                         UrlContent = await response.read()
                             except Exception as URLQueryError:
@@ -2223,7 +2251,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                         if configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] > 0:
                                                             scanContent = False
                                                             logUserAction += f"\nUser {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!"
-                                                            print(f"User {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!")
+                                                            print(f"User {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!\n\n")
                                                             configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] -= 1
                                                             async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                                                                 await file.write(json.dumps(configuration, indent=4))
@@ -2246,6 +2274,7 @@ async def on_message_edit(before, after):  # Note: media attachment can be embed
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                         else:
+                                            logUserAction += f"\nURL {URL} content is a file extension {URLContentExt} outside of Emmanuel scope of scan"
                                             await AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                         print("Scan Process Finished!\n\n")
                                         if UrlContentNSFWResult:
@@ -2340,10 +2369,10 @@ async def on_message(message):
 
         if message.content:
             textContent = message.content
-            """Checking if a URL in a message and make sure only one URL"""
-            if "https://" in message.content or "http://" in message.content:
+            """Checking if at least one URL in a message"""
+            URLs = URLPATTERN.findall(message.content.replace(" ", ""))
+            if URLs:
                 print("Message contains URL link(s)! Checking all the URL(s)...")
-                URLs = URLPATTERN.findall(message.content.replace(" ", ""))
                 URLs = list(set(URLs))
                 for URL in URLs:
                     textContent = textContent.replace(URL, '')
@@ -2519,7 +2548,7 @@ async def on_message(message):
                                                         if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
                                                             scanContent = False
                                                             logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
-                                                            print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!")
+                                                            print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!\n\n")
                                                             configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
                                                             async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                                                                 await file.write(json.dumps(configuration, indent=4))
@@ -2542,6 +2571,7 @@ async def on_message(message):
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                         else:
+                                            logUserAction += f"\nURL {URL} content is a file extension {URLContentExt} outside of Emmanuel scope of scan"
                                             await AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
                                         print("Scan Process Finished!\n\n")
                                         if UrlContentNSFWResult:
@@ -2618,7 +2648,7 @@ async def on_message(message):
                     await AdvanceBackTrackMessageScan(message)
                     return
 
-                """Checking attachment content already been scanned"""
+                """Getting the byte content of the attachment to memory"""
                 async with Emmanuel.session.get(attachment.url) as response:
                     attachmentContent = await response.read()
                 hashedAttachmentContent = hashlib.sha512(attachmentContent).hexdigest()
@@ -2633,6 +2663,7 @@ async def on_message(message):
                 else:
                     CURRENTSCANOPERATION[hashedAttachmentContent] = "In Progress"
 
+                """Checking attachment content already been scanned"""
                 print(f"Attachment SHA512 content: {hashedAttachmentContent}")
                 print(f"Checking if attachment content is already in a clean list...")
                 if hashedAttachmentContent in CLEANData.keys():
@@ -2663,7 +2694,7 @@ async def on_message(message):
                                     if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
                                         scanContent = False
                                         logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
-                                        print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!")
+                                        print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!\n\n")
                                         configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
                                         async with aiofiles.open(EMMANUELCONFIG, "w") as file:
                                             await file.write(json.dumps(configuration, indent=4))
@@ -2679,8 +2710,8 @@ async def on_message(message):
                                 if attachmentFileExt.endswith(ARCHIVEFORMATS):
                                     attachmentNSFWResult, attachmentNSFWResultDetails = await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
                                 elif attachmentFileExt.endswith(DOCUMENTFILES):
-                                    print(f"Scanning ASCII text in URL content...")
-                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, UrlContent)
+                                    print(f"Scanning ASCII text in attachment content...")
+                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, attachmentContent)
                                     attachmentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
                                     if attachmentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
                                         attachmentNSFWResult = True
@@ -2694,6 +2725,7 @@ async def on_message(message):
                                 else:
                                     attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
                             else:
+                                logUserAction += f"\nAttachment content is a file extension {attachmentFileExt} outside of Emmanuel scope of scan"
                                 await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
                             print("Scan Process Finished!\n\n")
                             if attachmentNSFWResult:
@@ -2704,12 +2736,12 @@ async def on_message(message):
                                     logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
                                 except Exception as error:
                                     logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                    await writingLog(logUserAction)
-                                    # Advance scan previous message for profanity!
-                                    await AdvanceBackTrackMessageScan(message)
-                                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                                        del CURRENTSCANOPERATION[hashedAttachmentContent]
-                                    return
+                                await writingLog(logUserAction)
+                                # Advance scan previous message for profanity!
+                                await AdvanceBackTrackMessageScan(message)
+                                if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                    del CURRENTSCANOPERATION[hashedAttachmentContent]
+                                return
 
                 if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
                     del CURRENTSCANOPERATION[hashedAttachmentContent]

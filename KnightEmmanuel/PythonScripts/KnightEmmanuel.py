@@ -13,7 +13,7 @@ for systembinary in systembinaries:
         raise ModuleNotFoundError(f"System binary {systembinary} NOT FOUND. Please install the system binary via brew or apt or compiled from source code for Knight Emmanuel to function")
 
 print("Checking Python Dependencies")
-dependencies = ["better-profanity", "discord-py", "dotenv", "filetype", "nudenet", "openai", "opencv-python", "pillow", "python-magic", "rarfile", "requests", "selenium-wire-2", "blinker", "webdriver-manager", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib", "fpdf"]
+dependencies = ["better-profanity", "discord-py", "python-dotenv", "filetype", "nudenet", "openai", "opencv-python", "pillow", "python-magic", "rarfile", "requests", "selenium-wire-2", "blinker", "webdriver-manager", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib", "fpdf"]
 for dependency in dependencies:
     result = subprocess.run(["pip", "show", dependency], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if "not found" in f"{result.stderr} {result.stdout}":
@@ -648,7 +648,8 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
                         {"type": "input_file", "file_id": fileID}
                     ]
                 }
-            ]
+            ],
+            store=False
         )
 
         await GPTclient.files.delete(fileID)
@@ -678,7 +679,8 @@ async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
         response = await GPTclient.responses.create(
             model=GPTMODELFORTEXTSCAN,
             instructions="You are an NSFW moderator on text messages that may also contains URL",
-            input=textToBeScanned
+            input=textToBeScanned,
+            store=False
         )
         outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
         cMonth = time.ctime(time.time()).split()[1]
@@ -706,7 +708,8 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
                                                       f"# RESPONSE FORMAT\n"
                                                       f"1. If the website can not be access, just reply CAN NOT ACCESS WEBSITE.\n"
                                                       f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
-                                                      f"3. If the website does not have any NSFW content, just reply No."
+                                                      f"3. If the website does not have any NSFW content, just reply No.",
+                                                store=False
                                                 )
     inputPromptTokenCount = response.usage.input_tokens
     outputPromptTokenCount = response.usage.output_tokens

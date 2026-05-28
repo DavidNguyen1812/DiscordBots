@@ -221,7 +221,7 @@ This repository contains three independently deployable Discord bots, each desig
 | discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
 | python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
 | openai | `== 2.38.0` | [GitHub](https://github.com/openai/openai-python) |
-| google-genai | `== 1.66.0` | [GitHub](https://github.com/googleapis/python-genai) |
+| google-genai | `== 2.7.0` | [GitHub](https://github.com/googleapis/python-genai) |
 | pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
 | aiofiles | `== 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |
 | aiocsv | `== 1.4.0` | [GitHub](https://github.com/MKuranowski/aiocsv) |

@@ -277,8 +277,7 @@ print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 """Getting Current Time Value"""
 ct = time.ctime(time.time()).split()
 previousMonth = ct[1]
-# previousDate = ct[2]
-previousDate = "27"
+previousDate = ct[2]
 previousYear = ct[4]
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")

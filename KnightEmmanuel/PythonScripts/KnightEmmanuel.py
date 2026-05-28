@@ -1678,7 +1678,7 @@ async def clear_emmanuel_dm_messages(ctx):
     await ctx.followup.send("All DM messages by me have been deleted.")
 
 
-@tasks.loop(time=datetime.time(hour=12, minute=24, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
+@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
 async def reset_user_uncensor_value_and_update_llm_usage():
     global previousDate, previousMonth, previousYear
 

@@ -1,3 +1,14 @@
+import subprocess
+
+print("Checking Python Dependencies")
+dependencies = ["discord-py", "python-dotenv", "pycryptodome", "vigenere"]
+for dependency in dependencies:
+    result = subprocess.run(["pip", "show", dependency], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if "not found" in f"{result.stderr} {result.stdout}":
+        raise ModuleNotFoundError(f"Python dependency {dependency} NOT FOUND. Please install the dependency via pip in order for Knight Samson to function")
+    else:
+        print(f"Python dependency {dependency} FOUND.")
+
 import discord
 from NexusCryptoUtilities import *
 import os
@@ -19,25 +30,25 @@ load_dotenv()
 DISCORDAPI = os.environ.get("NEXUSDISCORDAPI")
 
 intents = discord.Intents.all()
-client = commands.Bot(command_prefix='/', intents=intents)
+Nexus = commands.Bot(command_prefix='/', intents=intents)
 
 
 
-@client.event
+@Nexus.event
 async def on_ready():
-    await client.wait_until_ready()
-    print(f"Logged in as {client.user} (ID: {client.user.id})")
+    await Nexus.wait_until_ready()
+    print(f"Logged in as {Nexus.user} (ID: {Nexus.user.id})")
     print("Knight Nexus is ONLINE!")
 
     #  Synced all commands -> Add new command if not already existed, else update the pre-existing command
-    await client.tree.sync()
-    SynedCmds = await client.tree.fetch_commands()
+    await Nexus.tree.sync()
+    SynedCmds = await Nexus.tree.fetch_commands()
     for cmd in SynedCmds:
         print(f"Synced command /{cmd.name}")
     print(f"Commands are updated and ready to use!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="nexus",
     description="Get Information about Knight Nexus"
 )
@@ -69,19 +80,19 @@ async def nexus(ctx):
         "/crypto_ecdsa")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="clear_nexus_dm_messages",
     description="Delete all direct messages sent by Knight Nexus to you"
 )
 async def clear_nexus_dm_messages(ctx):
     await ctx.response.defer(ephemeral=True)
     async for message in ctx.user.history():
-        if message.author == client.user:
+        if message.author == Nexus.user:
             await message.delete()
     await ctx.followup.send("All DM messages by me have been deleted.")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="david_cipher",
     description="Applying the symmetric stream cipher. (Not cryptographically secure)"
 )
@@ -114,7 +125,7 @@ async def david_cipher(ctx, userinput: str, operation: Literal["encrypt", "decry
                                 f"correct!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="rc4",
     description="Applying the legacy symmetric stream cipher algorithm rc4. (Not cryptographically secure)"
 )
@@ -138,7 +149,7 @@ async def rc4(ctx, i: int, j: int, userinput: str, operation: Literal["encrypt",
                                 f"correct!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="hash_func",
     description="Experimenting with different cryptographic hash functions."
 )
@@ -181,7 +192,7 @@ async def hash_func(ctx,
     await ctx.followup.send(f"Your hashed text using {hash_type} is: {hashText}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="morse_decode",
     description="Decoding a morse code."
 )
@@ -205,7 +216,7 @@ async def morse_decode(ctx, morse_code: str):
     await ctx.followup.send(f"The message is {await asyncio.to_thread(MorseCodeDecoder, morse_code)}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="tap_code_decode",
     description="Decoding a tap code."
 )
@@ -238,7 +249,7 @@ async def tap_code_decode(ctx, tap_code: str):
     await ctx.followup.send(f"The message is {await asyncio.to_thread(tapCodeDecoder, tap_code.split('  '))}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="rail_fence_cipher",
     description="Applying the symmetric cryptographic rail-fence stream cipher. (Not cryptographically secure)"
 )
@@ -259,7 +270,7 @@ async def rail_fence_cipher(ctx, message: str, operation: Literal["encrypt", "de
         await ctx.followup.send(f"The plain text is {await asyncio.to_thread(railFenceCipher, rail, message, False)}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="random_string_subs_cipher",
     description="A symmetric cryptographic stream cipher inspired by Caesar cipher. (Not cryptographically secure)"
 )
@@ -290,7 +301,7 @@ async def random_string_subs_cipher(ctx, message: str, operation: Literal["encry
         await ctx.followup.send(f"The plain text is {await asyncio.to_thread(randomSubstitutionCipher, keyString, message, False)}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="vigenere_cipher",
     description="A symmetric cryptographic stream cipher. (Not cryptographically secure)"
 )
@@ -308,7 +319,7 @@ async def vigenere_cipher(ctx, message: str, operation: Literal["encrypt", "decr
         await ctx.followup.send(f"The plain text is {await asyncio.to_thread(decrypt, message, key, False)}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="square_code",
     description="A symmetric cryptographic stream cipher (Not cryptographically secure)."
 )
@@ -327,7 +338,7 @@ async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "
         await ctx.followup.send(f"The plain text is {plainText}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="text_book_rsa_key_generation",
     description="Generating keys for asymmetric cryptographic block cipher RSA."
 )
@@ -337,7 +348,7 @@ async def text_book_rsa_key_generation(ctx):
     await ctx.followup.send(f"Your public keys are:\ne\t{e}\nn\t{n}\nYour private key is:\nd\t{d}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="textbook_rsa_cipher",
     description="An asymmetric cryptographic block cipher (Not cryptographically secure)."
 )
@@ -363,7 +374,7 @@ async def textbook_rsa_cipher(ctx, message: str, operation: Literal["encrypt", "
         await ctx.followup.send(f"Your key values need to be an integer!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_rsa_key_generation",
     description="Generating Crypto RSA keys in pem file format."
 )
@@ -378,7 +389,7 @@ async def crypto_rsa_key_generation(ctx, key_size: Literal[2048, 3072, 4096]):
     await ctx.followup.send(file=discord.File(fp=PublicKeybuffer, filename="CryptoRSApublicKey.pem"), ephemeral=True)
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_rsa_pkcs1_oaep_cipher",
     description="An asymmetric cryptographic with PKCS1_OAEP scheme (Cryptographically secure)."
 )
@@ -406,7 +417,7 @@ async def crypto_rsa_pkcs1_oaep_cipher(ctx, message: str, operation: Literal["en
         await ctx.followup.send(f"Invalid RSA key file or decryption error! Error: {error}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_aes_ocb_key_generation",
     description="Generating Crypto AES-OCB key."
 )
@@ -419,7 +430,7 @@ async def crypto_aes_ocb_key_generation(ctx, key_size: Literal[128, 192, 256]):
     await ctx.followup.send(f"Your AES key is: {base64.b64encode(get_random_bytes(key_size // 8)).decode('ascii')}")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_aes_ocb_cipher",
     description="An authenticated symmetric cryptographic algorithm (Cryptographically secure)."
 )
@@ -451,7 +462,7 @@ async def crypto_aes_ocb_cipher(ctx, message: str, operation: Literal["encrypt",
         await ctx.followup.send(f"Invalid Key Format!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_pss_rsa_digital_signature",
     description="Generating or verifying Crypto PKCS#1 PSS RSA-Digital Signature (Cryptographically secure)."
 )
@@ -484,7 +495,7 @@ async def crypto_pss_rsa_digital_signature(ctx, message: str, operation: Literal
         await ctx.followup.send(f"You must provide an RSA key to sign or verify the message!")
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_ecc_key_generation",
     description="Generating Crypto ECC keys in pem file format."
 )
@@ -498,7 +509,7 @@ async def crypto_ecc_key_generation(ctx, curve: Literal["p192", "p224", "p256", 
     await ctx.followup.send(file=discord.File(fp=publicKeybuffer, filename=f"CryptoECC-{curve}PublicKey.pem"), ephemeral=True)
 
 
-@client.tree.command(
+@Nexus.tree.command(
     name="crypto_ecdsa",
     description="Generating or verifying Crypto ECC digital signature with NIST curves (Cryptographically secure)."
 )
@@ -534,4 +545,4 @@ async def crypto_ecdsa(ctx, message: str, key: discord.Attachment, operation: Li
     except ValueError:
         await ctx.followup.send(f"You must provide an ECC with NIST p-curve key to sign or verify the message!")
 
-client.run(DISCORDAPI)
+Nexus.run(DISCORDAPI)

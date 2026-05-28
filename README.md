@@ -80,7 +80,7 @@ This repository contains three independently deployable Discord bots, each desig
 | Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
 | better-profanity | `== 0.7.0` | [GitHub](https://github.com/snguyenthanh/better_profanity) |
 | discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
-| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
 | filetype | `== 1.2.0` | [GitHub](https://github.com/h2non/filetype.py) |
 | nudenet | `== 3.4.2` | [GitHub](https://github.com/notAI-tech/nudenet) |
 | openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
@@ -171,7 +171,7 @@ This repository contains three independently deployable Discord bots, each desig
 |-----------|---------|--------|
 | Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
 | discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
-| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
 | pycryptodome | `== 3.23.0` | [pycryptodome.org](https://www.pycryptodome.org) |
 | vigenere | `== 1.1.0` | [GitHub](https://github.com/GuptaAyush19/Vigenere-Cipher) |
 | **Discord API Key** | N/A | [Discord Developer Portal](https://docs.discord.com/developers/reference) |
@@ -219,7 +219,7 @@ This repository contains three independently deployable Discord bots, each desig
 |-----------|---------|--------|
 | Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
 | discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
-| dotenv | `== 0.9.9` | [GitHub](https://github.com/pedroburon/dotenv) |
+| python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
 | openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
 | google-genai | `== 1.66.0` | [GitHub](https://github.com/googleapis/python-genai) |
 | pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |

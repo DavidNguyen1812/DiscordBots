@@ -83,7 +83,7 @@ This repository contains three independently deployable Discord bots, each desig
 | python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
 | filetype | `== 1.2.0` | [GitHub](https://github.com/h2non/filetype.py) |
 | nudenet | `== 3.4.2` | [GitHub](https://github.com/notAI-tech/nudenet) |
-| openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
+| openai | `== 2.38.0` | [GitHub](https://github.com/openai/openai-python) |
 | opencv-python | `== 4.13.0.92` | [GitHub](https://github.com/opencv/opencv-python) |
 | pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
 | python-magic | `== 0.4.27` | [GitHub](https://github.com/ahupp/python-magic) |
@@ -220,7 +220,7 @@ This repository contains three independently deployable Discord bots, each desig
 | Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
 | discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
 | python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
-| openai | `== 2.26.0` | [GitHub](https://github.com/openai/openai-python) |
+| openai | `== 2.38.0` | [GitHub](https://github.com/openai/openai-python) |
 | google-genai | `== 1.66.0` | [GitHub](https://github.com/googleapis/python-genai) |
 | pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
 | aiofiles | `== 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |

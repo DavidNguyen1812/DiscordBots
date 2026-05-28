@@ -143,7 +143,6 @@ OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're
 GPTMODELFORIMAGESCAN = "gpt-5-nano"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
-LLMModels = [GPTMODELFORTEXTSCAN, GPTMODELFORIMAGESCAN]
 LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
@@ -278,7 +277,8 @@ print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
 """Getting Current Time Value"""
 ct = time.ctime(time.time()).split()
 previousMonth = ct[1]
-previousDate = ct[2]
+# previousDate = ct[2]
+previousDate = "27"
 previousYear = ct[4]
 if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}"):
     os.mkdir(f"{LLMUSAGELOGDIR}{previousYear}")
@@ -339,9 +339,10 @@ def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, saveP
     plt.close(fig)
 
 
-def plotModelCalls(LLMModelUses: list[int], savePath: str):
+def plotModelCalls(LLMModels: list[str], LLMModelUses: list[int], savePath: str):
     """
     Description: Plotting a single bar chart showing the total calls per LLM models each month
+    :param LLMModels: The list of all the LLM models that has been used at least one
     :param LLMModelUses: The usage value of each LLM models
     :param savePath: The path to save the bar chart
     :return: None, the bar chart will be saved in the savePath
@@ -1678,7 +1679,7 @@ async def clear_emmanuel_dm_messages(ctx):
     await ctx.followup.send("All DM messages by me have been deleted.")
 
 
-@tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
+@tasks.loop(time=datetime.time(hour=12, minute=24, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
 async def reset_user_uncensor_value_and_update_llm_usage():
     global previousDate, previousMonth, previousYear
 
@@ -1729,10 +1730,15 @@ async def reset_user_uncensor_value_and_update_llm_usage():
 
             try:
                 print(f"Updating LLMModelsUsed.png...")
-                LLMModelUses = [0 for _ in range(len(LLMModels))]
+                LLMModels = []
+                LLMModelUses = []
                 for _, row in monthlyData.iterrows():
-                    LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
-                plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+                    if row["LLM Models"] not in LLMModels:
+                        LLMModels.append(row["LLM Models"])
+                        LLMModelUses.append(1)
+                    else:
+                        LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+                plotModelCalls(LLMModels, LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
                 print(f"Successfully Updating LLMModelsUsed.png!")
                 await writingLog("Updating LLMModelsUsed.png\nStatus: Success\n\n")
             except Exception as error:

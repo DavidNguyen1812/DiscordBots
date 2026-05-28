@@ -1,3 +1,14 @@
+import subprocess
+
+print("Checking Python Dependencies")
+dependencies = ["discord-py", "python-dotenv", "openai", "google-genai", "pillow", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib"]
+for dependency in dependencies:
+    result = subprocess.run(["pip", "show", dependency], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if "not found" in f"{result.stderr} {result.stdout}":
+        raise ModuleNotFoundError(f"Python dependency {dependency} NOT FOUND. Please install the dependency via pip in order for Knight Samson to function")
+    else:
+        print(f"Python dependency {dependency} FOUND.")
+
 import discord
 import discord.ext.commands
 import time
@@ -44,7 +55,6 @@ LLMUSAGELOGDIR = os.environ.get("SAMSONLLMUSAGELOGDIR")
 
 """API Tokens"""
 DISCORDAPI = os.environ.get("SAMSONDISCORDAPI")
-GPTAPI = os.environ.get("SAMSONGPTAPI")
 
 """Setting Up Important Variables for the OpenAI and Gemini LLM pipeline to function properly"""
 INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please ALWAYS response to the user prompt in medieval style!",
@@ -56,7 +66,10 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please
                    "Fitness Coach": "You are a fitness coach name Samson! Please ALWAYS response to the user prompt like a fitness coach!",
                    "Viking": "You are a Viking name Samson! Please ALWAYS response to the user prompt with Nordic culture!",
                    "Samurai": "You are an honourable Samurai name Samson! Please ALWAYS response to the user prompt according to the Bushido Code!",
-                   "Comedian": "You are a comedian name Samson! Please ALWAYS response to the user prompt with some humor!"}
+                   "Comedian": "You are a comedian name Samson! Please ALWAYS response to the user prompt with some humor!",
+                   "Pirate": "You are a pirate name Samson that enjoy sea shanties! Please ALWAYS response to the user prompt in a sea shanty style!",
+                   "Magician": "You are a mysterious magician name Samson! Please ALWAYS response to the user prompt with some fabulous magical words!",
+                   "Caveman": "You are prehistoric human name Samson! Please ALWAYS response to the user prompt like a caveman!"}
 
 """
 https://developers.openai.com/api/docs/models 
@@ -311,7 +324,7 @@ GOOGLE GEMINI TTS INFO:
         + Supported Inputs: Text
 """
 
-# Please NOTE that your LLM models rate limit are subjected your AI project tier
+# Please NOTE that your LLM models rate limit are subjected to your AI project tier
 # https://developers.openai.com/api/docs/guides/rate-limits
 # https://ai.google.dev/gemini-api/docs/rate-limits#current-rate-limits
 
@@ -462,34 +475,9 @@ LLMMODELINFORMATION = {
                             }
                        }
 
-LLMModels = ["gemini-2.5-flash",
-             "gemini-2.5-pro",
-             "gemini-3.1-pro-preview",
-             "gpt-5.4",
-             "gpt-5.2",
-             "gpt-5.1",
-             "gpt-5",
-             "gpt-5-mini",
-             "gpt-5-nano",
-             "gpt-5.3-codex",
-             "gpt-5.2-codex",
-             "gpt-5.1-codex",
-             "gpt-4.1",
-             "gpt-4.1-mini",
-             "gpt-4.1-nano",
-             "gpt-4o",
-             "gpt-4.0-mini",
-             "o4-mini",
-             "o3",
-             "gemini-2.5-flash-preview-tts",
-             "gemini-2.5-pro-preview-tts",
-             "gpt-audio",
-             "gpt-audio-1.5",
-             "gpt-audio-mini"]
-
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""
-GPTclient = AsyncOpenAI(api_key=GPTAPI)
+GPTclient = AsyncOpenAI(api_key=os.environ.get("SAMSONGPTAPI"))
 GEMINIclient = genai.Client()
 intents = discord.Intents.all()
 Samson = commands.Bot(command_prefix='/', intents=intents)
@@ -515,6 +503,7 @@ if not os.path.exists(f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}"):
 """Loading Configuration File"""
 with open(CONFIGFILEPATH, "r") as readFile:
     SamsonConfig = json.load(readFile)
+print(f"Samson configuration file successfully loaded!")
 
 
 @Samson.event
@@ -623,9 +612,10 @@ def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, saveP
     plt.close(fig)
 
 
-def plotModelCalls(LLMModelUses: list[int], savePath: str):
+def plotModelCalls(LLMModels: list[str], LLMModelUses: list[int], savePath: str):
     """
     Description: Plotting a single bar chart showing the total calls per LLM models each month
+    :param LLMModels: The list of all the LLM models that has been used at least one
     :param LLMModelUses: The usage value of each LLM models
     :param savePath: The path to save the bar chart
     :return: None, the bar chart will be saved in the savePath
@@ -680,8 +670,8 @@ async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, 
 async def ApplicationCommandLogging(userName: str, command: str) -> None:
     """
     Description: Logging all Samson application commands being called by a server's member
-    :param userName:  Member Discord username
-    :param command:  The command being called
+    :param userName: Member Discord username
+    :param command: The command being called
     :return: None
     """
     async with LogLock:
@@ -1090,10 +1080,15 @@ async def update_user_command_limit_and_llm_usage():
 
             try:
                 print(f"Updating LLMModelsUsed.png...")
-                LLMModelUses = [0 for _ in range(len(LLMModels))]
+                LLMModels = []
+                LLMModelUses = []
                 for _, row in monthlyData.iterrows():
-                    LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
-                plotModelCalls(LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
+                    if row["LLM Models"] not in LLMModels:
+                        LLMModels.append(row["LLM Models"])
+                        LLMModelUses.append(1)
+                    else:
+                        LLMModelUses[LLMModels.index(row["LLM Models"])] += 1
+                plotModelCalls(LLMModels, LLMModelUses, f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMModelsUsed.png")
                 print(f"Successfully Updating LLMModelsUsed.png!")
                 await TaskLogging("Updating LLMModelsUsed.png", "Success")
             except Exception as error:
@@ -1380,7 +1375,7 @@ async def samson(ctx):
     description="Configuring Knight Samson to roleplay a specific personality"
 )
 @app_commands.describe(role="Select a role for Samson to role play")
-async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Modern Day", "Military", "Horror", "Fitness Coach", "Viking", "Samurai", "Comedian"]):
+async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Modern Day", "Military", "Horror", "Fitness Coach", "Viking", "Samurai", "Comedian", "Pirate", "Magician", "Caveman"]):
     await ctx.response.defer(ephemeral=True)
     async with ConfigLock:
         if SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] == role:
@@ -1388,7 +1383,7 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
             await ApplicationCommandLogging(ctx.user.name, f"/roleplay {role}\nCommand Status: Denied/Samson already configured to the selected roleplay!")
         else:
             SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] = role
-            reply = gpt_text_and_picture_inputs_only("Introduce yourself", ctx.user.name, "gpt-5.4", INSTRUCTION_LISTS[role])
+            reply = await gpt_text_and_picture_inputs_only("Introduce yourself", ctx.user.name, "gpt-5.4", INSTRUCTION_LISTS[role])
             await ctx.followup.send(reply)
             await ApplicationCommandLogging(ctx.user.name, f"/roleplay {role}\nCommand Status: Approved")
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:

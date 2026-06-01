@@ -580,6 +580,11 @@ def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, saveP
     :param savePath: The path to save the bar charts
     :return: None, the bar charts will be saved in the savePath
     """
+    def formatFinalValue(val):
+        if val == int(val):
+            return f"{int(val):,}"
+        else:
+            return str(val)
     x = np.arange(len(xLabels))
     barWidth = 0.55
     fig, axes = plt.subplots(3, 1, figsize=(13, 13))
@@ -591,7 +596,13 @@ def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, saveP
         max_v = max(values) if any(v > 0 for v in values) else 1
         bars = ax.bar(x, values, width=barWidth, color=color, alpha=0.88, edgecolor="white", linewidth=0.8, zorder=3)
         ax.set_facecolor("#F7F8FA")
-        ax.set_title(ds["title"], fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
+        if ds["title"] == "Total Input Tokens":
+            title = f"Total Input Tokens: {formatFinalValue(sum(values))} tokens"
+        elif ds["title"] == "Total Output Tokens":
+            title = f"Total Output Tokens: {formatFinalValue(sum(values))} tokens"
+        else:
+            title = f"Total Cost: ${formatFinalValue(round(sum(values), 5))}"
+        ax.set_title(title, fontsize=13, fontweight="bold", color="#1E2A3A", pad=8, loc="left")
         ax.set_xticks(x)
         ax.set_xticklabels(xLabels, fontsize=10, color="#444")
         ax.tick_params(axis="y", labelsize=9, colors="#666")

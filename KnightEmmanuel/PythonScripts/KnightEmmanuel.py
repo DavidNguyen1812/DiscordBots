@@ -1708,7 +1708,7 @@ async def reset_user_uncensor_value_and_update_llm_usage():
             monthlyTotalInputToken = []
             monthlyTotalOutputToken = []
             monthlyTotalCost = []
-            for day in range(1, int(currentTime[2]) + 1):
+            for day in range(1, int(previousDate) + 1):
                 dailyTotalInputToken = 0
                 dailyTotalOutputToken = 0
                 dailyTotalCost = 0
@@ -1725,7 +1725,7 @@ async def reset_user_uncensor_value_and_update_llm_usage():
                 {"values": monthlyTotalOutputToken, "title": "Total Output Tokens", "color": "Green"},
                 {"values": monthlyTotalCost, "title": "Total Cost ($)", "color": "Orange"},
             ]
-            dates = [str(date) for date in range(1, int(currentTime[2]) + 1)]
+            dates = [str(date) for date in range(1, int(previousDate) + 1)]
             plotBarCharts(datasets, dates, "LLM Usage - Monthly Overview",f"{LLMUSAGELOGDIR}{previousYear}/{previousMonth}/LLMMonthlyUsageReport.png")
             print(f"Successfully Updating LLMMonthlyUsageReport.png!")
             await writingLog("Updating LLMMonthlyUsageReport.png\nStatus: Success\n\n")

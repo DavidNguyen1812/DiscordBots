@@ -28,6 +28,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+import openai
 
 from PIL import Image
 from openai import AsyncOpenAI
@@ -35,6 +36,7 @@ from google import genai
 from discord import app_commands
 from discord.ext import commands, tasks
 from google.genai import types
+from google.genai import errors
 from typing import Literal
 from dotenv import load_dotenv
 from io import BytesIO
@@ -526,6 +528,7 @@ async def on_ready():
                 if not SamsonConfig.get(str(member.id), ""):
                     SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [], "Latest Conversation ID": ""}
                     print(f"Adding user: {member.name} - ID: {member.id} from server: {guild.name} - ID: {guild.id} to Samson Configuration File")
+                    await TaskLogging(f"Adding user {member.name} - ID: {member.id} to Samson Configuration File", "Success")
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                 await file.write(json.dumps(SamsonConfig, indent=4))
 
@@ -545,30 +548,29 @@ def isDMChannel(channel: int) -> bool:
 
 
 def calculateUsageCost(model: str, totalInputTokens: int, totalOutputTokens: int, task: Literal["Audio-Prompt-Text-Output", "Text-Prompt-Audio-Output", "General Chat"]) -> float:
-   """
-   Description: Calculate the usage cost of the LLM model based on the total input tokens and output tokens.
-   :param model: LLM Model
-   :param totalInputTokens: The total input tokens of a prompt
-   :param totalOutputTokens: The total output tokens of a prompt
-   :param task: Audio or General Chat
-   :return: The final calculated usage cost
-   """
-   if "gemini" in model:
-      tierThresh = 200000
-   else:
-      tierThresh = 272000
+    """
+    Description: Calculate the usage cost of the LLM model based on the total input tokens and output tokens.
+    :param model: LLM Model
+    :param totalInputTokens: The total input tokens of a prompt
+    :param totalOutputTokens: The total output tokens of a prompt
+    :param task: Audio or General Chat
+    :return: The final calculated usage cost
+    """
 
-   if "Audio" not in task:
-      if totalInputTokens > tierThresh:
-         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][1] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][1]
-      else:
-         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
-   else:
-      if task == "Audio-Prompt-Text-Output":
-         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][1] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
-      else:
-         totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][1]
-   return round(totalCost, 5)
+    if "gemini" in model:
+        tierThresh = 200000
+    else:
+        tierThresh = 272000
+
+    if "Audio" not in task:
+        inputTokenCostIndex = 1 if totalInputTokens > tierThresh else 0
+        outputTokenCostIndex = 1 if totalOutputTokens > tierThresh else 0
+    else:
+        inputTokenCostIndex = 1 if task == "Audio-Prompt-Text-Output" else 0
+        outputTokenCostIndex = 0 if task == "Audio-Prompt-Text-Output" else 1
+    totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][inputTokenCostIndex] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][outputTokenCostIndex]
+
+    return round(totalCost, 5)
 
 
 def plotBarCharts(datasets: list[dict], xLabels: list[str], suptitle: str, savePath: str) -> None:
@@ -749,27 +751,12 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
     else:
         if fileUpload[1] == "IMAGE":
             logMessage += f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached an image!"
-            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[
-                {"role": "user",
-                 "content": [{"type": "input_text", "text": userPrompt},
-                            {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
-                        ],
-                    }
-                ])).input_tokens
+            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[{"role": "user", "content": [{"type": "input_text", "text": userPrompt}, {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"}]}])).input_tokens
         else:
             logMessage += f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached a PDF file!"
             async with aiofiles.open(fileUpload[0], "rb") as PDFfile: # No need to add async lock, since the file path is unique
                 fileID = (await GPTclient.files.create(file=await PDFfile.read(), purpose="user_data")).id
-            os.remove(fileUpload[0])
-            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text", "text": userPrompt},
-                            {"type": "input_file", "file_id": fileID}
-                        ]
-                    }
-                ])).input_tokens
+            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[{"role": "user","content": [{"type": "input_text", "text": userPrompt},{"type": "input_file", "file_id": fileID}]}])).input_tokens
 
     logMessage += f"\nTotal Input Tokens: {totalInputToken} tokens"
     if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputToken > LLMMODELINFORMATION[model]["TPM"]:
@@ -781,61 +768,80 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
             await LoggingGPTandGeminiOutputs(logMessage)
             return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
         else:
-            logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
             return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
-        if fileUpload is None:
-            response = await GPTclient.responses.create(
-                model=model,
-                instructions=instructions,
-                input=userPrompt,
-                store=False # Tell OpenAI to not store the conversation in their server
-            )
-        else:
-            if fileUpload[1] == "IMAGE":
+        try:
+            if fileUpload is None:
                 response = await GPTclient.responses.create(
                     model=model,
                     instructions=instructions,
-                    input=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "input_text", "text": userPrompt},
-                                {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
-                            ],
-                        }
-                    ],
-                    store=False  # Tell OpenAI to not store the conversation in their server
+                    input=userPrompt,
+                    store=False # Tell OpenAI to not store the conversation in their server
                 )
             else:
-                response = await GPTclient.responses.create(
-                    model=model,
-                    instructions=instructions,
-                    input=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "input_text", "text": userPrompt},
-                                {"type": "input_file", "file_id": fileID}
-                            ]
-                        }
-                    ],
-                    store = False  # Tell OpenAI to not store the conversation in their server
-                )
-                await GPTclient.files.delete(fileID)
-
-
-        reply = response.output_text
-        totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
-        logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
-        await LoggingGPTandGeminiOutputs(logMessage)
-        cMonth = time.ctime(time.time()).split()[1]
-        cDay = time.ctime(time.time()).split()[2]
-        totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
-        return reply
+                if fileUpload[1] == "IMAGE":
+                    response = await GPTclient.responses.create(
+                        model=model,
+                        instructions=instructions,
+                        input=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "input_text", "text": userPrompt},
+                                    {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
+                                ],
+                            }
+                        ],
+                        store=False  # Tell OpenAI to not store the conversation in their server
+                    )
+                else:
+                    response = await GPTclient.responses.create(
+                        model=model,
+                        instructions=instructions,
+                        input=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "input_text", "text": userPrompt},
+                                    {"type": "input_file", "file_id": fileID}
+                                ]
+                            }
+                        ],
+                        store = False  # Tell OpenAI to not store the conversation in their server
+                    )
+                    await GPTclient.files.delete(fileID)
+                    os.remove(fileUpload[0])
+            reply = response.output_text
+            totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
+            logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            cMonth = time.ctime(time.time()).split()[1]
+            cDay = time.ctime(time.time()).split()[2]
+            totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
+            return reply
+        except openai.RateLimitError as RateLimitError:
+            if fileUpload:
+                if fileUpload[1] != "IMAGE":
+                    await GPTclient.files.delete(fileID)
+            logMessage += f"\nRate Limit Error: {RateLimitError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT EXCEEDED SAMSON RATE LIMIT"
+        except openai.BadRequestError as BadRequestError:
+            if fileUpload:
+                if fileUpload[1] != "IMAGE":
+                    await GPTclient.files.delete(fileID)
+            logMessage += f"\nBad Request Error: {BadRequestError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
+        except openai.APITimeoutError as APITimeoutError:
+            if fileUpload:
+                if fileUpload[1] != "IMAGE":
+                    await GPTclient.files.delete(fileID)
+            logMessage += f"\nAPI Timeout Error: {APITimeoutError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return await gpt_text_and_picture_inputs_only(userPrompt, userName, model, instructions, fileUpload)
 
 
 async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, model: str, fileUpload:str =None, audio: bool=None) -> str:
@@ -856,7 +862,6 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
             logMessage += f"\nUser attached an image file!"
         uploadedFile = await GEMINIclient.aio.files.upload(file=fileUpload)
         prompt = [uploadedFile, userInput]
-        os.remove(fileUpload)
     else:
         prompt = userInput
     totalInputTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=prompt)).total_tokens
@@ -871,40 +876,60 @@ async def gemini_text_and_picture_and_audio_only(userInput: str, userName: str, 
             await LoggingGPTandGeminiOutputs(logMessage)
             return f"YOUR PROMPT TOTAL TOKENS -> {totalInputTokenCount} TOKENS EXCEEDING THE MODEL {model} TPM LIMIT OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
-        if audio is None:
-            response = await GEMINIclient.aio.models.generate_content(model=model, contents=prompt)
-        else:
-            response = await GEMINIclient.aio.models.generate_content(
-                model=model,
-                contents=userInput,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name='Algenib',
+        try:
+            if audio is None:
+                response = await GEMINIclient.aio.models.generate_content(model=model, contents=prompt)
+            else:
+                response = await GEMINIclient.aio.models.generate_content(
+                    model=model,
+                    contents=userInput,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name='Algenib',
+                                )
                             )
-                        )
-                    ),
+                        ),
+                    )
                 )
-            )
-            data = response.candidates[0].content.parts[0].inline_data.data
-            with wave.open("SamsonResponse.wav", "wb") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(24000)
-                wf.writeframes(data)
-        reply = response.text
-        totalOutputTokenCount = response.usage_metadata.total_token_count - totalInputTokenCount
-        cMonth = time.ctime(time.time()).split()[1]
-        cDay = time.ctime(time.time()).split()[2]
-        totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "General Chat")
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
-        logMessage += f"\nGemini {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
-        await LoggingGPTandGeminiOutputs(logMessage)
-        return reply
-
+                data = response.candidates[0].content.parts[0].inline_data.data
+                with wave.open("SamsonResponse.wav", "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(24000)
+                    wf.writeframes(data)
+            if fileUpload is not None:
+                os.remove(fileUpload)
+            reply = response.text
+            totalOutputTokenCount = response.usage_metadata.total_token_count - totalInputTokenCount
+            cMonth = time.ctime(time.time()).split()[1]
+            cDay = time.ctime(time.time()).split()[2]
+            totalCost = calculateUsageCost(model, totalInputTokenCount, totalOutputTokenCount, "General Chat")
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputTokenCount, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
+            logMessage += f"\nGemini {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return reply
+        except errors.ClientError as ClientError:
+            if fileUpload is not None:
+                os.remove(fileUpload)
+            logMessage += f"\nClient-side failure ({ClientError.code}): {ClientError.message}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
+        except errors.ServerError as ServerError:
+            if fileUpload is not None:
+                os.remove(fileUpload)
+            logMessage += f"\nGoogle Server failure ({ServerError.code}): {ServerError.message}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
+        except errors.APIError as APIError:
+            if fileUpload is not None:
+                os.remove(fileUpload)
+            logMessage += f"\nGeneric SDK error: {APIError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
 
 async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, instructions: str, option: str) -> str|bytes:
     """
@@ -1007,34 +1032,47 @@ async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instruc
             await LoggingGPTandGeminiOutputs(logMessage)
             return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
-        if lastChatResponseID:
-            response = await GPTclient.responses.create(
-                model=model,
-                instructions=instructions,
-                input=userInput,
-                previous_response_id=lastChatResponseID,
-                store=True # Tell OpenAI to store the conversation in their server, this enables user conversation history context
-            )
-        else:
-            response = await GPTclient.responses.create(
-                model=model,
-                instructions=instructions,
-                input=userInput,
-                store=True
-            )
-        SamsonConfig[str(userID)]["Latest Conversation ID"] = response.id
-        async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(SamsonConfig, indent=4))
-        reply = response.output_text
-        totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
-        logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
-        await LoggingGPTandGeminiOutputs(logMessage)
-        cMonth = time.ctime(time.time()).split()[1]
-        cDay = time.ctime(time.time()).split()[2]
-        totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
-        return reply
+        try:
+            if lastChatResponseID:
+                response = await GPTclient.responses.create(
+                    model=model,
+                    instructions=instructions,
+                    input=userInput,
+                    previous_response_id=lastChatResponseID,
+                    store=True # Tell OpenAI to store the conversation in their server, this enables user conversation history context
+                )
+            else:
+                response = await GPTclient.responses.create(
+                    model=model,
+                    instructions=instructions,
+                    input=userInput,
+                    store=True
+                )
+            SamsonConfig[str(userID)]["Latest Conversation ID"] = response.id
+            async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                await file.write(json.dumps(SamsonConfig, indent=4))
+            reply = response.output_text
+            totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
+            logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            cMonth = time.ctime(time.time()).split()[1]
+            cDay = time.ctime(time.time()).split()[2]
+            totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
+            return reply
+        except openai.RateLimitError as RateLimitError:
+            logMessage += f"\nRate Limit Error: {RateLimitError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"YOUR PROMPT EXCEEDED SAMSON RATE LIMIT"
+        except openai.BadRequestError as BadRequestError:
+            logMessage += f"\nBad Request Error: {BadRequestError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
+        except openai.APITimeoutError as APITimeoutError:
+            logMessage += f"\nAPI Timeout Error: {APITimeoutError}\n\n"
+            await LoggingGPTandGeminiOutputs(logMessage)
+            return await gpt_text_interactive_chat(userInput, userDiscordID, instructions)
 
 
 @tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day
@@ -1396,6 +1434,9 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
             SamsonConfig[str(ctx.user.id)]["Samson Roleplay"] = role
             reply = await gpt_text_and_picture_inputs_only("Introduce yourself", ctx.user.name, "gpt-5.4", INSTRUCTION_LISTS[role])
             await ctx.followup.send(reply)
+            if SamsonConfig.get(str(ctx.user.id), ""):
+                if SamsonConfig[str(ctx.user.id)].get("Latest Conversation ID", ""):
+                    SamsonConfig[str(ctx.user.id)]["Latest Conversation ID"] = ''
             await ApplicationCommandLogging(ctx.user.name, f"/roleplay {role}\nCommand Status: Approved")
         async with aiofiles.open(CONFIGFILEPATH, "w") as file:
             await file.write(json.dumps(SamsonConfig, indent=4))
@@ -1410,7 +1451,7 @@ async def roleplay(ctx, role: Literal["Medieval", "Futuristic", "Romantic", "Mod
                        keep_secret="Select Yes if you want the output only visible between you and me!",
                        file_attachment="(OPTIONAL) Please Upload only PNG, JPG, or PDF files!")
 async def openai_gpt_chat(ctx, message: str,
-                  model: Literal["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4.0-mini", "o4-mini", "o3"],
+                  model: Literal["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "o4-mini", "o3"],
                   keep_secret: Literal["Yes", "No"],
                   file_attachment: discord.Attachment = None):
     instruction = INSTRUCTION_LISTS[SamsonConfig[str(ctx.user.id)]["Samson Roleplay"]]
@@ -1873,28 +1914,44 @@ async def clear_samson_dm_messages(ctx):
 
 @Samson.event
 async def on_member_join(member):
-    async with ConfigLock:
-        SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [], "Latest Conversation ID": ""}
-        async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(SamsonConfig, indent=4))
-
+    if not SamsonConfig.get(str(member.id)):
+        async with ConfigLock:
+            SamsonConfig[str(member.id)] = {"Current command usage limit": COMMAND_USAGE, "Samson Roleplay": "Medieval", "Banned Application Commands": [], "Latest Conversation ID": ""}
+            async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                await file.write(json.dumps(SamsonConfig, indent=4))
+            print(f"Adding user: {member.name} - ID: {member.id} from server: {member.guild.name} - ID: {member.guild.id} to Samson Configuration File")
+            await TaskLogging(f"Adding user {member.name} - ID: {member.id} to Samson Configuration File", "Success")
     guild = member.guild
     channel = guild.system_channel or guild.text_channels[0]
     if channel:
-        await channel.send(f"Greeting {member.mention}")
+        try:
+            await channel.send(f"Greeting {member.mention}")
+        except Exception:
+            pass
 
 
 @Samson.event
 async def on_member_remove(member):
-    async with ConfigLock:
-        del SamsonConfig[str(member.id)]
-        async with aiofiles.open(CONFIGFILEPATH, "w") as file:
-            await file.write(json.dumps(SamsonConfig, indent=4))
-
+    removeMember = True
+    for guild in Samson.guilds:
+        for m in guild.members:
+            if member.id == m.id:
+                removeMember = False
+                break
+    if removeMember:
+        async with ConfigLock:
+            del SamsonConfig[str(member.id)]
+            async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                await file.write(json.dumps(SamsonConfig, indent=4))
+            print(f"Removing user: {member.name} - ID: {member.id} from server: {member.guild.name} - ID: {member.guild.id} to Samson Configuration File")
+            await TaskLogging(f"Adding user {member.name} - ID: {member.id} to Samson Configuration File", "Success")
     guild = member.guild
     channel = guild.system_channel or guild.text_channels[0]
     if channel:
-        await channel.send(f"We will miss {member.mention}!")
+        try:
+            await channel.send(f"We will miss {member.mention}!")
+        except Exception:
+            pass
 
 
 @Samson.event
@@ -1905,9 +1962,13 @@ async def on_message(message):
     # Ignore messages from the bots
     if message.author.id == Samson.user.id:
         return
-
+    chatWithSamson = False
     if isDMChannel(message.channel):
-        reply = await gpt_text_interactive_chat(message.content,[message.author.id, message.author.name], INSTRUCTION_LISTS[SamsonConfig[str(message.author.id)]["Samson Roleplay"]])
+        chatWithSamson = True
+    elif Samson.user.mentioned_in(message):
+            chatWithSamson = True
+    if chatWithSamson:
+        reply = await gpt_text_interactive_chat(message.content.replace(Samson.user.mention, ""), [message.author.id, message.author.name], INSTRUCTION_LISTS[SamsonConfig[str(message.author.id)]["Samson Roleplay"]])
         if len(reply) > 1500:
             buffer = BytesIO()
             buffer.write(reply.encode('utf-8'))
@@ -1916,6 +1977,5 @@ async def on_message(message):
             await message.reply("", file=replyFile)
         else:
             await message.reply(reply)
-
 
 Samson.run(DISCORDAPI)

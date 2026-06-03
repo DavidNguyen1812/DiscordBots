@@ -49,6 +49,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+import openai
 
 from PIL import Image
 from better_profanity import profanity
@@ -649,32 +650,45 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
         await GPTclient.files.delete(fileID)
         return "MAXIMUM TOKEN LIMIT"
     else:
-        response = await GPTclient.responses.create(
-            model=GPTMODELFORIMAGESCAN,
-            instructions="You are an NSFW content moderator",
-            input=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": prompt},
-                        {"type": "input_file", "file_id": fileID}
-                    ]
-                }
-            ],
-            store=False
-        )
-
-        await GPTclient.files.delete(fileID)
-        os.remove(PDFimagePath)
-
-        print(f"GPT image NSFW scan results: {response.output_text}")
-        outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
-        cMonth = time.ctime(time.time()).split()[1]
-        cDay = time.ctime(time.time()).split()[2]
-        totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
-        return response.output_text
+        try:
+            response = await GPTclient.responses.create(
+                model=GPTMODELFORIMAGESCAN,
+                instructions="You are an NSFW content moderator",
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": prompt},
+                            {"type": "input_file", "file_id": fileID}
+                        ]
+                    }
+                ],
+                store=False
+            )
+            await GPTclient.files.delete(fileID)
+            os.remove(PDFimagePath)
+            print(f"GPT image NSFW scan results: {response.output_text}")
+            outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+            cMonth = time.ctime(time.time()).split()[1]
+            cDay = time.ctime(time.time()).split()[2]
+            totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
+            return response.output_text
+        except openai.RateLimitError as RateLimitError:
+            await GPTclient.files.delete(fileID)
+            os.remove(PDFimagePath)
+            print(f"Rate Limit Error: {RateLimitError}")
+            return f"RATE LIMIT ERROR"
+        except openai.BadRequestError as BadRequestError:
+            await GPTclient.files.delete(fileID)
+            os.remove(PDFimagePath)
+            print(f"Bad Request Error: {BadRequestError}")
+            return f"BAD REQUEST ERROR"
+        except openai.APITimeoutError as APITimeoutError:
+            await GPTclient.files.delete(fileID)
+            print(f"API Timeout Error: {APITimeoutError}\nRetrying...")
+            return await scanningPDFPagesWithGPT(PDFimagePath)
 
 
 async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
@@ -688,19 +702,30 @@ async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
         print("MAXIMUM TOKEN LIMIT")
         return "MAXIMUM TOKEN LIMIT"
     else:
-        response = await GPTclient.responses.create(
-            model=GPTMODELFORTEXTSCAN,
-            instructions="You are an NSFW moderator on text messages that may also contains URL",
-            input=textToBeScanned,
-            store=False
-        )
-        outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
-        cMonth = time.ctime(time.time()).split()[1]
-        cDay = time.ctime(time.time()).split()[2]
-        totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
-        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
-        return response.output_text
+        try:
+            response = await GPTclient.responses.create(
+                model=GPTMODELFORTEXTSCAN,
+                instructions="You are an NSFW moderator on text messages that may also contains URL",
+                input=textToBeScanned,
+                store=False
+            )
+            outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+            cMonth = time.ctime(time.time()).split()[1]
+            cDay = time.ctime(time.time()).split()[2]
+            totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
+            return response.output_text
+        except openai.RateLimitError as RateLimitError:
+            print(f"Rate Limit Error: {RateLimitError}")
+            return f"RATE LIMIT ERROR"
+        except openai.BadRequestError as BadRequestError:
+            print(f"Bad Request Error: {BadRequestError}")
+            return f"BAD REQUEST ERROR"
+        except openai.APITimeoutError as APITimeoutError:
+            print(f"API Timeout Error: {APITimeoutError}\nRetrying...")
+            return await scanningTextOnlyWithGPT(textToBeScanned)
+
 
 async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
     """

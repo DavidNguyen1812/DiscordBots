@@ -633,8 +633,8 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
     :return: GPT scan result
     """
     print(f"Start scanning PDF frames with GPT {GPTMODELFORIMAGESCAN}")
-    with open(PDFimagePath, "rb") as PDFfile:
-        fileResponse = await GPTclient.files.create(file=PDFfile, purpose="user_data")
+    async with aiofiles.open(PDFimagePath, "rb") as PDFfile:
+        fileResponse = await GPTclient.files.create(file=await PDFfile.read(), purpose="user_data")
         fileID = fileResponse.id
     prompt = ("# ASK\n"
               "Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"

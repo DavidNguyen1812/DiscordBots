@@ -663,6 +663,7 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
                         ]
                     }
                 ],
+                max_output_tokens=70,
                 store=False
             )
             await GPTclient.files.delete(fileID)
@@ -707,6 +708,7 @@ async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
                 model=GPTMODELFORTEXTSCAN,
                 instructions="You are an NSFW moderator on text messages that may also contains URL",
                 input=textToBeScanned,
+                max_output_tokens=200,
                 store=False
             )
             outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
@@ -746,6 +748,7 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
                                                       f"1. If the website can not be access, just reply CAN NOT ACCESS WEBSITE.\n"
                                                       f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
                                                       f"3. If the website does not have any NSFW content, just reply No.",
+                                                max_output_tokens=70,
                                                 store=False
                                                 )
     inputPromptTokenCount = response.usage.input_tokens

@@ -747,22 +747,17 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
     logMessage = f"{time.ctime(time.time())}"
     if fileUpload is None:
         logMessage += f"\n{userName}: {userPrompt}\nUser instructions: {instructions}"
-        totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=userPrompt)).input_tokens
+        promptInput = userPrompt
     else:
         if fileUpload[1] == "IMAGE":
             logMessage += f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached an image!"
-            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[{"role": "user", "content": [{"type": "input_text", "text": userPrompt}, {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"}]}])).input_tokens
+            promptInput = [{"role": "user", "content": [{"type": "input_text", "text": userPrompt}, {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"}]}]
         else:
             logMessage += f"\n{userName}: {userPrompt}\nUser instructions: {instructions}\nUser attached a PDF file!"
-            async with aiofiles.open(fileUpload[0], "rb") as PDFfile: # No need to add async lock, since the file path is unique
-                fileID = (await GPTclient.files.create(file=await PDFfile.read(), purpose="user_data")).id
-            totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions, input=[{"role": "user","content": [{"type": "input_text", "text": userPrompt},{"type": "input_file", "file_id": fileID}]}])).input_tokens
-
+            promptInput = [{"role": "user", "content": [{"type": "input_text", "text": userPrompt}, {"type": "input_file", "filename": f"{random.randint(0,99999)}.pdf", "file_data": f"data:application/pdf;base64,{fileUpload[0]}"}]}]
+    totalInputToken = (await GPTclient.responses.input_tokens.count(model=model, instructions=instructions,input=promptInput)).input_tokens
     logMessage += f"\nTotal Input Tokens: {totalInputToken} tokens"
     if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputToken > LLMMODELINFORMATION[model]["TPM"]:
-        if not fileUpload:
-            if fileUpload[1] != "IMAGE":
-                await GPTclient.files.delete(fileID)
         if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
             logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
             await LoggingGPTandGeminiOutputs(logMessage)
@@ -771,46 +766,12 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
             return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
     else:
         try:
-            if fileUpload is None:
-                response = await GPTclient.responses.create(
-                    model=model,
-                    instructions=instructions,
-                    input=userPrompt,
-                    store=False # Tell OpenAI to not store the conversation in their server
-                )
-            else:
-                if fileUpload[1] == "IMAGE":
-                    response = await GPTclient.responses.create(
-                        model=model,
-                        instructions=instructions,
-                        input=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "input_text", "text": userPrompt},
-                                    {"type": "input_image", "image_url": f"data:image/png;base64,{fileUpload[0]}"},
-                                ],
-                            }
-                        ],
-                        store=False  # Tell OpenAI to not store the conversation in their server
-                    )
-                else:
-                    response = await GPTclient.responses.create(
-                        model=model,
-                        instructions=instructions,
-                        input=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "input_text", "text": userPrompt},
-                                    {"type": "input_file", "file_id": fileID}
-                                ]
-                            }
-                        ],
-                        store = False  # Tell OpenAI to not store the conversation in their server
-                    )
-                    await GPTclient.files.delete(fileID)
-                    os.remove(fileUpload[0])
+            response = await GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=promptInput,
+                store=False # Tell OpenAI to not store the conversation in their server
+            )
             reply = response.output_text
             totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
             logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
@@ -822,23 +783,14 @@ async def gpt_text_and_picture_inputs_only(userPrompt: str, userName: str, model
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a", [f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
             return reply
         except openai.RateLimitError as RateLimitError:
-            if fileUpload:
-                if fileUpload[1] != "IMAGE":
-                    await GPTclient.files.delete(fileID)
             logMessage += f"\nRate Limit Error: {RateLimitError}\n\n"
             await LoggingGPTandGeminiOutputs(logMessage)
             return f"YOUR PROMPT EXCEEDED SAMSON RATE LIMIT"
         except openai.BadRequestError as BadRequestError:
-            if fileUpload:
-                if fileUpload[1] != "IMAGE":
-                    await GPTclient.files.delete(fileID)
             logMessage += f"\nBad Request Error: {BadRequestError}\n\n"
             await LoggingGPTandGeminiOutputs(logMessage)
             return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
         except openai.APITimeoutError as APITimeoutError:
-            if fileUpload:
-                if fileUpload[1] != "IMAGE":
-                    await GPTclient.files.delete(fileID)
             logMessage += f"\nAPI Timeout Error: {APITimeoutError}\n\n"
             await LoggingGPTandGeminiOutputs(logMessage)
             return await gpt_text_and_picture_inputs_only(userPrompt, userName, model, instructions, fileUpload)
@@ -1002,7 +954,7 @@ async def gpt_text_and_audio_only(userInput: list, userName: str, model: str, in
         return reply.choices[0].message.audio.data
 
 
-async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instructions: str, ) -> str:
+async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instructions: str) -> str:
     """
     Description: REST API call to OpenAI text only model with conversation history context enable
     :param userInput: User's prompt
@@ -1471,10 +1423,7 @@ async def openai_gpt_chat(ctx, message: str,
                         await ApplicationCommandLogging(ctx.user.name, f"/openai_gpt_chat {message} {model} {keep_secret}\nCommand Status: Denied/Unaccepted File Format!")
                         return
                     if fileExt.endswith(".pdf"):
-                        filePath = f"./{random.randint(0,9999)}.pdf"
-                        async with aiofiles.open(filePath, "wb") as PDFfile:
-                            await PDFfile.write(fileContent)
-                        fileContent = [filePath, "PDF"]
+                        fileContent = [base64.b64encode(fileContent).decode("utf-8"), "PDF"]
                     else:
                         fileContent = [base64.b64encode(fileContent).decode("utf-8"), "IMAGE"]
                     reply = await gpt_text_and_picture_inputs_only(message, ctx.user.name, model, instruction, fileContent)

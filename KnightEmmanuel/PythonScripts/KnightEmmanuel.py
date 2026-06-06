@@ -1,3 +1,4 @@
+import base64
 import subprocess
 
 print("Checking Essential System Binaries")
@@ -626,16 +627,19 @@ async def scanningImageWithNudenet(image: str) -> bool:
     return False
 
 
-async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
+async def scanningPDFPagesWithGPT(PDFpath: str) -> str:
     """
     Description: Scanning PDF frames with GPT pre-train model
-    :param PDFimagePath: Path to the PDF on disk
+    :param PDFpath: The path to the PDF file on disk
     :return: GPT scan result
     """
+    if os.path.exists(PDFpath):
+        async with aiofiles.open(PDFpath, "rb") as PDFfile:
+            base64PDFdata = base64.b64encode(await PDFfile.read()).decode('utf-8')
+        os.remove(PDFpath)
+    else:
+        base64PDFdata = PDFpath
     print(f"Start scanning PDF frames with GPT {GPTMODELFORIMAGESCAN}")
-    async with aiofiles.open(PDFimagePath, "rb") as PDFfile:
-        fileResponse = await GPTclient.files.create(file=await PDFfile.read(), purpose="user_data")
-        fileID = fileResponse.id
     prompt = ("# ASK\n"
               "Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
               " animal porn, reference to adult or NSFW websites, or even consider NSFW?\n"
@@ -644,10 +648,9 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
               "# RESPONSE FORMAT\n"
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!"
               )
-    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="You are an NSFW content moderator", input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}, {"type": "input_file", "file_id": fileID}]}])).input_tokens
+    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="You are an NSFW content moderator", input=[{"role": "user","content": [{"type": "input_text", "text": prompt}, {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}]}])).input_tokens
     print(f"Input Tokens: {inputPromptTokenCount}")
     if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["TPM"]:
-        await GPTclient.files.delete(fileID)
         return "MAXIMUM TOKEN LIMIT"
     else:
         try:
@@ -658,16 +661,14 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
                     {
                         "role": "user",
                         "content": [
-                            {"type": "input_text", "text": prompt},
-                            {"type": "input_file", "file_id": fileID}
+                            {"type": "input_text","text": prompt},
+                            {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}
                         ]
                     }
                 ],
-                max_output_tokens=70,
+                max_output_tokens=2000,
                 store=False
             )
-            await GPTclient.files.delete(fileID)
-            os.remove(PDFimagePath)
             print(f"GPT image NSFW scan results: {response.output_text}")
             outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
             cMonth = time.ctime(time.time()).split()[1]
@@ -677,19 +678,14 @@ async def scanningPDFPagesWithGPT(PDFimagePath: str) -> str:
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
             return response.output_text
         except openai.RateLimitError as RateLimitError:
-            await GPTclient.files.delete(fileID)
-            os.remove(PDFimagePath)
             print(f"Rate Limit Error: {RateLimitError}")
             return f"RATE LIMIT ERROR"
         except openai.BadRequestError as BadRequestError:
-            await GPTclient.files.delete(fileID)
-            os.remove(PDFimagePath)
             print(f"Bad Request Error: {BadRequestError}")
             return f"BAD REQUEST ERROR"
         except openai.APITimeoutError as APITimeoutError:
-            await GPTclient.files.delete(fileID)
             print(f"API Timeout Error: {APITimeoutError}\nRetrying...")
-            return await scanningPDFPagesWithGPT(PDFimagePath)
+            return await scanningPDFPagesWithGPT(base64PDFdata)
 
 
 async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
@@ -748,7 +744,7 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
                                                       f"1. If the website can not be access, just reply CAN NOT ACCESS WEBSITE.\n"
                                                       f"2. If the website is detected with NSFW content, ALWAYS START your reply with a Yes, then EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
                                                       f"3. If the website does not have any NSFW content, just reply No.",
-                                                max_output_tokens=70,
+                                                max_output_tokens=2000,
                                                 store=False
                                                 )
     inputPromptTokenCount = response.usage.input_tokens
@@ -2800,3 +2796,23 @@ async def on_message(message):
 
 
 Emmanuel.run(DISCORDAPI)
+
+
+Jun 6,186,3,gpt-4o-mini,3e-05
+Jun 6,12781,64,gpt-5-nano,0.00066
+Jun 6,186,3,gpt-4o-mini,3e-05
+Jun 6,191,3,gpt-4o-mini,3e-05
+Jun 6,188,3,gpt-4o-mini,3e-05
+Jun 6,188,3,gpt-4o-mini,3e-05
+Jun 6,187,3,gpt-4o-mini,3e-05
+Jun 6,184,3,gpt-4o-mini,3e-05
+Jun 6,12386,64,gpt-5-nano,0.00064
+Jun 6,185,3,gpt-4o-mini,3e-05
+Jun 6,23051,64,gpt-5-nano,0.00118
+Jun 6,192,3,gpt-4o-mini,3e-05
+Jun 6,28976,640,gpt-5-nano,0.0017
+Jun 6,186,3,gpt-4o-mini,3e-05
+Jun 6,188,3,gpt-4o-mini,3e-05
+Jun 6,7251,987,gpt-5-nano,0.00076
+Jun 6,188,3,gpt-4o-mini,3e-05
+Jun 6,8436,675,gpt-5-nano,0.00069

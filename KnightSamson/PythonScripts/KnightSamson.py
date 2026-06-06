@@ -975,56 +975,63 @@ async def gpt_text_interactive_chat(userInput: str, userDiscordID: list, instruc
     logMessage = f"{time.ctime(time.time())}\n{userName}: {userInput}\nUser instructions: {instructions}\nTotal Input Tokens: {totalInputToken} tokens"
 
     if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or totalInputToken > LLMMODELINFORMATION[model]["TPM"]:
-        if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
-            logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
+        if SamsonConfig[str(userID)]["Latest Conversation ID"]:
+            SamsonConfig[str(userID)]["Latest Conversation ID"] = ""
+            lastChatResponseID = ""
+            async with ConfigLock:
+                async with aiofiles.open(CONFIGFILEPATH, "w") as file:
+                    await file.write(json.dumps(SamsonConfig, indent=4))
         else:
-            logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
-    else:
-        try:
-            if lastChatResponseID:
-                response = await GPTclient.responses.create(
-                    model=model,
-                    instructions=instructions,
-                    input=userInput,
-                    previous_response_id=lastChatResponseID,
-                    store=True # Tell OpenAI to store the conversation in their server, this enables user conversation history context
-                )
+            if totalInputToken > LLMMODELINFORMATION[model]["Maximum Input Tokens"]:
+                logMessage += f"\nTotal input tokens exceeding model {model} input token limit of {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} tokens!\n\n"
+                await LoggingGPTandGeminiOutputs(logMessage)
+                return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} INPUT TOKEN LIMIT OF {LLMMODELINFORMATION[model]["Maximum Input Tokens"]} TOKENS!"
             else:
-                response = await GPTclient.responses.create(
-                    model=model,
-                    instructions=instructions,
-                    input=userInput,
-                    store=True
-                )
-            SamsonConfig[str(userID)]["Latest Conversation ID"] = response.id
+                logMessage += f"\nTotal input tokens exceeding model {model} TPM limit of {LLMMODELINFORMATION[model]["TPM"]} tokens!\n\n"
+                await LoggingGPTandGeminiOutputs(logMessage)
+                return f"YOUR PROMPT TOTAL TOKENS -> {totalInputToken} TOKENS EXCEEDING THE MODEL {model} TPM limit OF {LLMMODELINFORMATION[model]["TPM"]} TOKENS!"
+    try:
+        if lastChatResponseID:
+            response = await GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=userInput,
+                previous_response_id=lastChatResponseID,
+                store=True # Tell OpenAI to store the conversation in their server, this enables user conversation history context
+            )
+        else:
+            response = await GPTclient.responses.create(
+                model=model,
+                instructions=instructions,
+                input=userInput,
+                store=True
+            )
+        SamsonConfig[str(userID)]["Latest Conversation ID"] = response.id
+        async with ConfigLock:
             async with aiofiles.open(CONFIGFILEPATH, "w") as file:
                 await file.write(json.dumps(SamsonConfig, indent=4))
-            reply = response.output_text
-            totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
-            logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            cMonth = time.ctime(time.time()).split()[1]
-            cDay = time.ctime(time.time()).split()[2]
-            totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
-            return reply
-        except openai.RateLimitError as RateLimitError:
-            logMessage += f"\nRate Limit Error: {RateLimitError}\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            return f"YOUR PROMPT EXCEEDED SAMSON RATE LIMIT"
-        except openai.BadRequestError as BadRequestError:
-            logMessage += f"\nBad Request Error: {BadRequestError}\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
-        except openai.APITimeoutError as APITimeoutError:
-            logMessage += f"\nAPI Timeout Error: {APITimeoutError}\n\n"
-            await LoggingGPTandGeminiOutputs(logMessage)
-            return await gpt_text_interactive_chat(userInput, userDiscordID, instructions)
+        reply = response.output_text
+        totalOutputTokenCount = response.usage.total_tokens - response.usage.input_tokens
+        logMessage += f"\nOpenAI {model}: {reply}\nTotal Output Tokens: {totalOutputTokenCount} tokens\n\n"
+        await LoggingGPTandGeminiOutputs(logMessage)
+        cMonth = time.ctime(time.time()).split()[1]
+        cDay = time.ctime(time.time()).split()[2]
+        totalCost = calculateUsageCost(model, totalInputToken, totalOutputTokenCount, "General Chat")
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], MonthlyCSVLock)
+        await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", totalInputToken, totalOutputTokenCount, model, totalCost], YearlyCSVLock)
+        return reply
+    except openai.RateLimitError as RateLimitError:
+        logMessage += f"\nRate Limit Error: {RateLimitError}\n\n"
+        await LoggingGPTandGeminiOutputs(logMessage)
+        return f"YOUR PROMPT EXCEEDED SAMSON RATE LIMIT"
+    except openai.BadRequestError as BadRequestError:
+        logMessage += f"\nBad Request Error: {BadRequestError}\n\n"
+        await LoggingGPTandGeminiOutputs(logMessage)
+        return f"THERE WAS AN ERROR WHILE PROCESSING THIS COMMAND! PLEASE TRY THE COMMAND AGAIN!"
+    except openai.APITimeoutError as APITimeoutError:
+        logMessage += f"\nAPI Timeout Error: {APITimeoutError}\n\n"
+        await LoggingGPTandGeminiOutputs(logMessage)
+        return await gpt_text_interactive_chat(userInput, userDiscordID, instructions)
 
 
 @tasks.loop(time=datetime.time(hour=0, minute=0, tzinfo=ZoneInfo("America/New_York")))  # A task every new day

@@ -2796,23 +2796,3 @@ async def on_message(message):
 
 
 Emmanuel.run(DISCORDAPI)
-
-
-Jun 6,186,3,gpt-4o-mini,3e-05
-Jun 6,12781,64,gpt-5-nano,0.00066
-Jun 6,186,3,gpt-4o-mini,3e-05
-Jun 6,191,3,gpt-4o-mini,3e-05
-Jun 6,188,3,gpt-4o-mini,3e-05
-Jun 6,188,3,gpt-4o-mini,3e-05
-Jun 6,187,3,gpt-4o-mini,3e-05
-Jun 6,184,3,gpt-4o-mini,3e-05
-Jun 6,12386,64,gpt-5-nano,0.00064
-Jun 6,185,3,gpt-4o-mini,3e-05
-Jun 6,23051,64,gpt-5-nano,0.00118
-Jun 6,192,3,gpt-4o-mini,3e-05
-Jun 6,28976,640,gpt-5-nano,0.0017
-Jun 6,186,3,gpt-4o-mini,3e-05
-Jun 6,188,3,gpt-4o-mini,3e-05
-Jun 6,7251,987,gpt-5-nano,0.00076
-Jun 6,188,3,gpt-4o-mini,3e-05
-Jun 6,8436,675,gpt-5-nano,0.00069

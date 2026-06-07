@@ -2082,307 +2082,7 @@ async def uncensored_channels(ctx):
             await ctx.followup.send("You're not the Server Owner, this command is for the Owner ONLY!")
 
 
-@Emmanuel.event
-async def on_message_edit(before, after):  # Note: media attachment can be embedded via URL in re-edit message!
-    # Prioritize Executing commands first!
-    global FILEDOWNLOADCOUNTER
-
-    await Emmanuel.process_commands(after)
-
-    # Add new server to the configuration file!
-    try:
-        await checkServerExistInConfigFile(str(after.guild.id))
-    except AttributeError:
-        pass
-
-    if str(after.channel) != "Direct Message with Unknown User":
-        if after.author.id == Emmanuel.user.id:
-            return
-
-        if after.author.id in configuration[str(after.guild.id)]["Uncensored-members"]:
-            await writingLog(f"User: {after.author.name} ID {after.author.id} re-edited message '{before.content}' to new message '{after.content}' in channel '{after.channel.name}' - ID {after.channel.id} in Server '{after.guild.name}' - ID {after.guild.id}\nNOTE: User is on the server uncensored members list\n\n")
-            return
-
-        if after.channel.id in configuration[str(after.guild.id)]["Uncensored-channels"]:
-            await writingLog(f"User: {after.author.name} ID {after.author.id} re-edited message '{before.content}' to new message '{after.content}' in channel '{after.channel.name}' - ID {after.channel.id} in Server '{after.guild.name}' - ID {after.guild.id}\nNOTE: The channel is on the server uncensored channels list\n\n")
-            return
-
-        if before.content != after.content:
-            print("Re-Edit message detected!!!")
-
-            """Logging user message"""
-            logUserAction = f"User: {after.author.name} ID {after.author.id} re-edited message '{before.content}' to new message '{after.content}' in channel '{after.channel.name}' - ID {after.channel.id} in Server '{after.guild.name}' - ID {after.guild.id}"
-            textContent = after.content
-
-            """Checking if at least one URL in a message"""
-            URLs = URLPATTERN.findall(after.content.replace(" ", ""))
-            if URLs:
-                print("Re-Edited Message contains URL link(s)! Checking all the URL(s)...")
-                URLs = list(set(URLs))
-                for URL in URLs:
-                    print(f"Extracting {URL} from message {after.content}")
-                    textContent = textContent.replace(URL, '')
-                    if "../" in unquote(URL):
-                        await after.delete()
-                        logUserAction += "\nReedited-Message is deleted for having a URL hinted potential directory transversal attack!!!"
-                        try:
-                            await after.author.send(f"URL {URL} hinted a potential ../ attack!")
-                            logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                        except Exception as error:
-                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                        await writingLog(logUserAction)
-                        # Advance scan previous message for profanity!
-                        await AdvanceBackTrackMessageScan(after)
-                        print(f"URL {URL} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
-                        return
-
-                    if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                        BasedURLToSave = hashlib.sha512(URL.split('?')[0].lower().encode()).hexdigest()
-                    else:
-                        BasedURLToSave = hashlib.sha512(URL.encode()).hexdigest()
-
-                    """Checking if there is another subroutine scanning the same URL"""
-                    if CURRENTSCANOPERATION.get(BasedURLToSave, "") == "In Progress":
-                        print(f"URL {URL} is currently being scanned by other subroutine!")
-                        while True:
-                            await asyncio.sleep(0)
-                            if not CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                break
-                    else:
-                        CURRENTSCANOPERATION[BasedURLToSave] = "In Progress"
-
-                    """Checking if URl is in the clean list or already flagged NSFW"""
-                    print(f"URL in SHA512 format: {BasedURLToSave}")
-                    if BasedURLToSave in CLEANData.keys():
-                        print("The URL already passed the check as clean!\n\n")
-                    else:
-                        if BasedURLToSave in NSFWData.keys():
-                            await after.delete()
-                            logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW! - {NSFWData[BasedURLToSave]}"
-                            try:
-                                await after.author.send(f"The URL <{URL}> has already flagged NSFW! {NSFWData[BasedURLToSave]}")
-                                logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                            except Exception as error:
-                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                            await writingLog(logUserAction)
-                            # Advance scan previous message for profanity!
-                            await AdvanceBackTrackMessageScan(after)
-                            print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
-                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                del CURRENTSCANOPERATION[BasedURLToSave]
-                            return
-                        else:
-                            """Checking any NSFW hint in the URL query"""
-                            print("Checking any hinted NSFW in URL name...")
-                            scanResult, scanResultDetails = await NSFWscanMessage(URL, True)
-                            if scanResult:
-                                await after.delete()
-                                await AddingNewNSFWData(BasedURLToSave, f"NSFW URL name - {scanResultDetails}")
-                                logUserAction += f"\nReedited-Message was deleted for having URL name hinted NSFW!"
-                                try:
-                                    await after.author.send(f"The URL <{URL}> was flagged NSFW! Reason: NSFW URL name - {scanResultDetails}")
-                                    logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                except Exception as error:
-                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                await writingLog(logUserAction)
-                                # Advance scan previous message for profanity!
-                                await AdvanceBackTrackMessageScan(after)
-                                print(f"URL name hinted NSFW content! Terminating Scan Process...\n\n")
-                                if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                    del CURRENTSCANOPERATION[BasedURLToSave]
-                                return
-                            """Checking Klipy and Tenor Gif"""
-                            if URL.startswith(("https://klipy.com/gifs/", "https://tenor.com/view")):
-                                if URL.startswith("https://klipy.com/gifs/"):
-                                    gifDomain = 'Klipy'
-                                    newURL = await isKlipyURLValid(URL)
-                                else:
-                                    gifDomain = 'Tenor'
-                                    newURL = await isTenorURLValid(URL)
-
-                                print(f"URL appear to be a {gifDomain} Gif, checking if {gifDomain} gif is valid...")
-                                if newURL != "Invalid":
-                                    print(f"{gifDomain} gif URL is valid!")
-                                    URL = newURL
-                                else:
-                                    await after.delete()
-                                    print(f"{gifDomain} gif URL {URL} is not a valid {gifDomain} gif!")
-                                    logUserAction += f"\nReedited Message was deleted for having invalid {gifDomain} Gif URL {URL}!"
-                                    try:
-                                        await after.author.send(f"Your message contains an invalid {gifDomain} URL! Please provide a valid URL!")
-                                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except Exception as error:
-                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                    await writingLog(logUserAction)
-                                    # Advance scan previous message for profanity!
-                                    await AdvanceBackTrackMessageScan(after)
-                                    print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                        del CURRENTSCANOPERATION[BasedURLToSave]
-                                    return
-                            """Checking if URL is valid!"""
-                            try:
-                                async with Emmanuel.session.get(URL) as response:
-                                    statuscode = response.status
-                                    if statuscode in range(400, 500):
-                                        statuscode, UrlContent = await asyncio.to_thread(SeleniumHTMLRetrieval, random.choice(SCRAPEOPSMOBILEBROWSERHEADERS), URL)
-                                    else:
-                                        UrlContent = await response.read()
-                            except Exception as URLQueryError:
-                                statuscode = 403
-                                print(f"Error getting URL: {URLQueryError}.")
-                                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                                    await after.delete()
-                                    logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!"
-                                    try:
-                                        await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except Exception as error:
-                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                    await writingLog(logUserAction)
-                                    # Advance scan previous message for profanity!
-                                    await AdvanceBackTrackMessageScan(after)
-                                    print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                        del CURRENTSCANOPERATION[BasedURLToSave]
-                                    return
-                                else:
-                                    logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
-
-                            if statuscode == 200:
-                                print(f"URL is valid!")
-                                """Analyzing if URL content is an image, video, audio, or archive file"""
-                                """Checking if URL content already been scanned"""
-                                hashedURLContent = hashlib.sha512(UrlContent).hexdigest()
-                                print(f"URL Content in SHA512: {hashedURLContent}")
-                                print(f"Checking if URL content is already in a clean list...")
-                                if hashedURLContent in CLEANData.keys():
-                                    print("URL content already pass the scan!")
-                                    print("Adding based URL to clean data!")
-                                    await AddingNewCleanData(BasedURLToSave,f"URL content already passed the check - {CLEANData[hashedURLContent]}")
-                                else:
-                                    print(f"URL content is not in the clean data! Checking if the content is in the NSFW data!")
-                                    if hashedURLContent in NSFWData.keys():
-                                        await after.delete()
-                                        print("URL content already flagged NSFW!")
-                                        print(f"Adding based URL to NSFW data!")
-                                        await AddingNewNSFWData(BasedURLToSave,f"URL content already flagged NSFW! - {NSFWData[hashedURLContent]}")
-                                        logUserAction += f"\nReedited-Message was deleted for having URL content already flagged NSFW! - {NSFWData[hashedURLContent]}"
-                                        try:
-                                            await after.author.send(f"The content in URL <{URL}> has already flagged NSFW! Reason: {NSFWData[hashedURLContent]}")
-                                            logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                        except Exception as error:
-                                            logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                        await writingLog(logUserAction)
-                                        # Advance scan previous message for profanity!
-                                        await AdvanceBackTrackMessageScan(after)
-                                        print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                        if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                            del CURRENTSCANOPERATION[BasedURLToSave]
-                                        return
-                                    else:
-                                        URLContentExt = checkingRealFileExtension(UrlContent, os.path.basename(URL.split('?')[0].lower()))
-                                        FILEDOWNLOADCOUNTER += 1
-                                        URLContentName = f'{FILEDOWNLOADCOUNTER}{URLContentExt}'
-                                        UrlContentNSFWResult = False
-                                        UrlContentNSFWResultDetails = ""
-                                        print(f"URL content extension: {URLContentExt}")
-                                        if URLContentName.endswith(ALLSCANNABLEFILEFORMATS):
-                                            scanContent = True
-                                            async with ConfigLock:
-                                                if configuration.get(str(after.guild.id), ""):
-                                                    if configuration[str(after.guild.id)]["User-Uncensor-Limit"].get(str(after.author.id), ""):
-                                                        if configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] > 0:
-                                                            scanContent = False
-                                                            logUserAction += f"\nUser {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!"
-                                                            print(f"User {after.author.name} ID {after.author.id} uncensor limit is {configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)]} in server {after.guild.name} ID {after.guild.id}\nFile content is not scanned!!!\n\n")
-                                                            configuration[str(after.guild.id)]["User-Uncensor-Limit"][str(after.author.id)] -= 1
-                                                            async with aiofiles.open(EMMANUELCONFIG, "w") as file:
-                                                                await file.write(json.dumps(configuration, indent=4))
-                                            if scanContent:
-                                                if URLContentExt.endswith(ARCHIVEFORMATS):
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ArchiveFileScan(URLContentName, UrlContent, BasedURLToSave)
-                                                elif URLContentExt.endswith(DOCUMENTFILES):
-                                                    print(f"Scanning ASCII text in URL content...")
-                                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion,UrlContent)
-                                                    UrlContentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
-                                                    if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
-                                                        UrlContentNSFWResult = True
-                                                        UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
-                                                        UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
-                                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
-                                                        await AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
-                                                    else:
-                                                        UrlContentNSFWResult = False
-                                                        await AddingNewCleanData(BasedURLToSave,"Document file text is clean!")
-                                                else:
-                                                    UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
-                                        else:
-                                            logUserAction += f"\nURL {URL} content is a file extension {URLContentExt} outside of Emmanuel scope of scan"
-                                            await AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
-                                        print("Scan Process Finished!\n\n")
-                                        if UrlContentNSFWResult:
-                                            await after.delete()
-                                            logUserAction += f"\nRe-edited Message was deleted for having NSFW URL content {UrlContentNSFWResultDetails}"
-                                            try:
-                                                await after.author.send(UrlContentNSFWResultDetails)
-                                                logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                            except Exception as error:
-                                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                            await writingLog(logUserAction)
-                                            # Advance scan previous message for profanity!
-                                            await AdvanceBackTrackMessageScan(after)
-                                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                                del CURRENTSCANOPERATION[BasedURLToSave]
-                                            return
-                            else:
-                                print(f"URL is invalid with status code {statuscode}!")
-                                if URL.startswith(("https://cdn.discordapp.com/attachments/","https://media.discordapp.net/attachments/")):
-                                    await after.delete()
-                                    logUserAction += f"\nRe-Edit Message is deleted for having a discord attachment URL {URL} can not be scanned!"
-                                    try:
-                                        await after.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except Exception as error:
-                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                    await writingLog(logUserAction)
-                                    # Advance scan previous message for profanity!
-                                    await AdvanceBackTrackMessageScan(after)
-                                    print("Re-Edit Message Content Scan Process Finished!\n\n")
-                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                        del CURRENTSCANOPERATION[BasedURLToSave]
-                                    return
-                                else:
-                                    logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
-                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                        del CURRENTSCANOPERATION[BasedURLToSave]
-
-            """Scanning message text content with hyperlink removed"""
-            if textContent:
-                print(f"Scanning text content with URL already filtered...")
-                print(f"Text content: {textContent}")
-                scanResult, scanResultDetails = await NSFWscanMessage(textContent)
-                if scanResult:
-                    await after.delete()
-                    logUserAction += f"\nReedited Message was deleted for having NSFW text content! - {scanResultDetails}"
-                    try:
-                        await after.author.send(scanResultDetails)
-                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                    except Exception as error:
-                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                else:
-                    logUserAction += f"\nReedited Message is cleaned!\n\n"
-                    print("Message text content is clean!")
-            else:
-                logUserAction += f"\nReedited Message is cleaned!\n\n"
-            # Advance scan previous message for profanity!
-            await AdvanceBackTrackMessageScan(after)
-            await writingLog(logUserAction)
-            print("Re-Edit Message Content Scan Process Finished!\n\n")
-
-
-@Emmanuel.event
-async def on_message(message):
+async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, before:discord.message.Message|None=None):
     global FILEDOWNLOADCOUNTER
     # Prioritize Executing commands first!
     await Emmanuel.process_commands(message)
@@ -2394,12 +2094,20 @@ async def on_message(message):
         pass
 
     if str(message.channel) != "Direct Message with Unknown User":
+
+        if message.author.id == Emmanuel.user.id:
+            return
+
         """Logging user message"""
-        logUserAction = f"User: {message.author.name} sent message: {message.content}"
-        if len(message.attachments) != 0:
-            for attachment in message.attachments:
-                logUserAction += f"\nwith file attachment: {attachment.filename}\ntemporary URL: {attachment.url}"
-        logUserAction += f"\nFrom channel '{message.channel.name}' - ID {message.channel.id} in Server '{message.guild.name}' - ID {message.guild.id}"
+        if isEdit:
+            print("Re-Edit message detected!!!")
+            logUserAction = f"User: {message.author.name} ID {message.author.id} re-edited message '{before.content}' to new message '{message.content}'\nFrom channel '{message.channel.name}' - ID {message.channel.id} in Server '{message.guild.name}' - ID {message.guild.id}"
+        else:
+            logUserAction = f"User: {message.author.name} sent message: {message.content}"
+            if len(message.attachments) != 0:
+                for attachment in message.attachments:
+                    logUserAction += f"\nwith file attachment: {attachment.filename}\ntemporary URL: {attachment.url}"
+            logUserAction += f"\nFrom channel '{message.channel.name}' - ID {message.channel.id} in Server '{message.guild.name}' - ID {message.guild.id}"
 
         if message.author.id in configuration[str(message.guild.id)]["Uncensored-members"]:
             logUserAction += f"\nNOTE: User is on the server uncensored members list!\n\n"
@@ -2421,7 +2129,6 @@ async def on_message(message):
                 for URL in URLs:
                     textContent = textContent.replace(URL, '')
                     print(f"Extracting {URL} from message {message.content}")
-
                     if "../" in unquote(URL):
                         await message.delete()
                         logUserAction += "\nMessage is deleted for having a URL hinted potential directory transversal attack!!!"
@@ -2468,6 +2175,8 @@ async def on_message(message):
                             # Advance scan previous message for profanity!
                             await AdvanceBackTrackMessageScan(message)
                             print("The URL already flagged NSFW! Terminating Scan Process...\n\n")
+                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                del CURRENTSCANOPERATION[BasedURLToSave]
                             return
                         else:
                             """Checking any NSFW hint in the URL query"""
@@ -2674,125 +2383,136 @@ async def on_message(message):
                 else:
                     print("Message text content is clean!")
             print("Message Text Content Scan Process Finished!\n\n")
-
-        if message.attachments:  # Checking for message attachment content only
-            print("Begin Message Attachment Scan!")
-            for attachment in message.attachments:
-                if "../" in attachment.filename:
-                    await message.delete()
-                    logUserAction += "\nMessage is deleted for having at least 1 attachment with potential directory transversal attack!!"
-                    try:
-                        await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
-                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                    except Exception as error:
-                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                    await writingLog(logUserAction)
-                    print(f"Attachment: {attachment.filename} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
-                    # Advance scan previous message for profanity!
-                    await AdvanceBackTrackMessageScan(message)
-                    return
-
-                """Getting the byte content of the attachment to memory"""
-                async with Emmanuel.session.get(attachment.url) as response:
-                    attachmentContent = await response.read()
-                hashedAttachmentContent = hashlib.sha512(attachmentContent).hexdigest()
-
-                """Checking if there is another subroutine scanning the same attachment"""
-                if CURRENTSCANOPERATION.get(hashedAttachmentContent, "") == "In Progress":
-                    print(f"Attachment {attachment.filename} is currently being scanned by other subroutine!")
-                    while True:
-                        await asyncio.sleep(0)
-                        if not CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                            break
-                else:
-                    CURRENTSCANOPERATION[hashedAttachmentContent] = "In Progress"
-
-                """Checking attachment content already been scanned"""
-                print(f"Attachment SHA512 content: {hashedAttachmentContent}")
-                print(f"Checking if attachment content is already in a clean list...")
-                if hashedAttachmentContent in CLEANData.keys():
-                    print("Attachment content already pass the scan! Terminating Scan Process...\n\n")
-                else:
-                    print(f"Attachment content is not in the clean data! Checking if the content is in the NSFW data!")
-                    if hashedAttachmentContent in NSFWData.keys():
+        if not isEdit:
+            if message.attachments:  # Checking for message attachment content only
+                print("Begin Message Attachment Scan!")
+                for attachment in message.attachments:
+                    if "../" in attachment.filename:
                         await message.delete()
-                        logUserAction += f"\nMessage was deleted for having attachment content already flagged NSFW! - {NSFWData[hashedAttachmentContent]}"
+                        logUserAction += "\nMessage is deleted for having at least 1 attachment with potential directory transversal attack!!"
                         try:
-                            await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
+                            await message.author.send(f"Attachment {attachment.filename} hinted a potential ../ attack!")
                             logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
                         except Exception as error:
                             logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                        print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
                         await writingLog(logUserAction)
+                        print(f"Attachment: {attachment.filename} contains a ../ pattern, hinted potential directory transversal attack! Terminating Scan Process!\n\n")
                         # Advance scan previous message for profanity!
                         await AdvanceBackTrackMessageScan(message)
-                        print("Scan Process Finished!\n\n")
-                        if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                            del CURRENTSCANOPERATION[hashedAttachmentContent]
                         return
-                    else:
-                        scanContent = True
-                        async with ConfigLock:
-                            if configuration.get(str(message.guild.id), ""):
-                                if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), ""):
-                                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
-                                        scanContent = False
-                                        logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
-                                        print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!\n\n")
-                                        configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
-                                        async with aiofiles.open(EMMANUELCONFIG, "w") as file:
-                                            await file.write(json.dumps(configuration, indent=4))
-                        if scanContent:
-                            print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
-                            attachmentFileExt = checkingRealFileExtension(attachmentContent, attachment.filename.lower())
-                            FILEDOWNLOADCOUNTER += 1
-                            AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
-                            attachmentNSFWResult = False
-                            attachmentNSFWResultDetails = ""
-                            print(f"Attachment file extension: {attachmentFileExt}")
-                            if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
-                                if attachmentFileExt.endswith(ARCHIVEFORMATS):
-                                    attachmentNSFWResult, attachmentNSFWResultDetails = await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
-                                elif attachmentFileExt.endswith(DOCUMENTFILES):
-                                    print(f"Scanning ASCII text in attachment content...")
-                                    pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, attachmentContent)
-                                    attachmentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
-                                    if attachmentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
-                                        attachmentNSFWResult = True
-                                        attachmentNSFWResultDetails = attachmentNSFWResultDetails.strip("Yes, ")
-                                        attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
-                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
-                                        await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
-                                    else:
-                                        attachmentNSFWResult = False
-                                        await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
-                                else:
-                                    attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
-                            else:
-                                logUserAction += f"\nAttachment content is a file extension {attachmentFileExt} outside of Emmanuel scope of scan"
-                                await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
-                            print("Scan Process Finished!\n\n")
-                            if attachmentNSFWResult:
-                                await message.delete()
-                                logUserAction += f"\nMessage is deleted for having at least 1 NSFW attachment! - {attachmentNSFWResultDetails}"
-                                try:
-                                    await message.author.send(attachmentNSFWResultDetails)
-                                    logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                except Exception as error:
-                                    logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                await writingLog(logUserAction)
-                                # Advance scan previous message for profanity!
-                                await AdvanceBackTrackMessageScan(message)
-                                if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                                    del CURRENTSCANOPERATION[hashedAttachmentContent]
-                                return
 
-                if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
-                    del CURRENTSCANOPERATION[hashedAttachmentContent]
+                    """Getting the byte content of the attachment to memory"""
+                    async with Emmanuel.session.get(attachment.url) as response:
+                        attachmentContent = await response.read()
+                    hashedAttachmentContent = hashlib.sha512(attachmentContent).hexdigest()
+
+                    """Checking if there is another subroutine scanning the same attachment"""
+                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, "") == "In Progress":
+                        print(f"Attachment {attachment.filename} is currently being scanned by other subroutine!")
+                        while True:
+                            await asyncio.sleep(0)
+                            if not CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                break
+                    else:
+                        CURRENTSCANOPERATION[hashedAttachmentContent] = "In Progress"
+
+                    """Checking attachment content already been scanned"""
+                    print(f"Attachment SHA512 content: {hashedAttachmentContent}")
+                    print(f"Checking if attachment content is already in a clean list...")
+                    if hashedAttachmentContent in CLEANData.keys():
+                        print("Attachment content already pass the scan! Terminating Scan Process...\n\n")
+                    else:
+                        print(f"Attachment content is not in the clean data! Checking if the content is in the NSFW data!")
+                        if hashedAttachmentContent in NSFWData.keys():
+                            await message.delete()
+                            logUserAction += f"\nMessage was deleted for having attachment content already flagged NSFW! - {NSFWData[hashedAttachmentContent]}"
+                            try:
+                                await message.author.send(f"The attachment {attachment.filename} has already flagged NSFW! - {NSFWData[hashedAttachmentContent]}")
+                                logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
+                            except Exception as error:
+                                logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
+                            print("Attachment content already flagged NSFW! Terminating Scan Process...\n\n")
+                            await writingLog(logUserAction)
+                            # Advance scan previous message for profanity!
+                            await AdvanceBackTrackMessageScan(message)
+                            print("Scan Process Finished!\n\n")
+                            if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                del CURRENTSCANOPERATION[hashedAttachmentContent]
+                            return
+                        else:
+                            scanContent = True
+                            async with ConfigLock:
+                                if configuration.get(str(message.guild.id), ""):
+                                    if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), ""):
+                                        if configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] > 0:
+                                            scanContent = False
+                                            logUserAction += f"\nUser {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!"
+                                            print(f"User {message.author.name} ID {message.author.id} uncensor limit is {configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)]} in server {message.guild.name} ID {message.guild.id}\nFile content is not scanned!!!\n\n")
+                                            configuration[str(message.guild.id)]["User-Uncensor-Limit"][str(message.author.id)] -= 1
+                                            async with aiofiles.open(EMMANUELCONFIG, "w") as file:
+                                                await file.write(json.dumps(configuration, indent=4))
+                            if scanContent:
+                                print(f"Attachment is not in NSFW data! Proceeding to scan the attachment...")
+                                attachmentFileExt = checkingRealFileExtension(attachmentContent, attachment.filename.lower())
+                                FILEDOWNLOADCOUNTER += 1
+                                AttachmentFileName = f"{FILEDOWNLOADCOUNTER}{attachmentFileExt}"
+                                attachmentNSFWResult = False
+                                attachmentNSFWResultDetails = ""
+                                print(f"Attachment file extension: {attachmentFileExt}")
+                                if attachmentFileExt.endswith(ALLSCANNABLEFILEFORMATS):
+                                    if attachmentFileExt.endswith(ARCHIVEFORMATS):
+                                        attachmentNSFWResult, attachmentNSFWResultDetails = await ArchiveFileScan(AttachmentFileName, attachmentContent , hashedAttachmentContent)
+                                    elif attachmentFileExt.endswith(DOCUMENTFILES):
+                                        print(f"Scanning ASCII text in attachment content...")
+                                        pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, attachmentContent)
+                                        attachmentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                        if attachmentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                            attachmentNSFWResult = True
+                                            attachmentNSFWResultDetails = attachmentNSFWResultDetails.strip("Yes, ")
+                                            attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
+                                            print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+                                            await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
+                                        else:
+                                            attachmentNSFWResult = False
+                                            await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
+                                    else:
+                                        attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
+                                else:
+                                    logUserAction += f"\nAttachment content is a file extension {attachmentFileExt} outside of Emmanuel scope of scan"
+                                    await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
+                                print("Scan Process Finished!\n\n")
+                                if attachmentNSFWResult:
+                                    await message.delete()
+                                    logUserAction += f"\nMessage is deleted for having at least 1 NSFW attachment! - {attachmentNSFWResultDetails}"
+                                    try:
+                                        await message.author.send(attachmentNSFWResultDetails)
+                                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
+                                    except Exception as error:
+                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
+                                    await writingLog(logUserAction)
+                                    # Advance scan previous message for profanity!
+                                    await AdvanceBackTrackMessageScan(message)
+                                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                        del CURRENTSCANOPERATION[hashedAttachmentContent]
+                                    return
+
+                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                        del CURRENTSCANOPERATION[hashedAttachmentContent]
 
         logUserAction += "\nMessage is cleaned!\n\n"
         await writingLog(logUserAction)
         await AdvanceBackTrackMessageScan(message)
+
+
+@Emmanuel.event
+async def on_message_edit(before, after):  # Note: media attachment can be embedded via URL in re-edit message!
+    if before.content != after.content:
+        await EmmanuelScan(after, True, before)
+
+
+@Emmanuel.event
+async def on_message(message):
+    await EmmanuelScan(message)
 
 
 Emmanuel.run(DISCORDAPI)

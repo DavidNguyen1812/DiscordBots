@@ -142,14 +142,14 @@ OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're
 
 """Defining selected OpenAI models"""
 # https://platform.openai.com/docs/pricing
-GPTMODELFORIMAGESCAN = "gpt-5-nano"
+GPTMODELFORIMAGESCAN = "gpt-5.4-nano"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
 LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.05, 0.05], "Output Token": [0.4, 0.4]},
+                                "Cost": {"Input Token": [0.2, 0.2], "Output Token": [1.25, 1.25]},
                                 "TPM": 200000
                             },
                         GPTMODELFORTEXTSCAN :

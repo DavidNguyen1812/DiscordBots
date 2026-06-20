@@ -2314,12 +2314,19 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                                     UrlContentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
                                                     if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
                                                         UrlContentNSFWResult = True
+                                                    else:
+                                                        if UrlContentNSFWResultDetails == "MAXIMUM TOKEN LIMIT":
+                                                            UrlContentNSFWResultDetails = await scanWebContentUsingWebSearchWithGPT(URL)
+                                                            if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                                                UrlContentNSFWResult = True
+                                                            else:
+                                                                UrlContentNSFWResult = False
+                                                    if UrlContentNSFWResult:
                                                         UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
                                                         UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
                                                         print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
                                                         await AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                     else:
-                                                        UrlContentNSFWResult = False
                                                         await AddingNewCleanData(BasedURLToSave, "Document file text is clean!")
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)

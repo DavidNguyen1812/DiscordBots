@@ -149,13 +149,13 @@ LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
                                 "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.2, 0.2], "Output Token": [1.25, 1.25]},
+                                "Cost": {"Input Token": [0.20, 0.20], "Output Token": [1.25, 1.25], "Cached Read": [0.02, 0.02], "Cached Writes": [0, 0]},
                                 "TPM": 200000
                             },
                         GPTMODELFORTEXTSCAN :
                             {
                                 "Maximum Input Tokens": 128000,
-                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6]},
+                                "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6], "Cached Read": [0.075, 0.075], "Cached Writes": [0, 0]},
                                 "TPM": 200000
                             }
                        }
@@ -407,15 +407,19 @@ async def writingLLMUsageCsv(csvPath: str, mode: Literal['w', 'a'], data: list, 
             await csvWriter.writerow(data)
 
 
-def calculateUsageCost(model: str, totalInputTokens: int, totalOutputTokens: int) -> float:
+def calculateUsageCost(model: str, InputTokens: list, totalOutputTokens: int) -> float:
    """
    Description: Calculate the usage cost of the LLM model based on the total input tokens and output tokens.
    :param model: LLM Model
-   :param totalInputTokens: The total input tokens of a prompt
+   :param InputTokens: The list of total input tokens [raw, cached read, cached write] of a prompt
    :param totalOutputTokens: The total output tokens of a prompt
    :return: The final calculated usage cost
    """
-   totalCost = (totalInputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0] + (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+   totalRawInputCost = (InputTokens[0] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0]
+   totalCachedReadCost = (InputTokens[1] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Read"][0]
+   totalCachedWriteCost = (InputTokens[2] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Writes"][0]
+   totalOutputTokenCost = (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+   totalCost = totalRawInputCost + totalCachedReadCost + totalCachedWriteCost + totalOutputTokenCost
    return round(totalCost, 5)
 
 
@@ -670,10 +674,13 @@ async def scanningPDFPagesWithGPT(PDFpath: str) -> str:
                 store=False
             )
             print(f"GPT image NSFW scan results: {response.output_text}")
-            outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+            totalCachedRead = response.usage.input_tokens_details.cached_tokens
+            totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
+            totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
+            outputPromptTokenCount = response.usage.output_tokens
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
-            totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount)
+            totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
             return response.output_text
@@ -707,10 +714,13 @@ async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
                 max_output_tokens=200,
                 store=False
             )
-            outputPromptTokenCount = response.usage.total_tokens - inputPromptTokenCount
+            totalCachedRead = response.usage.input_tokens_details.cached_tokens
+            totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
+            totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
+            outputPromptTokenCount = response.usage.output_tokens
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
-            totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, inputPromptTokenCount, outputPromptTokenCount)
+            totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
             await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
             return response.output_text
@@ -748,10 +758,13 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
                                                 store=False
                                                 )
     inputPromptTokenCount = response.usage.input_tokens
+    totalCachedRead = response.usage.input_tokens_details.cached_tokens
+    totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
+    totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
     outputPromptTokenCount = response.usage.output_tokens
     cMonth = time.ctime(time.time()).split()[1]
     cDay = time.ctime(time.time()).split()[2]
-    totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, inputPromptTokenCount, outputPromptTokenCount) + 0.01 # Web Search cost $10/1K request
+    totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount) + 0.01 # Web Search cost $10/1K request
     await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
     await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], YearlyCSVLock)
     return response.output_text
@@ -1580,24 +1593,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
                 print("Special NSFW character detected!")
                 return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
     print("Profanity Library did not detect, starting GPT scan...")
-
-    '''
-    # The web search tool is very expensive, so I disable it, if you can afford, then just uncomment this section!
-    if URL:
-        print("Scanning URL content using web_search tool...")
-        scanResult = await scanWebContentUsingWebSearchWithGPT(checkMessage)
-        if scanResult.startswith(("Yes", "yes", "YES")):
-            print("GPT detected inappropriate content in web content!")
-            if redditUrl:
-                match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
-                if match:
-                    newNSFWsubreddit = match.group(1).replace('/r/', '')
-                    BlackListSubreddits.add(newNSFWsubreddit)
-                    async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
-                        await file.write(newNSFWsubreddit + '\n')
-            return True, scanResult.strip("Yes,")
-    '''
-
+    
     scanResult = await scanningTextOnlyWithGPT(
         f"# ASK\n"
         f"Analyze the following message and identify any vulgar or inappropriate words.\n"

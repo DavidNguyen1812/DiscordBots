@@ -1631,47 +1631,41 @@ async def AdvanceBackTrackMessageScan(message: discord.Message) -> None:
     :return: None
     """
     if not str(message.channel) == "Direct Message with Unknown User":  # Only use better_profanity
-        scanList = []
-        lengthList = []
-        indexList = []
+        last10Messages = []
+        joined10Messages = ""
+        msgRanges = []
+        currentIdx = 0
         async for text in message.channel.history(limit=10):
-            scanList.insert(0, text.content)
-        # print(f"Scan list: {scanList}")
-        for p in range(len(scanList)):
-            if p != 0:
-                lengthList.append(len(scanList[p]) + lengthList[p - 1])
-            else:
-                lengthList.append(len(scanList[p]))
-        # print(f"Legnth list: {lengthList}")
-        scanList = "".join(scanList)
-        # print(f"Lowercase Scan list: {scanList.lower()}")
-        position = []
-
+            last10Messages.insert(0, text.content)
+        # print(f"Last 10 Messages: {last10Messages}")
+        for i, msg in enumerate(last10Messages):
+            start = currentIdx
+            joined10Messages += msg + " "
+            end = currentIdx + len(msg)
+            msgRanges.append((start, end, i))
+            currentIdx += len(msg) + 1
+        # print(f"Last 10 messages range: {msgRanges}")
+        # print(f"Lowercase joined last 10 messages: {joined10Messages.lower()}")
+        messageToDelete = []
         for word in WordList:
-            pattern = re.escape(word)  # Escapes special characters in word
-            matches = [[match.start(), match.end()] for match in re.finditer(pattern, scanList, re.IGNORECASE)]
-            if matches:
-                for Index in matches:
-                    position.append(Index)
-        position.sort()
-        # print(f"Position List: {position}")
-        if position:
-            for Range in position:
-                for p in range(Range[0], Range[1], 1):
-                    indexList.append(p)
-            # print(f"Index List: {indexList}")
-            finalIndexList = []
-            for value in indexList:
-                try:
-                    finalIndexList.append(lengthList.index(value) + 1)
-                except ValueError:
-                    pass
-            # print(f"Final Index: {finalIndexList}")
-            counter = 9
+            word = word.strip()
+            if not word:
+                continue
+            charPatterns = [re.escape(char) for char in word]
+            spacedWordPattern = r"[\W_]*".join(charPatterns)
+            # Ensure strict word boundaries.
+            # (?<![a-zA-Z0-9]) = The character before the match cannot be a letter or number
+            # (?![a-zA-Z0-9])  = The character after the match cannot be a letter or number
+            pattern = rf"(?i)(?<![a-zA-Z0-9]){spacedWordPattern}(?![a-zA-Z0-9])"
+            for match in re.finditer(pattern, joined10Messages):
+                matchStart, matchEnd = match.span()
+                for start, end, msgIdx in msgRanges:
+                    if matchStart < end and matchEnd > start:
+                        messageToDelete.append(last10Messages[msgIdx])
+        if messageToDelete:
             async for text in message.channel.history(limit=10):
-                if counter in finalIndexList:
+                if text.content in messageToDelete:
                     await text.delete()
-                counter -= 1
 
 
 @Emmanuel.tree.command(

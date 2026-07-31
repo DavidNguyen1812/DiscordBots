@@ -142,14 +142,14 @@ OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're
 
 """Defining selected OpenAI models"""
 # https://platform.openai.com/docs/pricing
-GPTMODELFORIMAGESCAN = "gpt-5.4-nano"
+GPTMODELFORIMAGESCAN = "gpt-5.6-luna"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
 CURRENTSCANOPERATION = {}
 LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
                             {
-                                "Maximum Input Tokens": 400000,
-                                "Cost": {"Input Token": [0.20, 0.20], "Output Token": [1.25, 1.25], "Cached Read": [0.02, 0.02], "Cached Writes": [0, 0]},
+                                "Maximum Input Tokens": 1050000,
+                                "Cost": {"Input Token": [0.2, 0.4], "Output Token": [1.2, 1.8], "Cached Read": [0.02, 0.04], "Cached Writes": [0.25, 0.5]},
                                 "TPM": 200000
                             },
                         GPTMODELFORTEXTSCAN :
@@ -415,10 +415,13 @@ def calculateUsageCost(model: str, InputTokens: list, totalOutputTokens: int) ->
    :param totalOutputTokens: The total output tokens of a prompt
    :return: The final calculated usage cost
    """
-   totalRawInputCost = (InputTokens[0] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][0]
-   totalCachedReadCost = (InputTokens[1] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Read"][0]
-   totalCachedWriteCost = (InputTokens[2] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Writes"][0]
-   totalOutputTokenCost = (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][0]
+   totalInputTokens = sum(InputTokens)
+   inputTokenCostIndex = 1 if totalInputTokens > 272000 else 0
+   outputTokenCostIndex = 1 if totalOutputTokens > 272000 else 0
+   totalRawInputCost = (InputTokens[0] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Input Token"][inputTokenCostIndex]
+   totalCachedReadCost = (InputTokens[1] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Read"][inputTokenCostIndex]
+   totalCachedWriteCost = (InputTokens[2] / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Cached Writes"][inputTokenCostIndex]
+   totalOutputTokenCost = (totalOutputTokens / 1000000) * LLMMODELINFORMATION[model]["Cost"]["Output Token"][outputTokenCostIndex]
    totalCost = totalRawInputCost + totalCachedReadCost + totalCachedWriteCost + totalOutputTokenCost
    return round(totalCost, 5)
 

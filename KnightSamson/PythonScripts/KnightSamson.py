@@ -90,19 +90,19 @@ OPENAI GPT INFO:
     - gpt-5.6-terra:
         + Maximum Input Token: 1050000
         + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $15.00 (prompt < 272k token), $22.50 (prompt >= 272k token)
-        + Cached Read: $0.25 (prompt < 272k token), $0.50 (prompt >= 272k token)
-        + Cached Writes: $3.125 (prompt < 272k token), $6.25 (prompt >= 272k token)
+        + Cost per 1 Million Input Token: $2.00 (prompt < 272k token), $4.00 (prompt >= 272k token)
+        + Cost per 1 Million Output Token: $12.00 (prompt < 272k token), $18.00 (prompt >= 272k token)
+        + Cached Read: $0.20 (prompt < 272k token), $0.40 (prompt >= 272k token)
+        + Cached Writes: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
         + Supported Inputs: Text and Image
         
     - gpt-5.6-luna:
         + Maximum Input Token: 1050000
         + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.00 (prompt < 272k token), $2.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $6.00 (prompt < 272k token), 9.00 (prompt >= 272k token)
-        + Cached Read: $0.10 (prompt < 272k token), $2.50 (prompt >= 272k token)
-        + Cached Writes: $1.25 (prompt < 272k token), $2.50 (prompt >= 272k token)
+        + Cost per 1 Million Input Token: $0.20 (prompt < 272k token), $0.40 (prompt >= 272k token)
+        + Cost per 1 Million Output Token: $1.20 (prompt < 272k token), 1.80 (prompt >= 272k token)
+        + Cached Read: $0.02 (prompt < 272k token), $0.04 (prompt >= 272k token)
+        + Cached Writes: $0.25 (prompt < 272k token), $0.50 (prompt >= 272k token)
         + Supported Inputs: Text and Image
         
     - gpt-5.5:
@@ -385,12 +385,12 @@ LLMMODELINFORMATION = {
                             },
                         "gpt-5.6-terra":{
                                 "Maximum Input Tokens": 1050000,
-                                "Cost": {"Input Token": [2.5, 5], "Output Token": [15, 22.5], "Cached Read": [0.25, 0.5], "Cached Writes": [3.125, 6.25]},
+                                "Cost": {"Input Token": [2, 4], "Output Token": [12, 18], "Cached Read": [0.2, 0.4], "Cached Writes": [2.5, 5]},
                                 "TPM": 500000
                             },
                         "gpt-5.6-luna":{
                                 "Maximum Input Tokens": 1050000,
-                                "Cost": {"Input Token": [1, 2], "Output Token": [6, 9], "Cached Read": [0.1, 0.2], "Cached Writes": [1.25, 2.5]},
+                                "Cost": {"Input Token": [0.2, 0.4], "Output Token": [1.2, 1.8], "Cached Read": [0.02, 0.04], "Cached Writes": [0.25, 0.5]},
                                 "TPM": 200000
                             },
                         "gpt-5.5":{

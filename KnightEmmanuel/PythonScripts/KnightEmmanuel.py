@@ -87,7 +87,7 @@ ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".we
 
                            ".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz",
                            ".rar", ".bz2", ".xz", ".lzma",
-                           
+
                            ".txt", ".html", ".json", ".yaml", ".xml")
 
 
@@ -530,10 +530,10 @@ async def AddingNewCleanData(Hash: str, Reason: str) -> None:
     """
     async with CleanDataLock:
         CLEANData[Hash] = Reason
-        print("Content passed the check, Adding to clean data...")
+        print(f"SHA-512 {Hash} passed the check, Adding to clean data...")
         async with aiofiles.open(CLEANFILEPATH, "w") as JSONFile:
             await JSONFile.write(json.dumps(CLEANData, indent=4))
-        print(f"Clean data updated!")
+        print(f"Clean data updated!\n\n")
 
 
 async def AddingNewNSFWData(Hash: str, Reason: str) -> None:
@@ -545,10 +545,10 @@ async def AddingNewNSFWData(Hash: str, Reason: str) -> None:
     """
     async with NSFWDataLock:
         NSFWData[Hash] = Reason
-        print("Content was flagged NSFW, adding to NSFW data...")
+        print(f"SHA-512 {Hash} was flagged NSFW, adding to NSFW data...")
         async with aiofiles.open(NSFWFILEPATH, "w") as JSONFile:
             await JSONFile.write(json.dumps(NSFWData, indent=4))
-        print(f"NSFW data updated!")
+        print(f"NSFW data updated!\n\n")
 
 
 async def checkServerExistInConfigFile(serverID: str) -> None:

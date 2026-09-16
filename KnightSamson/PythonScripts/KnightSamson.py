@@ -9,26 +9,12 @@ for dependency in dependencies:
     else:
         print(f"Python dependency {dependency} FOUND.")
 
-import discord
-import discord.ext.commands
-import time
-import os
-import shutil
-import json
-import mimetypes
-import magic
-import base64
-import random
-import wave
-import asyncio
-import aiofiles
-import zipfile
-import datetime
+import discord, discord.ext.commands, time, os, shutil, json, mimetypes, magic, base64, random, wave, asyncio, aiofiles, zipfile, datetime, openai, pathlib
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
-import openai
 
 from PIL import Image
 from openai import AsyncOpenAI
@@ -43,17 +29,17 @@ from io import BytesIO
 from aiocsv import AsyncWriter
 from zoneinfo import ZoneInfo
 
-load_dotenv()
-
 """Initializing Important Constants"""
 COMMAND_USAGE = 7 # Daily application command usage
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
 """Getting Important File Paths"""
-LOGCOMMANDFILEPATH = os.environ.get("SAMSONLOGPATH")
-CONFIGFILEPATH = os.environ.get("SAMSONCONFIGPATH")
-GPTANDGEMINILOGUSERMESSAGEFILEPATH = os.environ.get("SAMSONGPTANDGEMINILOGPATH")
-LLMUSAGELOGDIR = os.environ.get("SAMSONLLMUSAGELOGDIR")
+ROOTDIR = pathlib.Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=str(f"{ROOTDIR}/PythonScripts/.env"))
+LOGCOMMANDFILEPATH = str(f"{ROOTDIR}/Files/Logs/EventLogs.txt")
+CONFIGFILEPATH = str(f"{ROOTDIR}/Files/Configuration/SamsonConfiguration.json")
+GPTANDGEMINILOGUSERMESSAGEFILEPATH = str(f"{ROOTDIR}/Files/Logs/GPTandGeminiResponses.txt")
+LLMUSAGELOGDIR = str(f"{ROOTDIR}/Files/LLM Usages/")
 
 """API Tokens"""
 DISCORDAPI = os.environ.get("SAMSONDISCORDAPI")
@@ -73,309 +59,19 @@ INSTRUCTION_LISTS = {"Medieval": "You are a medieval warrior name Samson! Please
                    "Magician": "You are a mysterious magician name Samson! Please ALWAYS response to the user prompt with some fabulous magical words!",
                    "Caveman": "You are prehistoric human name Samson! Please ALWAYS response to the user prompt like a caveman!"}
 
-"""
-https://developers.openai.com/api/docs/models
-https://developers.openai.com/api/docs/pricing
- 
-OPENAI GPT INFO:
-    - gpt-5.6-sol:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $5.00 (prompt < 272k token), $10.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $30.00 (prompt < 272k token), $45.00 (prompt >= 272k token)
-        + Cached Read: $0.50 (prompt < 272k token), $1.00 (prompt >= 272k token)
-        + Cached Writes: $6.25 (prompt < 272k token), $12.50 (prompt >= 272k token)
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.6-terra:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $2.00 (prompt < 272k token), $4.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $12.00 (prompt < 272k token), $18.00 (prompt >= 272k token)
-        + Cached Read: $0.20 (prompt < 272k token), $0.40 (prompt >= 272k token)
-        + Cached Writes: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.6-luna:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.20 (prompt < 272k token), $0.40 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $1.20 (prompt < 272k token), 1.80 (prompt >= 272k token)
-        + Cached Read: $0.02 (prompt < 272k token), $0.04 (prompt >= 272k token)
-        + Cached Writes: $0.25 (prompt < 272k token), $0.50 (prompt >= 272k token)
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.5:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $5.00 (prompt < 272k token), $10.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $30.00 (prompt < 272k token), 45.00 (prompt >= 272k token)
-        + Cached Read: $0.50 (prompt < 272k token), $1.00 (prompt >= 272k token)
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.5-pro:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $30.00
-        + Cost per 1 Million Output Token: $60.00
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.4:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $2.50 (prompt < 272k token), $5.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $15.00 (prompt < 272k token), $22.50 (prompt >= 272k token)
-        + Cached Read: $0.25 (prompt < 272k token), $0.50 (prompt >= 272k token)
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-5.4-pro:
-        + Maximum Input Token: 1050000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $30.00 (prompt < 272k token), $60.00 (prompt >= 272k token)
-        + Cost per 1 Million Output Token: $180.00 (prompt < 272k token), $270.00 (prompt >= 272k token)
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.4-mini:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.75
-        + Cost per 1 Million Output Token: $4.50
-        + Cached Read: $0.075
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-        
-    - gpt-5.4-nano:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.20
-        + Cost per 1 Million Output Token: $1.25
-        + Cached Read: $0.02
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-5.2:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.75
-        + Cost per 1 Million Output Token: $14.00
-        + Cached Read: $0.175
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-5.2-pro:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $21
-        + Cost per 1 Million Output Token: $168
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text and Image
-
-    - gpt-5.1:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Cached Read: $0.125
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-5:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $1.25
-        + Cost per 1 Million Output Token: $10.00
-        + Cached Read: $0.125
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-        
-    - gpt-5-mini:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.25
-        + Cost per 1 Million Output Token: $2.00
-        + Cached Read: $0.025
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-        
-    - gpt-5-nano:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 128000
-        + Cost per 1 Million Input Token: $0.05
-        + Cost per 1 Million Output Token: $0.40
-        + Cached Read: $0.005
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-5-pro:
-        + Maximum Input Token: 400000
-        + Maximum Output Token: 272000
-        + Cost per 1 Million Input Token: $15
-        + Cost per 1 Million Output Token: $120
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text and Image
-
-    - gpt-4.1:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $2.00
-        + Cost per 1 Million Output Token: $8.00
-        + Cached Read: $0.5
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-4.1-mini:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $0.40
-        + Cost per 1 Million Output Token: $1.60
-        + Cached Read: $0.1
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-4.1-nano:
-        + Maximum Input Token: 1047576
-        + Maximum Output Token: 32768
-        + Cost per 1 Million Input Token: $0.10
-        + Cost per 1 Million Output Token: $0.40
-        + Cached Read: $0.025
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-4o:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50
-        + Cost per 1 Million Output Token: $10.00
-        + Cached Read: $1.25
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-    - gpt-4o-mini:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.15
-        + Cost per 1 Million Output Token: $0.60
-        + Cached Read: $0.075
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text and Image
-
-        
-OPENAI GPT AUDIO INFO:
-    - gpt-audio:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
-        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
-
-    - gpt-audio-1.5:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $2.50 for text, $32.00 for audio
-        + Cost per 1 Million Output Token: $10.00 for text, $64.00 for audio
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs and Outputs: Text and Audio (Format .wav and .mp3 only)
-
-    - gpt-audio-mini:
-        + Maximum Input Token: 128000
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.60 for text, $10.00 for audio
-        + Cost per 1 Million Output Token: $2.40 for text, $20.00 for audio
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text and Audio (Format .wav and .mp3 only)
-
-https://ai.google.dev/gemini-api/docs/models/
-https://ai.google.dev/gemini-api/docs/pricing
-GOOGLE GEMINI INFO:
-    - gemini-3.6-flash:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $1.50
-        + Cost per 1 Million Output Token: $7.50
-        + Cached Read: $0.15
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-3.5-flash:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $1.50
-        + Cost per 1 Million Output Token: $9.50
-        + Cached Read: $0.15
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-3.5-flash-lite:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $0.30
-        + Cost per 1 Million Output Token: $2.50
-        + Cached Read: $0.03
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-3.1-pro-preview:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $2.00 for prompts <= 200k tokens, $4.00 for prompts > 200k tokens
-        + Cost per 1 Million Output Token: $12.00 for prompts <= 200k tokens, $18.00 for prompts > 200k tokens
-        + Cached Read: $0.20 (prompt <= 200k token), $0.40 (prompt > 200k token)
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-2.5-pro:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $1.25 for prompts <= 200k tokens, $2.50 for prompts > 200k tokens
-        + Cost per 1 Million Output Token: $10.00 for prompts <= 200k tokens, $15.00 for prompts > 200k tokens
-        + Cached Read: $0.125 (prompt <= 200k token), $0.25 (prompt > 200k token)
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, Image, Video, Audio, and PDF
-        
-    - gemini-2.5-flash:
-        + Maximum Input Token: 1048576
-        + Maximum Output Token: 65536
-        + Cost per 1 Million Input Token: $0.30 for (text, image, video), $1.00 for audio
-        + Cost per 1 Million Output Token: $2.50
-        + Cached Read: $0.03 for (text, image, video), $0.1 for audio
-        + Cached Writes: Free of charge
-        + Supported Inputs: Text, images, video, audio
-        
-GOOGLE GEMINI TTS INFO:
-    - gemini-2.5-flash-preview-tts:
-        + Maximum Input Token: 8192
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $0.50
-        + Cost per 1 Million Output Token: $10.00
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text
-        
-    - gemini-2.5-pro-preview-tts:
-        + Maximum Input Token: 8192
-        + Maximum Output Token: 16384
-        + Cost per 1 Million Input Token: $1.00
-        + Cost per 1 Million Output Token: $20.00
-        + Cached Read: Not Supported
-        + Cached Writes: Not Supported
-        + Supported Inputs: Text
-"""
 
 # Please NOTE that your LLM models rate limit are subjected to your AI project tier
 # https://developers.openai.com/api/docs/guides/rate-limits
 # https://ai.google.dev/gemini-api/docs/rate-limits#current-rate-limits
+
+# OpenAI Model documentation and pricing
+# https://developers.openai.com/api/docs/models
+# https://developers.openai.com/api/docs/pricing
+
+# Gemini Model documentation and pricing
+# https://ai.google.dev/gemini-api/docs/models/
+# https://ai.google.dev/gemini-api/docs/pricing
+
 
 LLMMODELINFORMATION = {
                         "gpt-5.6-sol":{
@@ -494,10 +190,22 @@ LLMMODELINFORMATION = {
                                 "Cost": {"Input Token": [0.6, 0.6], "Output Token": [2.4, 2.4], "Cached Read": [0, 0], "Cached Writes": [0, 0]},
                                 "TPM": 250000
                             },
+                        "gemini-3.8-flash":
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [0.75, 0.75], "Output Token": [3.75, 3.75], "Cached Read": [0.075, 0.075], "Cached Writes": [0.5, 0.5]},
+                                "TPM": 2000000
+                            },
+                        "gemini-3.7-flash":
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [0.75, 0.75], "Output Token": [3.75, 3.75], "Cached Read": [0.075, 0.075], "Cached Writes": [0.5, 0.5]},
+                                "TPM": 2000000
+                            },
                         "gemini-3.6-flash":
                             {
                                 "Maximum Input Tokens": 1048576,
-                                "Cost": {"Input Token": [1.5, 1.5], "Output Token": [7.5, 7.5], "Cached Read": [0.15, 0.15], "Cached Writes": [0, 0]},
+                                "Cost": {"Input Token": [0.75, 0.75], "Output Token": [3.75, 3.75], "Cached Read": [0.075, 0.075], "Cached Writes": [0.5, 0.5]},
                                 "TPM": 2000000
                             },
                         "gemini-3.5-flash":
@@ -547,7 +255,7 @@ LLMMODELINFORMATION = {
 
 """Initializing Openai and Google Gemini and setting up Discord Intents for Samson"""
 GPTclient = AsyncOpenAI(api_key=os.environ.get("SAMSONGPTAPI"))
-GEMINIclient = genai.Client()
+GEMINIclient = genai.Client(api_key=os.environ.get("SAMSONGEMINIAPI"))
 intents = discord.Intents.all()
 Samson = commands.Bot(command_prefix='/', intents=intents)
 
@@ -1547,7 +1255,7 @@ async def openai_gpt_chat(ctx, message: str,
                        file_attachment="(OPTIONAL) Please Upload only PNG, JPG, or PDF files!"
 )
 async def google_gemini_chat(ctx, message: str,
-                        model: Literal["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash"],
+                        model: Literal["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-pro", "gemini-2.5-flash"],
                         keep_secret: Literal["Yes", "No"],
                         file_attachment: discord.Attachment = None):
 

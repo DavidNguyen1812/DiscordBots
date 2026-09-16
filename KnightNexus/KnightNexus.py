@@ -9,7 +9,7 @@ for dependency in dependencies:
     else:
         print(f"Python dependency {dependency} FOUND.")
 
-import discord
+import discord, pathlib
 from NexusCryptoUtilities import *
 import os
 import asyncio
@@ -25,7 +25,7 @@ from Crypto.Random import get_random_bytes
 from vigenere import encrypt, decrypt
 from hashlib import sha1, sha224, sha256, sha384, sha512, sha3_256, sha3_384, sha3_512, shake_128, shake_256, blake2b, blake2s, md5
 
-load_dotenv()
+load_dotenv(dotenv_path=f"{pathlib.Path(__file__).resolve().parent}/.env")
 
 DISCORDAPI = os.environ.get("NEXUSDISCORDAPI")
 

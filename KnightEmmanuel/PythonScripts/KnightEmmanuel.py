@@ -14,7 +14,7 @@ for systembinary in systembinaries:
         raise ModuleNotFoundError(f"System binary {systembinary} NOT FOUND. Please install the system binary via brew or apt or compiled from source code for Knight Emmanuel to function")
 
 print("Checking Python Dependencies")
-dependencies = ["better-profanity", "discord-py", "python-dotenv", "filetype", "nudenet", "openai", "opencv-python", "pillow", "python-magic", "rarfile", "requests", "selenium-wire-2", "blinker", "webdriver-manager", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib", "fpdf"]
+dependencies = ["better-profanity", "discord-py", "python-dotenv", "filetype", "nudenet", "openai", "google-genai", "opencv-python", "pillow", "python-magic", "rarfile", "requests", "selenium-wire-2", "blinker", "webdriver-manager", "aiofiles", "aiocsv", "numpy", "pandas", "matplotlib", "fpdf"]
 for dependency in dependencies:
     result = subprocess.run(["pip", "show", dependency], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if "not found" in f"{result.stderr} {result.stdout}":
@@ -22,35 +22,13 @@ for dependency in dependencies:
     else:
         print(f"Python dependency {dependency} FOUND.")
 
-import os
-import re
-import time
-import json
-import shutil
-import zipfile
-import tarfile
-import gzip
-import bz2
-import lzma
-import rarfile
-import requests
-import cv2
-import hashlib
-import filetype
-import discord
-import mimetypes
-import magic
-import random
-import asyncio
-import aiohttp
-import aiofiles
-import math
-import datetime
+import os, re, time, json, shutil, zipfile, tarfile, gzip, bz2, lzma, rarfile, requests, cv2, hashlib, filetype, discord, mimetypes, magic, random, asyncio, pathlib
+import aiohttp, aiofiles, math, datetime, openai
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
-import openai
 
 from PIL import Image
 from better_profanity import profanity
@@ -68,13 +46,13 @@ from aiocsv import AsyncWriter
 from fpdf import FPDF
 from urllib.parse import unquote
 from zoneinfo import ZoneInfo
-
-load_dotenv()
+from google import genai
+from google.genai import types, errors
 
 
 """
                     ---Scan Engine Logic---
-Message text content check - Using three detection methods (Profanity Lib, Black Lists and OpenAI)
+Message text content check - Using three detection methods (Profanity Lib, Black Lists and OpenAI or Gemini)
 Images, Gif and PDF Frames check - Image converted to PNG format and scan with Nudenet, if nothing detected, convert all to PDF frames and Using OpenAI to scan
 Image Text OCR - Using OpenAI OCR scan
 Video Frames - Using cv2 to extract all video frames to scan with Nudenet, if nothing detected converting 40 video frames into a PDF file for OpenAI to scan the frames
@@ -127,12 +105,17 @@ ARCHIVEFORMATS = (".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma",
 DOCUMENTFILES =  (".txt", ".html", ".json", ".yaml", ".xml")
 
 """Getting Important File Paths"""
-NSFWFILEPATH = os.environ.get("EMMANUELNSFWDATA")
-CLEANFILEPATH = os.environ.get("EMMANUELCLEANDATA")
-EMMANUELLOGFILEPATH = os.environ.get("EMMANUELLOGPATH")
-EMMANUELCONFIG = os.environ.get("EMMANUELCONFIGPATH")
-MAINDOWNLOADDIR = os.environ.get("EMMANUELDOWNLOADPATH")
-LLMUSAGELOGDIR = os.environ.get("EMMANUELLLMUSAGELOGDIR")
+ROOTDIR = pathlib.Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=str(f"{ROOTDIR}/PythonScripts/.env"))
+NSFWFILEPATH = str(f"{ROOTDIR}/Files/WordLists/NSFWData.json")
+CLEANFILEPATH = str(f"{ROOTDIR}/Files/WordLists/CleanData.json")
+PROFANITYWORDLISTS = str(f"{ROOTDIR}/Files/WordLists/ProfanityLibWordList.txt")
+BLACKLISTPORNDOMAIN = str(f"{ROOTDIR}/Files/WordLists/BlackListPornDomains.txt")
+BLACKLISTSUBREDDITS = str(f"{ROOTDIR}/Files/WordLists/NSFWSubreddits.txt")
+EMMANUELLOGFILEPATH = str(f"{ROOTDIR}/Files/Log/EventLogs.txt")
+EMMANUELCONFIG = str(f"{ROOTDIR}/Files/Configuration/EmmanuelConfig.json")
+MAINDOWNLOADDIR = str(f"{ROOTDIR}/DownloadDirectory/")
+LLMUSAGELOGDIR = str(f"{ROOTDIR}/Files/LLM Usages/")
 
 """Initializing Important Constants"""
 DAILYUNCENSORLIMIT = 1
@@ -140,10 +123,12 @@ WHITELISTMEMBERS = [1336449459634180106, 1318642836870135840, 131180743562703673
 FILEDOWNLOADCOUNTER = 0
 OWNER_DISCORD_USER_ID = 987765832895594527 # Put your Discord ID here, if you're the owner of the bot
 
-"""Defining selected OpenAI models"""
+"""Defining selected OpenAI and Gemini models"""
 # https://platform.openai.com/docs/pricing
 GPTMODELFORIMAGESCAN = "gpt-5.6-luna"
+GEMINIMODELFORIMAGESCAN = "gemini-3.8-flash"
 GPTMODELFORTEXTSCAN = "gpt-4o-mini"
+GEMINIMODELFORTEXTSCAN = "gemini-3.8-flash"
 CURRENTSCANOPERATION = {}
 LLMMODELINFORMATION = {
                         GPTMODELFORIMAGESCAN:
@@ -152,12 +137,24 @@ LLMMODELINFORMATION = {
                                 "Cost": {"Input Token": [0.2, 0.4], "Output Token": [1.2, 1.8], "Cached Read": [0.02, 0.04], "Cached Writes": [0.25, 0.5]},
                                 "TPM": 200000
                             },
-                        GPTMODELFORTEXTSCAN :
+                        GPTMODELFORTEXTSCAN:
                             {
                                 "Maximum Input Tokens": 128000,
                                 "Cost": {"Input Token": [0.15, 0.15], "Output Token": [0.6, 0.6], "Cached Read": [0.075, 0.075], "Cached Writes": [0, 0]},
                                 "TPM": 200000
-                            }
+                            },
+                        GEMINIMODELFORIMAGESCAN:
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [0.75, 0.75], "Output Token": [3.75, 3.75], "Cached Read": [0.075, 0.075], "Cached Writes": [0.5, 0.5]},
+                                "TPM": 2000000
+                            },
+                        GEMINIMODELFORTEXTSCAN:
+                            {
+                                "Maximum Input Tokens": 1048576,
+                                "Cost": {"Input Token": [0.75, 0.75], "Output Token": [3.75, 3.75], "Cached Read": [0.075, 0.075], "Cached Writes": [0.5, 0.5]},
+                                "TPM": 2000000
+                            },
                        }
 
 SPECIALTEXT = [
@@ -205,7 +202,11 @@ SPECIALTEXT = [
 DISCORDAPI = os.environ.get("EMMANUELDISCORDAPI")
 TENORAPI = os.environ.get("EMMANUELTENORAPI")
 KLIPHYAPI = os.environ.get("EMMANUELKLIPHYAPI")
+
+
+"""----Initialize LLM Models----"""
 GPTclient = AsyncOpenAI(api_key=os.environ.get("EMMANUELOPENAIAPI"))
+GEMINIclient = genai.Client(api_key=os.environ.get("EMMANUELGEMENIAPI"))
 detector = NudeDetector()
 
 
@@ -242,16 +243,16 @@ with open(EMMANUELCONFIG, "r") as configFile:
     configuration = json.load(configFile)
 print(f"Configuration file successfully loaded!")
 
-profanity.load_censor_words_from_file(os.environ.get("EMMANUELPROFANITYWORDLISTS"))
-with open(os.environ.get("EMMANUELPROFANITYWORDLISTS"), "r") as profanityFile:
+profanity.load_censor_words_from_file(PROFANITYWORDLISTS)
+with open(PROFANITYWORDLISTS, "r") as profanityFile:
     WordList = [word.strip("\n") for word in profanityFile.readlines()]
 print("Profanity Wordlist successfully loaded!")
 
-with open(os.environ.get("EMMANUELBLACKLISTPORNDOMAINS"), "r") as pornDomainFile:
+with open(BLACKLISTPORNDOMAIN, "r") as pornDomainFile:
     BlackListDomains= {domain.strip("\n") for domain in pornDomainFile.readlines()}
 print(f"Black List Porn Domains successfully loaded!")
 
-with open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "r") as subredditFile:
+with open(BLACKLISTSUBREDDITS, "r") as subredditFile:
     BlackListSubreddits = {subreddit.strip("\n") for subreddit in subredditFile.readlines()}
 print("Black List Subreddits successfully loaded!")
 
@@ -634,19 +635,23 @@ async def scanningImageWithNudenet(image: str) -> bool:
     return False
 
 
-async def scanningPDFPagesWithGPT(PDFpath: str) -> str:
+async def scanningPDFPagesWithLLM(PDFpath: str, modelProvider: Literal["openai", "google-gemini"], retryAttempt: int) -> str:
     """
-    Description: Scanning PDF frames with GPT pre-train model
+    Description: Scanning PDF frames a selected LLM model
     :param PDFpath: The path to the PDF file on disk
-    :return: GPT scan result
+    :param modelProvider: Specify the model provider to use
+    :param retryAttempt: Current retry attempt
+    :return: Scan result
     """
+    model = GPTMODELFORIMAGESCAN if modelProvider == "openai" else GEMINIMODELFORIMAGESCAN
     if os.path.exists(PDFpath):
         async with aiofiles.open(PDFpath, "rb") as PDFfile:
             base64PDFdata = base64.b64encode(await PDFfile.read()).decode('utf-8')
         os.remove(PDFpath)
     else:
         base64PDFdata = PDFpath
-    print(f"Start scanning PDF frames with GPT {GPTMODELFORIMAGESCAN}")
+    print(f"Start scanning PDF frames with LLM model {model}")
+    systemPrompt = "You are an NSFW content moderator"
     prompt = ("# ASK\n"
               "Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
               " animal porn, reference to adult or NSFW websites, or even consider NSFW?\n"
@@ -655,87 +660,158 @@ async def scanningPDFPagesWithGPT(PDFpath: str) -> str:
               "# RESPONSE FORMAT\n"
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!"
               )
-    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORIMAGESCAN, instructions="You are an NSFW content moderator", input=[{"role": "user","content": [{"type": "input_text", "text": prompt}, {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}]}])).input_tokens
+    if modelProvider == "openai":
+        inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=model, instructions=systemPrompt, input=[{"role": "user","content": [{"type": "input_text", "text": prompt}, {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}]}])).input_tokens
+    else:
+        inputPromptTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=[{"inline_data": {"data": base64PDFdata, "mime_type": "application/pdf"}}, f"{systemPrompt}\n{prompt}"])).total_tokens
     print(f"Input Tokens: {inputPromptTokenCount}")
-    if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORIMAGESCAN]["TPM"]:
+    if inputPromptTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[model]["TPM"]:
         return "MAXIMUM TOKEN LIMIT"
     else:
         try:
-            response = await GPTclient.responses.create(
-                model=GPTMODELFORIMAGESCAN,
-                instructions="You are an NSFW content moderator",
-                input=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text","text": prompt},
-                            {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}
-                        ]
-                    }
-                ],
-                max_output_tokens=2000,
-                store=False
-            )
-            print(f"GPT image NSFW scan results: {response.output_text}")
-            totalCachedRead = response.usage.input_tokens_details.cached_tokens
-            totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
-            totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
-            outputPromptTokenCount = response.usage.output_tokens
+            if modelProvider == "openai":
+                response = await GPTclient.responses.create(
+                    model=model,
+                    instructions="You are an NSFW content moderator",
+                    input=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "input_text","text": prompt},
+                                {"type": "input_file","filename": f"{FILEDOWNLOADCOUNTER}.pdf", "file_data": f"data:application/pdf;base64,{base64PDFdata}"}
+                            ]
+                        }
+                    ],
+                    max_output_tokens=2000,
+                    store=False
+                )
+                print(f"GPT image NSFW scan results: {response.output_text}")
+                totalCachedRead = response.usage.input_tokens_details.cached_tokens
+                totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
+                totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
+                outputPromptTokenCount = response.usage.output_tokens
+                pdfScanResult = response.output_text
+            else:
+                response = await GEMINIclient.aio.models.generate_content(
+                    model=model,
+                    contents=[{"inline_data": {"data": base64PDFdata, "mime_type": "application/pdf"}}, f"{systemPrompt}\n{prompt}"],
+                    config=types.GenerateContentConfig(max_output_tokens=2000)
+                )
+                print(f"GEMINI image NSFW scan results: {response.text}")
+                totalCachedRead = response.usage_metadata.cached_content_token_count or 0
+                totalCachedWrite = 0
+                totalRawInputTokens = response.usage_metadata.prompt_token_count - totalCachedRead
+                outputPromptTokenCount = response.usage_metadata.total_token_count - response.usage_metadata.prompt_token_count
+                pdfScanResult  = response.text
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
-            totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], MonthlyCSVLock)
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORIMAGESCAN, totalCost], YearlyCSVLock)
-            return response.output_text
+            totalCost = calculateUsageCost(model, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, model, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, model, totalCost], YearlyCSVLock)
+            return pdfScanResult
         except openai.RateLimitError as RateLimitError:
-            print(f"Rate Limit Error: {RateLimitError}")
-            return f"RATE LIMIT ERROR"
+            print(f"Rate Limit Error: {RateLimitError}, attempt retry {retryAttempt + 1} in 1 minute")
+            if retryAttempt == 3:
+                print("3 retry attempts reached! Abandon scan!")
+                return "MAX RETRY REACHED"
+            await asyncio.sleep(60)
+            return await scanningPDFPagesWithLLM(base64PDFdata, "openai", retryAttempt + 1)
         except openai.BadRequestError as BadRequestError:
             print(f"Bad Request Error: {BadRequestError}")
             return f"BAD REQUEST ERROR"
         except openai.APITimeoutError as APITimeoutError:
-            print(f"API Timeout Error: {APITimeoutError}\nRetrying...")
-            return await scanningPDFPagesWithGPT(base64PDFdata)
+            print(f"API Timeout Error: {APITimeoutError}, attempt retry {retryAttempt + 1} in 1 minute")
+            await asyncio.sleep(60)
+            return await scanningPDFPagesWithLLM(base64PDFdata, "openai", retryAttempt + 1)
+        except errors.APIError as GeminiAPIError:
+            if GeminiAPIError.code == 429:
+                print(f"Rate Limit Error: {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
+                await asyncio.sleep(60)
+                return await scanningPDFPagesWithLLM(base64PDFdata, "google-gemini", retryAttempt + 1)
+            elif GeminiAPIError.code == 400:
+                print(f"Bad Request Error: {GeminiAPIError.message}")
+                return f"BAD REQUEST ERROR"
+            else:
+                print(f"API Error ({GeminiAPIError.code}): {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
+                await asyncio.sleep(60)
+                return await scanningPDFPagesWithLLM(base64PDFdata, "google-gemini", retryAttempt + 1)
 
 
-async def scanningTextOnlyWithGPT(textToBeScanned: str) -> str:
+async def scanningTextOnlyWithLLM(textToBeScanned: str, modelProvider: Literal["openai", "google-gemini"], retryAttempt: int) -> str:
     """
-    Description: Scanning text content with GPT pre-train model
+    Description: Scanning text content with LLM model
     :param textToBeScanned: The text content to be scanned
-    :return: GPT scan result
+    :param modelProvider: Specify the model provider to use
+    :param retryAttempt: Current retry attempt
+    :return: Scan result
     """
-    inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=GPTMODELFORTEXTSCAN, instructions="You are an NSFW moderator on text messages that may also contains URL", input=textToBeScanned)).input_tokens
+    model = GPTMODELFORTEXTSCAN if modelProvider == "openai" else GEMINIMODELFORTEXTSCAN
+    if modelProvider == "openai":
+        inputPromptTokenCount = (await GPTclient.responses.input_tokens.count(model=model, instructions="You are an NSFW moderator on text messages that may also contains URL", input=textToBeScanned)).input_tokens
+    else:
+        inputPromptTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=textToBeScanned)).total_tokens
+    print(f"Input Tokens: {inputPromptTokenCount}")
     if inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[GPTMODELFORTEXTSCAN]["TPM"]:
         print("MAXIMUM TOKEN LIMIT")
         return "MAXIMUM TOKEN LIMIT"
     else:
         try:
-            response = await GPTclient.responses.create(
-                model=GPTMODELFORTEXTSCAN,
-                instructions="You are an NSFW moderator on text messages that may also contains URL",
-                input=textToBeScanned,
-                max_output_tokens=200,
-                store=False
-            )
-            totalCachedRead = response.usage.input_tokens_details.cached_tokens
-            totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
-            totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
-            outputPromptTokenCount = response.usage.output_tokens
+            if modelProvider == "openai":
+                response = await GPTclient.responses.create(
+                    model=model,
+                    instructions="You are an NSFW moderator on text messages that may also contains URL",
+                    input=textToBeScanned,
+                    max_output_tokens=200,
+                    store=False
+                )
+                totalCachedRead = response.usage.input_tokens_details.cached_tokens
+                totalCachedWrite = response.usage.input_tokens_details.cache_write_tokens
+                totalRawInputTokens = response.usage.input_tokens - (totalCachedRead + totalCachedWrite)
+                outputPromptTokenCount = response.usage.output_tokens
+                ScanResult = response.output_text
+            else:
+                response = await GEMINIclient.aio.models.generate_content(
+                    model=model,
+                    contents=textToBeScanned,
+                    config=types.GenerateContentConfig(max_output_tokens=200)
+                )
+                totalCachedRead = response.usage_metadata.cached_content_token_count or 0
+                totalCachedWrite = 0
+                totalRawInputTokens = response.usage_metadata.prompt_token_count - totalCachedRead
+                outputPromptTokenCount = response.usage_metadata.total_token_count - response.usage_metadata.prompt_token_count
+                ScanResult = response.text
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
             totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
-            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost],YearlyCSVLock)
-            return response.output_text
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, model, totalCost], MonthlyCSVLock)
+            await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, model, totalCost],YearlyCSVLock)
+            return ScanResult
         except openai.RateLimitError as RateLimitError:
-            print(f"Rate Limit Error: {RateLimitError}")
-            return f"RATE LIMIT ERROR"
+            print(f"Rate Limit Error: {RateLimitError}, attempt retry {retryAttempt + 1} in 1 minute")
+            if retryAttempt == 3:
+                print("3 retry attempts reached! Abandon scan!")
+                return "MAX RETRY REACHED"
+            await asyncio.sleep(60)
+            return await scanningTextOnlyWithLLM(textToBeScanned, "openai", retryAttempt + 1)
         except openai.BadRequestError as BadRequestError:
             print(f"Bad Request Error: {BadRequestError}")
             return f"BAD REQUEST ERROR"
         except openai.APITimeoutError as APITimeoutError:
-            print(f"API Timeout Error: {APITimeoutError}\nRetrying...")
-            return await scanningTextOnlyWithGPT(textToBeScanned)
+            print(f"API Timeout Error: {APITimeoutError}, attempt retry {retryAttempt + 1} in 1 minute")
+            await asyncio.sleep(60)
+            return await scanningTextOnlyWithLLM(textToBeScanned, "openai", retryAttempt + 1)
+        except errors.APIError as GeminiAPIError:
+            if GeminiAPIError.code == 429:
+                print(f"Rate Limit Error: {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
+                await asyncio.sleep(60)
+                return await scanningTextOnlyWithLLM(textToBeScanned, "google-gemini", retryAttempt + 1)
+            elif GeminiAPIError.code == 400:
+                print(f"Bad Request Error: {GeminiAPIError.message}")
+                return f"BAD REQUEST ERROR"
+            else:
+                print(f"API Error ({GeminiAPIError.code}): {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
+                await asyncio.sleep(60)
+                return await scanningTextOnlyWithLLM(textToBeScanned, "google-gemini", retryAttempt + 1)
 
 
 async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
@@ -1003,14 +1079,14 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
         os.remove(mediaPath)
         print("Error converting media content to PDF frames!")
         return False, ""
-    mediaScanResult = await scanningPDFPagesWithGPT(pdfPath)
+    mediaScanResult = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 0)
     if mediaScanResult.startswith(("Yes", "yes", "YES")):
         mediaScanResult =  mediaScanResult.strip("Yes, ")
         if mediaName.endswith(PICTUREFORMATS):
             mediaScanResult = f"NSFW Image - {mediaScanResult}"
         elif mediaName.endswith(VIDEOFORMATS):
             mediaScanResult = f"NSFW Video - {mediaScanResult}"
-        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+        print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
         await AddingNewNSFWData(hashedMediaContent, mediaScanResult)
         return True, mediaScanResult
     else:
@@ -1457,12 +1533,12 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                 else:
                     if fileExt.endswith(DOCUMENTFILES):
                         pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, fileData)
-                        scanResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                        scanResultDetails = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 1)
                         if scanResultDetails.startswith(("Yes", "yes", "YES")):
                             scanResult = True
                             scanResultDetails = scanResultDetails.strip("Yes, ")
                             scanResultDetails = f"NSFW message content in file - {scanResultDetails}"
-                            print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+                            print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
                             await AddingNewNSFWData(hashedFileContent, scanResultDetails)
                         else:
                             scanResult = False
@@ -1595,9 +1671,9 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
             if text in checkMessage:
                 print("Special NSFW character detected!")
                 return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
-    print("Profanity Library did not detect, starting GPT scan...")
+    print("Profanity Library did not detect, starting LLM scan...")
     
-    scanResult = await scanningTextOnlyWithGPT(
+    scanResult = await scanningTextOnlyWithLLM(
         f"# ASK\n"
         f"Analyze the following message and identify any vulgar or inappropriate words.\n"
         f"# MESSAGE\n"
@@ -1609,9 +1685,9 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
         f"# RESPONSE FORMAT\n"
         f"Response MUST start with a Yes or No! **IF AND ONLY IF** IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
         f"DO NOT explain the reason, if the response is No!"
-    )
+    , "google-gemini", 0)
     if scanResult.startswith(("Yes", "yes", "YES")):
-        print("GPT detected inappropriate content!")
+        print("LLM detected inappropriate content!")
         if redditUrl:
             match = re.search(r'/r/(\w+)', unquote(checkMessage).lower())
             if match:
@@ -1620,7 +1696,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
                 async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
                     await file.write(newNSFWsubreddit + '\n')
         return True, scanResult.strip("Yes,")
-    print("GPT scan result is clean!")
+    print("LLM scan result is clean!")
     return False, scanResult.strip("No, ")
 
 
@@ -2304,7 +2380,7 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                                 elif URLContentExt.endswith(DOCUMENTFILES):
                                                     print(f"Scanning ASCII text in URL content...")
                                                     pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, UrlContent)
-                                                    UrlContentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                                    UrlContentNSFWResultDetails = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 1)
                                                     if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
                                                         UrlContentNSFWResult = True
                                                     else:
@@ -2317,7 +2393,7 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                                     if UrlContentNSFWResult:
                                                         UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
                                                         UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
-                                                        print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+                                                        print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
                                                         await AddingNewNSFWData(BasedURLToSave, UrlContentNSFWResultDetails)
                                                     else:
                                                         await AddingNewCleanData(BasedURLToSave, "Document file text is clean!")
@@ -2465,12 +2541,12 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                     elif attachmentFileExt.endswith(DOCUMENTFILES):
                                         print(f"Scanning ASCII text in attachment content...")
                                         pdfPath = await asyncio.to_thread(AsciiDocumentToPDFConversion, attachmentContent)
-                                        attachmentNSFWResultDetails = await scanningPDFPagesWithGPT(pdfPath)
+                                        attachmentNSFWResultDetails = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 1)
                                         if attachmentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
                                             attachmentNSFWResult = True
                                             attachmentNSFWResultDetails = attachmentNSFWResultDetails.strip("Yes, ")
                                             attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
-                                            print(f"Content flagged NSFW by {GPTMODELFORIMAGESCAN}")
+                                            print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
                                             await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
                                         else:
                                             attachmentNSFWResult = False

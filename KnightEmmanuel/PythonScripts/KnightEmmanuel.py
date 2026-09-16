@@ -48,6 +48,7 @@ from urllib.parse import unquote
 from zoneinfo import ZoneInfo
 from google import genai
 from google.genai import types, errors
+from io import BytesIO
 
 
 """
@@ -76,7 +77,7 @@ SEXUALTAGS = [
 
 """Define all file extensions Emmanuel will scan"""
 ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns",
-                           ".avif", ".odd", ".gif",
+                           ".avif", ".odd", ".gif", ".heic",
 
                            ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".ogv",
                            ".wmv", ".dv", ".mts", ".m2ts", ".vob",
@@ -91,7 +92,7 @@ ALLSCANNABLEFILEFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".we
 
 
 PICTUREFORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns", ".avif",
-                  ".odd", ".gif")
+                  ".odd", ".gif", ".heic")
 
 VIDEOFORMATS = (".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".wmv", ".dv", ".mts",
                 ".m2ts", ".vob", ".ogv")
@@ -157,46 +158,6 @@ LLMMODELINFORMATION = {
                             },
                        }
 
-SPECIALTEXT = [
-    """⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠟⠁⠈⣷
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣟⡁⢀⣠⣾⠃
-⠀⠀⠀⠀⠀⠀⠀⠀⢠⡾⠈⠉⠉⢁⠗⠀
-⠀⠀⠀⠀⠀⠀⢀⣴⠟⠀⢀⡀⢀⡾⠀⠀
-⣀⣀⣀⣀⡤⠴⠛⠁⠀⣠⠞⢁⠞⠁⠀⠀
-⠉⠉⠉⠁⠀⠀⢀⣤⠞⢋⡴⠋⠀⠀⠀⠀
-⠀⠠⠔⠒⠢⢤⣀⣤⡖⠋⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⢠⡆⣏⡼⠃⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⢀⣫⠜⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠉⠁⠀""",
-    """⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⢀⠠⠀⠐⠐⢒⠖⠢⠄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠚⠁⠈⠀⠀⠀⠀⠀⠀⠀⡸⠀⠀⠀⠀⠀⠀⠉⠉⠒⢢⡀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠢⣄⣀⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡄⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠈⠁⠀⠄⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⠃⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠝⠉⡇⠉⠉⠹⠁⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⠀⠀⠀⠀⠀⠀⠀⠀⠃⠀⡼⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠨⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⠀⠀⡀⠀⢀⠤⠔⠀⠀⠀⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠎⠀⢠⠁⢠⠇⠀⠀⠀⠀⠀⡴⠀⠀⢸⢰⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢠⠃⢀⡇⠀⠀⠀⠀⠀⠀⠱⠄⠀⠁⠘⡀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠍⠁⠀⠸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠐⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢆⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡠⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠱⡀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢀⡤⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⡄⠀
-⠀⠀⠄⠁⠘⠉⠁⠀⠙⠲⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠘⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⡀
-⢠⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⡁⠀⠀⠀⠀⠀⠀⠀⠀⠀⡹⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡏⠀⠀⠀⣸⠁
-⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠂⠀⠀⠀⠀⠀⠀⡀⠀⠀⡆⠀⠀⠀⠀⠠⠆⠀⠀⠀⠀⠳⠀⠀⡐⠁⠀
-⠀⠑⠆⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢇⠀⢀⠋⢢⡀⠀⠀⠊⠀⠀⠀⠀⠀⢀⡠⠈⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠁⠁⠐⠀⠤⢀⡀⡀⠀⠀⢀⣀⠬⠋⠀⠀⠀⠀⠈⠉⠑⠀⠂⠒⠚⠉⠀⠀⠀⠀⠀⠀""",
-    """Ɑ͞ ̶͞ ̶͞ ̶͞ لں͞""",
-    """( ͜.人 ͜.)""",
-    """（ ͜.人 ͜.）""",
-    "𓂸",
-    "𓀐"
-]
-
 
 """----API Tokens----"""
 DISCORDAPI = os.environ.get("EMMANUELDISCORDAPI")
@@ -212,6 +173,10 @@ detector = NudeDetector()
 
 """Set up Rarfile configurations"""
 rarfile.UNRAR_TOOL = "unar"
+
+
+"""PENDING MANUAL REVIEW CONTENT"""
+PENDINGMANUALREVIEWCONTENT = []
 
 
 """Initialize aiohttp.ClientSession in setUpHook"""
@@ -666,7 +631,7 @@ async def scanningPDFPagesWithLLM(PDFpath: str, modelProvider: Literal["openai",
         inputPromptTokenCount = (await GEMINIclient.aio.models.count_tokens(model=model, contents=[{"inline_data": {"data": base64PDFdata, "mime_type": "application/pdf"}}, f"{systemPrompt}\n{prompt}"])).total_tokens
     print(f"Input Tokens: {inputPromptTokenCount}")
     if inputPromptTokenCount > LLMMODELINFORMATION[model]["Maximum Input Tokens"] or inputPromptTokenCount > LLMMODELINFORMATION[model]["TPM"]:
-        return "MAXIMUM TOKEN LIMIT"
+        return f"NEED MANUAL REVIEW::FILE CONTENT EXCEED {model} TOKEN LIMIT"
     else:
         try:
             if modelProvider == "openai":
@@ -703,6 +668,7 @@ async def scanningPDFPagesWithLLM(PDFpath: str, modelProvider: Literal["openai",
                 totalRawInputTokens = response.usage_metadata.prompt_token_count - totalCachedRead
                 outputPromptTokenCount = response.usage_metadata.total_token_count - response.usage_metadata.prompt_token_count
                 pdfScanResult  = response.text
+            print(f"Output Tokens: {outputPromptTokenCount}")
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
             totalCost = calculateUsageCost(model, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
@@ -713,12 +679,12 @@ async def scanningPDFPagesWithLLM(PDFpath: str, modelProvider: Literal["openai",
             print(f"Rate Limit Error: {RateLimitError}, attempt retry {retryAttempt + 1} in 1 minute")
             if retryAttempt == 3:
                 print("3 retry attempts reached! Abandon scan!")
-                return "MAX RETRY REACHED"
+                return f"NEED MANUAL REVIEW::Model {model} MAX RETRY REACHED"
             await asyncio.sleep(60)
             return await scanningPDFPagesWithLLM(base64PDFdata, "openai", retryAttempt + 1)
         except openai.BadRequestError as BadRequestError:
             print(f"Bad Request Error: {BadRequestError}")
-            return f"BAD REQUEST ERROR"
+            return f"NEED MANUAL REVIEW::Model {model} API BAD REQUEST ERROR {BadRequestError}"
         except openai.APITimeoutError as APITimeoutError:
             print(f"API Timeout Error: {APITimeoutError}, attempt retry {retryAttempt + 1} in 1 minute")
             await asyncio.sleep(60)
@@ -730,7 +696,7 @@ async def scanningPDFPagesWithLLM(PDFpath: str, modelProvider: Literal["openai",
                 return await scanningPDFPagesWithLLM(base64PDFdata, "google-gemini", retryAttempt + 1)
             elif GeminiAPIError.code == 400:
                 print(f"Bad Request Error: {GeminiAPIError.message}")
-                return f"BAD REQUEST ERROR"
+                return f"NEED MANUAL REVIEW::Model {model} BAD REQUEST ERROR {GeminiAPIError.message}"
             else:
                 print(f"API Error ({GeminiAPIError.code}): {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
                 await asyncio.sleep(60)
@@ -761,7 +727,7 @@ async def scanningTextOnlyWithLLM(textToBeScanned: str, modelProvider: Literal["
                     model=model,
                     instructions="You are an NSFW moderator on text messages that may also contains URL",
                     input=textToBeScanned,
-                    max_output_tokens=200,
+                    max_output_tokens=1000,
                     store=False
                 )
                 totalCachedRead = response.usage.input_tokens_details.cached_tokens
@@ -773,13 +739,14 @@ async def scanningTextOnlyWithLLM(textToBeScanned: str, modelProvider: Literal["
                 response = await GEMINIclient.aio.models.generate_content(
                     model=model,
                     contents=textToBeScanned,
-                    config=types.GenerateContentConfig(max_output_tokens=200)
+                    config=types.GenerateContentConfig(max_output_tokens=1000)
                 )
                 totalCachedRead = response.usage_metadata.cached_content_token_count or 0
                 totalCachedWrite = 0
                 totalRawInputTokens = response.usage_metadata.prompt_token_count - totalCachedRead
                 outputPromptTokenCount = response.usage_metadata.total_token_count - response.usage_metadata.prompt_token_count
                 ScanResult = response.text
+            print(f"Output Tokens: {outputPromptTokenCount}")
             cMonth = time.ctime(time.time()).split()[1]
             cDay = time.ctime(time.time()).split()[2]
             totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount)
@@ -843,7 +810,7 @@ async def scanWebContentUsingWebSearchWithGPT(url: str) -> str:
     outputPromptTokenCount = response.usage.output_tokens
     cMonth = time.ctime(time.time()).split()[1]
     cDay = time.ctime(time.time()).split()[2]
-    totalCost = calculateUsageCost(GPTMODELFORTEXTSCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount) + 0.01 # Web Search cost $10/1K request
+    totalCost = calculateUsageCost(GPTMODELFORIMAGESCAN, [totalRawInputTokens, totalCachedRead, totalCachedWrite], outputPromptTokenCount) + 0.01 # Web Search cost $10/1K request
     await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMMonthlyUsage.csv", "a", [f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], MonthlyCSVLock)
     await writingLLMUsageCsv(f"{LLMUSAGELOGDIR}LLMYearlyUsage.csv", "a",[f"{cMonth} {cDay}", inputPromptTokenCount, outputPromptTokenCount, GPTMODELFORTEXTSCAN, totalCost], YearlyCSVLock)
     return response.output_text
@@ -1003,7 +970,7 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
                 await AddingNewNSFWData(hashedMediaContent, "File Conversion Failure - Image Format can't be converted to PNG!")
                 os.remove(mediaPath)
                 print(f"Error: {PNGConversionError}\nError Converting the image format to PNG! Terminating Scan Process!")
-                return True, "File Conversion Failure - Image Format can't be converted to PNG for scan, therefore the content is deleted!"
+                return False, f"NEED MANUAL REVIEW::File Conversion Failure - Image Format can't be converted to PNG for scan, therefore the content is deleted!"
             mediaPath = outPutPNGPath
         else:
             print(f"Image already in PNG or PDF or GIF format!")
@@ -1017,7 +984,7 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
     elif mediaName.endswith(VIDEOFORMATS):
         print(f"Media content is a video file in format .{mediaName.split('.')[1]}!")
         print(f"Checking audio content from the video {mediaName}...")
-        scanResult, scanResultDetails = await NSFWScanAudio(mediaPath, False)
+        scanResult, scanResultDetails = await NSFWScanAudio(mediaPath, True)
         if scanResult:
             print("Video has NSFW audio content!")
             await AddingNewNSFWData(hashedMediaContent, f"NSFW Video - Video has NSFW audio content: {scanResultDetails}")
@@ -1067,6 +1034,9 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
             print("Audio is not clean!")
             await AddingNewNSFWData(hashedMediaContent, scanResultDetails)
             return True, scanResultDetails
+        elif scanResultDetails.startswith("NEED MANUAL REVIEW"):
+            reason = scanResultDetails.split("::")[1]
+            return False, f"NEED MANUAL REVIEW::{reason}"
         else:
             print("Audio is clean!")
             await AddingNewCleanData(hashedMediaContent, scanResultDetails)
@@ -1078,26 +1048,30 @@ async def ScanningMedia(mediaName: str, bytesContent: bytes, hashedMediaContent:
     if pdfPath == "Conversion failed":
         os.remove(mediaPath)
         print("Error converting media content to PDF frames!")
-        return False, ""
+        return False, f"NEED MANUAL REVIEW::Error converting media content to PDF frames!"
     mediaScanResult = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 0)
-    if mediaScanResult.startswith(("Yes", "yes", "YES")):
-        mediaScanResult =  mediaScanResult.strip("Yes, ")
-        if mediaName.endswith(PICTUREFORMATS):
-            mediaScanResult = f"NSFW Image - {mediaScanResult}"
-        elif mediaName.endswith(VIDEOFORMATS):
-            mediaScanResult = f"NSFW Video - {mediaScanResult}"
-        print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
-        await AddingNewNSFWData(hashedMediaContent, mediaScanResult)
-        return True, mediaScanResult
+    if mediaScanResult.startswith("NEED MANUAL REVIEW"):
+        reason = mediaScanResult.split("::")[1]
+        return False, f"NEED MANUAL REVIEW::{reason}"
     else:
-        mediaScanResult = mediaScanResult.strip("No, ")
-        if mediaName.endswith(PICTUREFORMATS):
-            mediaScanResult = f"Clean Image - {mediaScanResult}"
-        elif mediaName.endswith(VIDEOFORMATS):
-            mediaScanResult = f"Clean Video - {mediaScanResult}"
-        print(f"Content is clean!")
-        await AddingNewCleanData(hashedMediaContent, mediaScanResult)
-        return False, mediaScanResult
+        if mediaScanResult.startswith(("Yes", "yes", "YES")):
+            mediaScanResult =  mediaScanResult.strip("Yes, ")
+            if mediaName.endswith(PICTUREFORMATS):
+                mediaScanResult = f"NSFW Image - {mediaScanResult}"
+            elif mediaName.endswith(VIDEOFORMATS):
+                mediaScanResult = f"NSFW Video - {mediaScanResult}"
+            print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
+            await AddingNewNSFWData(hashedMediaContent, mediaScanResult)
+            return True, mediaScanResult
+        else:
+            mediaScanResult = mediaScanResult.strip("No, ")
+            if mediaName.endswith(PICTUREFORMATS):
+                mediaScanResult = f"Clean Image - {mediaScanResult}"
+            elif mediaName.endswith(VIDEOFORMATS):
+                mediaScanResult = f"Clean Video - {mediaScanResult}"
+            print(f"Content is clean!")
+            await AddingNewCleanData(hashedMediaContent, mediaScanResult)
+            return False, mediaScanResult
 
 
 def ArchivesBombAnalysisAndExtraction(filePath: list, archiveLayer: int=0) -> bool:
@@ -1510,7 +1484,7 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
         print("The Archive File is flagged as potential archive bomb!")
         return True, "Archive File - Potential Archive Bomb!"
     TempDir = f"{MAINDOWNLOADDIR}{archiveFileName.split('.')[0]}"
-    print(f"Scanning content in temp directory: {TempDir}...\n\n")
+    print(f"Scanning content in temp directory: {TempDir}...")
     for dirpath, _, filenames in os.walk(TempDir):
         for filename in filenames:
             filepath = os.path.join(dirpath, filename)
@@ -1541,8 +1515,9 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                             print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
                             await AddingNewNSFWData(hashedFileContent, scanResultDetails)
                         else:
+                            if not scanResultDetails.startswith("NEED MANUAL REVIEW"):
+                                await AddingNewCleanData(hashedFileContent, "Document file text is clean!")
                             scanResult = False
-                            await AddingNewCleanData(hashedFileContent, "Document file text is clean!")
                     else:
                         scanResult, scanResultDetails = await ScanningMedia(filepath, b'0x00', hashedFileContent, True)
                     if scanResult:
@@ -1550,6 +1525,9 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
                         shutil.rmtree(TempDir)
                         await AddingNewNSFWData(hashedArchiveFileData, f"File content {filename} in Archive file was flagged NSFW! Reason: {scanResultDetails}")
                         return True, f"NSFW Archive Content - File content {filename} in Archive file was flagged NSFW! Reason: {scanResultDetails}"
+                    elif scanResultDetails.startswith("NEED MANUAL REVIEW"):
+                        shutil.rmtree(TempDir)
+                        return False, scanResultDetails
                     print("\n\n")
     print(f"Archive content is clean!")
     await AddingNewCleanData(hashedArchiveFileData, "Archive contents passed the check!")
@@ -1557,11 +1535,11 @@ async def ArchiveFileScan(archiveFileName: str, bytesContent: bytes, hashedArchi
     return False, ""
 
 
-async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  # Return True if Audio is NSFW!
+async def NSFWScanAudio(audioPath: str, video: bool=False) -> Tuple[bool, str]:  # Return True if Audio is NSFW!
     """
     Description: NSFW scan for audio file
     :param audioPath: Path to audio file on disk
-    :param delete: Specify to delete the audio file or not
+    :param video: Is this an audio of a video?
     :return: Scan result and reason
     """
     audioName = os.path.basename(audioPath).split('.')[0]
@@ -1571,14 +1549,14 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
         waveFilePath = f"{os.path.dirname(audioPath)}/{audioName}.wav"
         try:
             await asyncio.to_thread(subprocess.run, ["ffmpeg", "-i", audioPath, "-acodec", "pcm_s16le", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-            if delete:
-                os.remove(audioPath)
             print("WAV conversion successful!")
+            if not video:
+                os.remove(audioPath)
         except Exception as ConversionToWavAudioError:
-            if delete:
+            if not video:
                 print(f"Error {ConversionToWavAudioError}")
                 os.remove(audioPath)
-                return True, "File Conversion Failure - Can not convert audio file to WAV format!"
+                return False, "NEED MANUAL REVIEW::File Conversion Failure - Can not convert audio file to WAV format!"
             else:
                 print(f"Error {ConversionToWavAudioError} while extracting audio from the video! Proceeding to scan video content...")
                 return False, ""
@@ -1594,8 +1572,7 @@ async def NSFWScanAudio(audioPath: str, delete:bool=True) -> Tuple[bool, str]:  
     except Exception as Error:
         print(f"GPT can not transcribe the audio: {Error}")
         os.remove(waveFilePath)
-        scanResultDetails = "Audio is not transcribable"
-        return False, f"Clean Audio Transcript - {scanResultDetails}"
+        return False, f"NEED MANUAL REVIEW::Clean Audio Transcript - Audio is not transcribable by gpt-4o-transcribe"
 
     print(f"Words detected from audio file: {transcription.text}")
     os.remove(waveFilePath)
@@ -1659,20 +1636,13 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
             if match:
                 newNSFWsubreddit = match.group(1).replace('/r/', '')
                 BlackListSubreddits.add(newNSFWsubreddit)
-                async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
+                async with aiofiles.open(BLACKLISTSUBREDDITS, "a") as file:
                     await file.write(newNSFWsubreddit + '\n')
         if URL:
             return True, "URL contains keywords in Emmanuel default NSFW wordlist!"
         else:
             return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
-
-    if not URL:
-        for text in SPECIALTEXT:
-            if text in checkMessage:
-                print("Special NSFW character detected!")
-                return True, "Message contains keywords in Emmanuel default NSFW wordlist!"
     print("Profanity Library did not detect, starting LLM scan...")
-    
     scanResult = await scanningTextOnlyWithLLM(
         f"# ASK\n"
         f"Analyze the following message and identify any vulgar or inappropriate words.\n"
@@ -1682,6 +1652,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
         f"1. Consider the context—only, flag words as NSFW if they are being used in an inappropriate or sexual manner or even give hint to it.\n"
         f"2. Taking into measure the text could be written in other language than English.\n"
         f"3. Consider text may be letter emoji or contains a sequence of emojis that can hint NSFW.\n"
+        f"4. Check wether the text can be a form of ASCII / Braille art. If it is, then ensure the art does not depict any NSFW content.\n"
         f"# RESPONSE FORMAT\n"
         f"Response MUST start with a Yes or No! **IF AND ONLY IF** IT'S a YES, follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!\n"
         f"DO NOT explain the reason, if the response is No!"
@@ -1693,7 +1664,7 @@ async def NSFWscanMessage(checkMessage: str, URL: bool=False) -> Tuple[bool, str
             if match:
                 newNSFWsubreddit = match.group(1).replace('/r/', '')
                 BlackListSubreddits.add(newNSFWsubreddit)
-                async with aiofiles.open(os.environ.get("EMMANUELBLACKLISTSUBREDDITS"), "a") as file:
+                async with aiofiles.open(BLACKLISTSUBREDDITS, "a") as file:
                     await file.write(newNSFWsubreddit + '\n')
         return True, scanResult.strip("Yes,")
     print("LLM scan result is clean!")
@@ -2151,6 +2122,29 @@ async def uncensored_channels(ctx):
             await ctx.followup.send("You're not the Server Owner, this command is for the Owner ONLY!")
 
 
+@Emmanuel.tree.command(
+    name="update_emmanuel_scan_database",
+    description="Update Emmanuel scan database after the manual review of the content"
+)
+@app_commands.describe(sha_512="Provide the SHA512 hash", nsfw="Is the content NSFW or not?", reason="Provide a details reason")
+async def update_emmanuel_scan_database(ctx, sha_512: str, nsfw: Literal["No", "Yes"], reason: str):
+    await ctx.response.defer(ephemeral=True)
+    if not str(ctx.channel.type).startswith("private"):
+        if ctx.user.id not in [ctx.guild.owner.id, OWNER_DISCORD_USER_ID]:
+            await ctx.followup.send("You're not the Server Owner, this command is for the Owner ONLY!")
+            return
+    if sha_512 in PENDINGMANUALREVIEWCONTENT:
+        PENDINGMANUALREVIEWCONTENT.remove(sha_512)
+        if nsfw == "No":
+            await AddingNewCleanData(sha_512, reason)
+            await ctx.followup.send("The provided SHA-512 hash has been updated as clean in Emmanuel scan database!")
+        else:
+            await AddingNewNSFWData(sha_512, reason)
+            await ctx.followup.send("The provided SHA-512 hash has been updated as NSFW in Emmanuel scan database!")
+    else:
+        await ctx.followup.send("There is no matching SHA-512 hash in Emmanuel pending manual review list!")
+
+
 async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, before:discord.message.Message|None=None):
     global FILEDOWNLOADCOUNTER
     # Prioritize Executing commands first!
@@ -2229,6 +2223,7 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
 
                     """Checking if URl is in the clean list or already flagged NSFW"""
                     print(f"URL in SHA512 format: {BasedURLToSave}")
+                    urlAccessValidation = False
                     if BasedURLToSave in CLEANData.keys():
                         print("The URL already passed the check as clean!")
                     else:
@@ -2307,25 +2302,9 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                             except Exception as URLQueryError:
                                 statuscode = 403
                                 print(f"Error getting URL: {URLQueryError}.")
-                                if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
-                                    await message.delete()
-                                    logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!"
-                                    try:
-                                        await message.author.send(f"The Discord Attachment URL <{URL}> is not presigned and can not be scanned! If I can not scan a Discord URL, I will not trust it to be cleaned!")
-                                        logUserAction += f"\nExplanation message was sent to user to inform why the user message was deleted\n\n"
-                                    except Exception as error:
-                                        logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
-                                    await writingLog(logUserAction)
-                                    # Advance scan previous message for profanity!
-                                    await AdvanceBackTrackMessageScan(message)
-                                    print("Message Content Scan Process Finished!\n\n")
-                                    if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
-                                        del CURRENTSCANOPERATION[BasedURLToSave]
-                                    return
-                                else:
-                                    logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
                             if statuscode == 200:
                                 print(f"URL is valid!")
+                                urlAccessValidation = True
                                 """Analyzing if URL content is an image, video, audio, or archive file"""
                                 """Checking URL content already been scanned"""
                                 hashedURLContent = hashlib.sha512(UrlContent).hexdigest()
@@ -2383,13 +2362,12 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                                     UrlContentNSFWResultDetails = await scanningPDFPagesWithLLM(pdfPath, "google-gemini", 1)
                                                     if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
                                                         UrlContentNSFWResult = True
-                                                    else:
-                                                        if UrlContentNSFWResultDetails == "MAXIMUM TOKEN LIMIT":
-                                                            UrlContentNSFWResultDetails = await scanWebContentUsingWebSearchWithGPT(URL)
-                                                            if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
-                                                                UrlContentNSFWResult = True
-                                                            else:
-                                                                UrlContentNSFWResult = False
+                                                    elif UrlContentNSFWResultDetails.startswith("NEED MANUAL REVIEW"):
+                                                        UrlContentNSFWResultDetails = await scanWebContentUsingWebSearchWithGPT(URL)
+                                                        if UrlContentNSFWResultDetails.startswith(("Yes", "yes", "YES")):
+                                                            UrlContentNSFWResult = True
+                                                        else:
+                                                            UrlContentNSFWResult = False
                                                     if UrlContentNSFWResult:
                                                         UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.strip("Yes, ")
                                                         UrlContentNSFWResultDetails = f"NSFW message content in file - {UrlContentNSFWResultDetails}"
@@ -2400,8 +2378,23 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                                 else:
                                                     UrlContentNSFWResult, UrlContentNSFWResultDetails = await ScanningMedia(URLContentName, UrlContent, BasedURLToSave)
                                         else:
+                                            print("URL content format outside scope of scan")
                                             logUserAction += f"\nURL {URL} content is a file extension {URLContentExt} outside of Emmanuel scope of scan"
-                                            await AddingNewCleanData(BasedURLToSave,"URL link is clean or URL content is not in Emmanuel scannable file formats!")
+                                            file = discord.File(fp=BytesIO(UrlContent), filename=f"NeedManualReview{URLContentName}")
+                                            try:
+                                                owner = await Emmanuel.fetch_user(message.channel.guild.owner.id)
+                                                await owner.send("# NEED MANUAL REVIEW\n"
+                                                                 f"**URL**: {URL}\n"
+                                                                 f"**From Channel**: {message.guild.name} - ID ({message.guild.id})\n"
+                                                                 f"**From User**: {message.author.name} - ID ({message.author.id})\n"                                                                
+                                                                 "**Reason**: File format outside scope of scan\n"
+                                                                 f"**Details**: The URL content format {URLContentExt} is outside of Knight Emmanuel scope of analysis\n"
+                                                                 f"**Content SHA-512 Hash**: {BasedURLToSave}\n"
+                                                                 f"**NOTE**: Please use /update_emmanuel_scan_database with the content hash after review!!!", file=file)
+                                                if not BasedURLToSave in PENDINGMANUALREVIEWCONTENT:
+                                                    PENDINGMANUALREVIEWCONTENT.append(BasedURLToSave)
+                                            except Exception as error:
+                                                print(f"Encounter error while notifying the server owner about content need manual review, {error}")
                                         print("Scan Process Finished!\n\n")
                                         if UrlContentNSFWResult:
                                             await message.delete()
@@ -2417,8 +2410,33 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                             if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
                                                 del CURRENTSCANOPERATION[BasedURLToSave]
                                             return
+                                        elif UrlContentNSFWResultDetails.startswith("NEED MANUAL REVIEW"):
+                                            UrlContentNSFWResultDetails = UrlContentNSFWResultDetails.split("::")
+                                            errorReason = UrlContentNSFWResultDetails[1]
+                                            file = discord.File(fp=BytesIO(UrlContent), filename="NeedManualReview")
+                                            try:
+                                                owner = await Emmanuel.fetch_user(message.channel.guild.owner.id)
+                                                await owner.send("# NEED MANUAL REVIEW\n"
+                                                                 f"**Url**: {URL}\n"
+                                                                 f"**From Channel**: {message.guild.name} - ID ({message.guild.id})\n"
+                                                                 f"**From User**: {message.author.name} - ID ({message.author.id})\n"                                                                
+                                                                 "**Reason**: Knight Emmanuel encounter an error while scanning\n"
+                                                                 f"**Details**: {errorReason}\n"
+                                                                 f"**Content SHA-512 Hash**: {BasedURLToSave}\n"
+                                                                 f"**NOTE**: Please use /update_emmanuel_scan_database with the content hash after review!!!", file=file)
+                                                if not BasedURLToSave in PENDINGMANUALREVIEWCONTENT:
+                                                    PENDINGMANUALREVIEWCONTENT.append(BasedURLToSave)
+                                            except Exception as error:
+                                                print(f"Encounter error while notifying the server owner about content need manual review, {error}")
+                                            logUserAction += "\nURL content is pending for manual review!\n\n"
+                                            await writingLog(logUserAction)
+                                            await AdvanceBackTrackMessageScan(message)
+                                            if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
+                                                del CURRENTSCANOPERATION[BasedURLToSave]
+                                            return
                             else:
                                 print(f"URL is invalid with status code: {statuscode}")
+                            if not urlAccessValidation:
                                 if URL.startswith(("https://cdn.discordapp.com/attachments/", "https://media.discordapp.net/attachments/")):
                                     await message.delete()
                                     logUserAction += f"\nMessage is deleted for having a discord attachment URL {URL} can not be scanned!"
@@ -2436,6 +2454,21 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                     return
                                 else:
                                     logUserAction += f"\nNOTE: URL {URL} from message can not be scanned!"
+                                    try:
+                                        owner = await Emmanuel.fetch_user(message.channel.guild.owner.id)
+                                        await owner.send("# NEED MANUAL REVIEW\n"
+                                                         f"**URL**: {URL}\n"
+                                                         f"**From Channel**: {message.guild.name} - ID ({message.guild.id})\n"
+                                                         f"**From User**: {message.author.name} - ID ({message.author.id})\n"                                                                
+                                                         "**Reason**: Can not retrieve URL content\n"
+                                                         f"**Details**: The URL content can't be accessed by Knight Emmanuel!\n"
+                                                         f"**URL SHA-512 Hash**: {BasedURLToSave}\n"
+                                                         f"**NOTE**: Please use /update_emmanuel_scan_database with the content hash after review!!!")
+                                        if not BasedURLToSave in PENDINGMANUALREVIEWCONTENT:
+                                            PENDINGMANUALREVIEWCONTENT.append(BasedURLToSave)
+                                    except Exception as error:
+                                        print(f"Encounter error while notifying the server owner about content need manual review, {error}")
+
                     if CURRENTSCANOPERATION.get(BasedURLToSave, ""):
                         del CURRENTSCANOPERATION[BasedURLToSave]
 
@@ -2459,6 +2492,7 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                 else:
                     print("Message text content is clean!")
             print("Message Text Content Scan Process Finished!\n\n")
+
         if not isEdit:
             if message.attachments:  # Checking for message attachment content only
                 print("Begin Message Attachment Scan!")
@@ -2548,14 +2582,29 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                             attachmentNSFWResultDetails = f"NSFW message content in file - {attachmentNSFWResultDetails}"
                                             print(f"Content flagged NSFW by {GEMINIMODELFORIMAGESCAN}")
                                             await AddingNewNSFWData(hashedAttachmentContent, attachmentNSFWResultDetails)
-                                        else:
+                                        elif not attachmentNSFWResultDetails.startswith("NEED MANUAL REVIEW:"):
                                             attachmentNSFWResult = False
                                             await AddingNewCleanData(hashedAttachmentContent, "Document file text is clean!")
                                     else:
                                         attachmentNSFWResult, attachmentNSFWResultDetails  = await ScanningMedia(AttachmentFileName, attachmentContent, hashedAttachmentContent)
                                 else:
+                                    print("Attachment file format outside scope of scan")
                                     logUserAction += f"\nAttachment content is a file extension {attachmentFileExt} outside of Emmanuel scope of scan"
-                                    await AddingNewCleanData(hashedAttachmentContent,"Attachment content is not in Emmanuel scannable file formats!")
+                                    file = discord.File(fp=BytesIO(attachmentContent), filename=f"NeedManualReview{attachment.filename}")
+                                    try:
+                                        owner = await Emmanuel.fetch_user(message.channel.guild.owner.id)
+                                        await owner.send("# NEED MANUAL REVIEW\n"
+                                                         f"**Attachment Name**: {attachment.filename}\n"
+                                                         f"**From Channel**: {message.guild.name} - ID ({message.guild.id})\n"
+                                                         f"**From User**: {message.author.name} - ID ({message.author.id})\n"                                                                
+                                                         "**Reason**: File format outside scope of scan\n"
+                                                         f"**Details**: The attachment file format {attachmentFileExt} is outside of Knight Emmanuel scope of analysis\n"
+                                                         f"**Content SHA-512 Hash**: {hashedAttachmentContent}\n"
+                                                         f"**NOTE**: Please use /update_emmanuel_scan_database with the content hash after review!!!", file=file)
+                                        if not hashedAttachmentContent in PENDINGMANUALREVIEWCONTENT:
+                                            PENDINGMANUALREVIEWCONTENT.append(hashedAttachmentContent)
+                                    except Exception as error:
+                                        print(f"Encounter error while notifying the server owner about content need manual review, {error}")
                                 print("Scan Process Finished!\n\n")
                                 if attachmentNSFWResult:
                                     await message.delete()
@@ -2567,6 +2616,30 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                                         logUserAction += f"\nError occur while sending message to user: {error}\nEmmanuel can not send message to inform user why the message was deleted!!!\n\n"
                                     await writingLog(logUserAction)
                                     # Advance scan previous message for profanity!
+                                    await AdvanceBackTrackMessageScan(message)
+                                    if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
+                                        del CURRENTSCANOPERATION[hashedAttachmentContent]
+                                    return
+                                elif attachmentNSFWResultDetails.startswith("NEED MANUAL REVIEW"):
+                                    attachmentNSFWResultDetails = attachmentNSFWResultDetails.split("::")
+                                    errorReason = attachmentNSFWResultDetails[1]
+                                    file = discord.File(fp=BytesIO(attachmentContent), filename=f"NeedManualReview{attachment.filename}")
+                                    try:
+                                        owner = await Emmanuel.fetch_user(message.channel.guild.owner.id)
+                                        await owner.send("# NEED MANUAL REVIEW\n"
+                                                         f"**Attachment Name**: {attachment.filename}\n"
+                                                         f"**From Channel**: {message.guild.name} - ID ({message.guild.id})\n"
+                                                         f"**From User**: {message.author.name} - ID ({message.author.id})\n"                                                                
+                                                         "**Reason**: Knight Emmanuel encounter an error while scanning\n"
+                                                         f"**Details**: {errorReason}\n"
+                                                         f"**Content SHA-512 Hash**: {hashedAttachmentContent}\n"
+                                                         f"**NOTE**: Please use /update_emmanuel_scan_database with the content hash after review!!!", file=file)
+                                        if not hashedAttachmentContent in PENDINGMANUALREVIEWCONTENT:
+                                            PENDINGMANUALREVIEWCONTENT.append(hashedAttachmentContent)
+                                    except Exception as error:
+                                        print(f"Encounter error while notifying the server owner about content need manual review, {error}")
+                                    logUserAction += "\nAttachment content is pending for manual review!\n\n"
+                                    await writingLog(logUserAction)
                                     await AdvanceBackTrackMessageScan(message)
                                     if CURRENTSCANOPERATION.get(hashedAttachmentContent, ""):
                                         del CURRENTSCANOPERATION[hashedAttachmentContent]

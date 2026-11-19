@@ -37,11 +37,10 @@ This repository contains three independently deployable Discord bots, each desig
 │   │   └── WordLists/
 │   │       ├── CleanData.json              # SHA-512 hashes of file content verified as clean
 │   │       ├── NSFWData.json               # SHA-512 hashes of file content flagged as NSFW
-│   │       ├── BlackListPornSites.txt       # Blocklist of known adult content domains
+│   │       ├── BlackListPornSites.txt      # Blocklist of known adult content domains
 │   │       ├── NSFWSubreddits.txt          # Blocklist of known NSFW subreddit communities
-│   │       └── ProfanityLibWordList.txt     # Customizable profane word reference list
-│   └── PythonScripts/
-│       └── KnightEmmanuel.py               # Primary source code (inline documentation included)
+│   │       └── ProfanityLibWordList.txt    # Customizable profane word reference list
+│   └── PythonScripts/                      # Primary source code (inline documentation included)
 │
 ├── KnightNexus/                            # Cryptography Utilities Bot
 │   ├── KnightNexus.py                      # Primary source code
@@ -78,52 +77,52 @@ This repository contains three independently deployable Discord bots, each desig
 | Dependency | Version | Source |
 |-----------|---------|--------|
 | Python | `>= 3.11.0` | [python.org](https://www.python.org/downloads) |
-| better-profanity | `== 0.7.0` | [GitHub](https://github.com/snguyenthanh/better_profanity) |
-| discord-py | `== 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
-| python-dotenv | `== 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
-| filetype | `== 1.2.0` | [GitHub](https://github.com/h2non/filetype.py) |
-| nudenet | `== 3.4.2` | [GitHub](https://github.com/notAI-tech/nudenet) |
-| openai | `== 2.51.0` | [GitHub](https://github.com/openai/openai-python) |
-| opencv-python | `== 4.13.0.92` | [GitHub](https://github.com/opencv/opencv-python) |
-| pillow | `== 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
-| python-magic | `== 0.4.27` | [GitHub](https://github.com/ahupp/python-magic) |
-| rarfile | `== 4.2` | [GitHub](https://github.com/markokr/rarfile) |
-| requests | `== 2.32.4` | [docs.python-requests.org](https://requests.readthedocs.io) |
-| selenium-wire-2 | `== 0.2.1` | [GitHub](https://github.com/7x11x13/selenium-wire-2) |
-| blinker | `== 1.9.0` | [GitHub](https://github.com/pallets-eco/blinker) |
-| webdriver-manager | `== 4.0.2` | [GitHub](https://github.com/SergeyPirogov/webdriver_manager) |
-| aiofiles | `== 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |
-| aiocsv | `== 1.4.0` | [GitHub](https://github.com/MKuranowski/aiocsv) |
-| numpy | `== 2.4.4` | [numpy.org](https://numpy.org) |
-| pandas | `== 3.0.2` | [pandas.pydata.org](https://pandas.pydata.org) |
-| matplotlib | `== 3.10.8` | [matplotlib.org](https://matplotlib.org) |
-| fpdf | `== 1.7.2` | [GitHub](https://github.com/reingart/pyfpdf) |
-| ffmpeg | `== 7.1.1` | [ffmpeg.org](https://www.ffmpeg.org/download.html) |
+| better-profanity | `>= 0.7.0` | [GitHub](https://github.com/snguyenthanh/better_profanity) |
+| discord-py | `>= 2.5.2` | [GitHub](https://github.com/Rapptz/discord.py) |
+| python-dotenv | `>= 1.2.2` | [GitHub](https://github.com/theskumar/python-dotenv) |
+| filetype | `>= 1.2.0` | [GitHub](https://github.com/h2non/filetype.py) |
+| nudenet | `>= 3.4.2` | [GitHub](https://github.com/notAI-tech/nudenet) |
+| openai | `>= 2.51.0` | [GitHub](https://github.com/openai/openai-python) |
+| opencv-python | `>= 4.13.0.92` | [GitHub](https://github.com/opencv/opencv-python) |
+| pillow | `>= 11.3.0` | [python-pillow.github.io](https://python-pillow.github.io) |
+| python-magic | `>= 0.4.27` | [GitHub](https://github.com/ahupp/python-magic) |
+| rarfile | `>= 4.2` | [GitHub](https://github.com/markokr/rarfile) |
+| requests | `>= 2.32.4` | [docs.python-requests.org](https://requests.readthedocs.io) |
+| selenium-wire-2 | `>= 0.2.1` | [GitHub](https://github.com/7x11x13/selenium-wire-2) |
+| blinker | `>= 1.9.0` | [GitHub](https://github.com/pallets-eco/blinker) |
+| webdriver-manager | `>= 4.0.2` | [GitHub](https://github.com/SergeyPirogov/webdriver_manager) |
+| aiofiles | `>= 25.1.0` | [GitHub](https://github.com/Tinche/aiofiles) |
+| aiocsv | `>= 1.4.0` | [GitHub](https://github.com/MKuranowski/aiocsv) |
+| numpy | `>= 2.4.4` | [numpy.org](https://numpy.org) |
+| pandas | `>= 3.0.2` | [pandas.pydata.org](https://pandas.pydata.org) |
+| matplotlib | `>= 3.10.8` | [matplotlib.org](https://matplotlib.org) |
+| fpdf | `>= 1.7.2` | [GitHub](https://github.com/reingart/pyfpdf) |
+| pypdf | `>= 7.1.0` | [pypi.org](https://pypi.org/project/pypdf/) |
+| ffmpeg | `>= 7.1.1` | [ffmpeg.org](https://www.ffmpeg.org/download.html) |
 | **Discord API Key** | N/A | [Discord Developer Portal](https://docs.discord.com/developers/reference) |
-| **Tenor API Key** | N/A | [Tenor GIF API](https://tenor.com/gifapi/documentation) |
 | **Klipy API Key** | N/A | [Klipy](https://klipy.com) |
+| **Giphy API Key** | N/A | [Giphy](https://developers.giphy.com) |
 | **ScrapeOps API Key** | N/A | [ScrapeOps](https://scrapeops.io) |
 | **OpenAI API Key** | N/A | [OpenAI Platform](https://openai.com/api/) |
+| **Gemini API Key** | N/A | [Google AI Studio](https://aistudio.google.com/welcome) |
 
 ---
 
 ### Key Features
 
-1. **Profanity Detection** — Scans message text content and ASCII content embedded in document file attachments for profane language using `better_profanity` and OpenAI GPT model verification.
+1. **Profanity Detection** — Scans message text content and ASCII content embedded in document file attachments for profane language using `better_profanity` and OpenAI GPT or Google Gemini model verification.
 
-2. **Image & Video NSFW Analysis** — Leverages Pillow and OpenCV to convert images and video frames to PNG format for NudeNet model inference. If no violations are detected, frames are converted to PDF and submitted to the OpenAI Vision API for secondary analysis.
+2. **Image & Video NSFW Analysis** — Leverages Pillow and OpenCV to convert images and video frames to PNG format for NudeNet model inference. If no violations are detected, frames are converted to PDF and submitted to the OpenAI or Gemini Vision API for secondary analysis.
 
-3. **Audio Transcript NSFW Analysis** — Extracts audio transcripts from audio file attachments using the **OpenAI GPT-4o Transcribe** model and evaluates the transcript for NSFW content.
+3. **Audio Transcript NSFW Analysis** — Extracts audio transcripts from audio file attachments using the **OpenAI gpt-transcribe** or **Gemini gemini-3.5-transcribe** model and evaluates the transcript for NSFW content.
 
-4. **Archive Bomb Detection & Extraction** — Inspects archive file attachments for decompression bomb patterns prior to extraction, then recursively scans all extracted content for NSFW material.
+4. **Archive/Disk Image Bomb Detection & Extraction** — Inspects archive/disk file attachments for decompression bomb patterns prior to extraction, then recursively scans all extracted content for NSFW material.
 
 5. **SHA-512 Hash Signature Store** — Maintains a persistent hash record of all previously scanned file content to enable instantaneous verdict lookups without redundant re-analysis.
 
 6. **Comprehensive Event Logging** — Records detailed timestamped logs of all content monitoring events performed by Knight Emmanuel.
 
-7. **Authenticated Web Content Retrieval** — Utilizes Selenium Wire in conjunction with ScrapeOps fake browser headers to retrieve website HTML content for NSFW analysis, bypassing common bot-detection mechanisms.
-
-8. **Tenor & Klipy GIF Integration** — Supports authenticated retrieval and scanning of GIF content from Tenor and Klipy platforms.
+7. **Tenor, Klipy & Giphy GIF Integration** — Supports authenticated retrieval and scanning of GIF content from Tenor, Klipy and Giphy platforms.
 
 9. **Server Owner Access Control Commands** — Provides application commands enabling the server or bot owner to configure which members and channels are subject to Emmanuel's monitoring.
 
@@ -137,7 +136,7 @@ This repository contains three independently deployable Discord bots, each desig
 |---------|-------------|-------------|
 | `/emmanuel` | All Members | Displays an introduction to the bot and its purpose |
 | `/clear_emmanuel_dm_messages` | All Members | Clears all Knight Emmanuel direct messages from the user's DM channel |
-| `/list_supported_file` | All Members | Displays all file formats supported by Emmanuel's content analysis pipeline |
+| `/list_supported_file` | Server / Bot Owner | Displays all file formats supported by Emmanuel's content analysis pipeline |
 | `/uncensored_members` | Server / Bot Owner | Lists all server members currently on the server's uncensored allowlist |
 | `/add_uncensored_member` | Server / Bot Owner | Adds a server member to the uncensored allowlist, exempting them from content monitoring |
 | `/remove_uncensored_member` | Server / Bot Owner | Removes a server member from the uncensored allowlist |
@@ -152,8 +151,7 @@ This repository contains three independently deployable Discord bots, each desig
 | # | Limitation |
 |---|-----------|
 | 1 | Content analysis is restricted to file formats explicitly supported by the scanning pipeline |
-| 2 | File content exceeding the OpenAI input token limit for the configured model will not be scanned and will receive a clean verdict by default |
-| 3 | Image, video, and archive file analysis throughput is subject to processing latency depending on file size and host hardware |
+| 2 | Image, video, and archive file analysis throughput is subject to processing latency depending on file size and host hardware |
 
 ---
 

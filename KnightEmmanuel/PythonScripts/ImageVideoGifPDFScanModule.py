@@ -64,7 +64,12 @@ def _segmentPDFToBase64(PDFReader: PdfReader, PDFPageCount: int, pagesPerSegment
         print(f"Encountering error while segmenting the PDF pages: {e}")
         return {}
 
+'''
+IMPORTANT NOTE:
 
+OpenAI only accept up to 50 MB file data per Response API request.
+Google Gemini accept up to 100 MB file data per Interactions API request. For PDF, it's only 50 MB and 1,000 pages.
+'''
 async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, str]:
     """
     Description: Scanning PDF frames with a selected LLM model
@@ -73,26 +78,6 @@ async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, st
     :return: Scan result and the updated log message
     """
     logMessage += f"\t + **Begin Scanning PDF pages with {LLM_MODEL_FOR_IMAGE_SCAN}**\n"
-    PDFBase64Datas = {}
-    PDFsize = await asyncio.to_thread(os.path.getsize, pdfPath)
-    PDFReader = await asyncio.to_thread(PdfReader, pdfPath, strict=False)
-    PDFPageCount = len(PDFReader.pages)
-    logMessage += (f"\t\t + **PDF Total Size:** {PDFsize:,} bytes\n"
-                   f"\t\t + **PDF Total Pages:** {PDFPageCount:,} pages\n")
-    if PDFsize > 50000000 or PDFPageCount > 1000:
-        if PDFsize > 50000000:
-            print("PDF file size exceeds 50 MB!")
-            logMessage += f"\t\t + **PDF File Size exceed 50 MB, scanning PDF by 200 page segments**\n"
-        else:
-            print("PDF pages exceed 1000 pages!")
-            logMessage += f"\t\t + **PDF Total Pages exceed 1,000 pages, scanning PDF by 200 page segments**\n"
-        PDFBase64Datas = await asyncio.to_thread(_segmentPDFToBase64, PDFReader, PDFPageCount)
-    else:
-        print("Processing file as inline base64 data")
-        async with aiofiles.open(pdfPath, "rb") as PDFfile:
-            PDFBase64Datas["Full PDF Pages"] = (await asyncio.to_thread(base64.b64encode, await PDFfile.read())).decode('utf-8')
-
-    print(f"Start scanning PDF frames with LLM model {LLM_MODEL_FOR_IMAGE_SCAN}")
     systemPrompt = "You are an NSFW content moderator"
     prompt = ("# ASK\n"
               "Is the following PDF pages have any nude elements, vulgar language, hateful slur, sexual theme, the exposure of animal genitalia,"
@@ -102,11 +87,80 @@ async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, st
               "# RESPONSE FORMAT\n"
               "Response MUST start with a Yes or No then follow by a COMMA and EXPLAIN the reason NO MORE THAN 30 WORDS!"
               )
+    PDFBase64Datas = {}
+    PDFsize = await asyncio.to_thread(os.path.getsize, pdfPath)
+    PDFReader = await asyncio.to_thread(PdfReader, pdfPath, strict=False)
+    PDFPageCount = len(PDFReader.pages)
+    logMessage += (f"\t\t + **PDF Total Size:** {PDFsize:,} bytes\n"
+                   f"\t\t + **PDF Total Pages:** {PDFPageCount:,} pages\n")
+    segmentPDF = False
+    if PDFsize > 50000000 or PDFPageCount > 1000:
+        segmentPDF = True
+        if PDFsize > 50000000:
+            print("PDF file size exceeds 50 MB!")
+            logMessage += f"\t\t + **PDF File Size exceed 50 MB, scanning PDF by page segments**\n"
+        else:
+            print("PDF pages exceed 1000 pages!")
+            logMessage += f"\t\t + **PDF Total Pages exceed 1,000 pages, scanning PDF by page segments**\n"
+
+    print(f"Checking if request will exceed {LLM_MODEL_FOR_IMAGE_SCAN} context windows...")
+    async with aiofiles.open(pdfPath, "rb") as PDFfile:
+        PDFBase64Data = (await asyncio.to_thread(base64.b64encode, await PDFfile.read())).decode('utf-8')
+        await PDFfile.seek(0)
+        if LLM_MODEL_PROVIDER == "openai":
+            inputTokenCountRequestQuery = [{"role": "user", "content": [{"type": "input_file", "filename": f"{uuid.uuid4().hex[0:5]}.pdf", "file_data": f"data:application/pdf;base64,{PDFBase64Data}"}, {"type": "input_text", "text": prompt}]}]
+            inputPromptTokenCount = (await LLM_ENGINE.responses.input_tokens.count(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=inputTokenCountRequestQuery)).input_tokens
+        else:
+            inputTokenCountRequestQuery = types.Content(role="user", parts=[types.Part.from_bytes(data= await PDFfile.read(), mime_type="application/pdf"), types.Part.from_text(text=f"{systemPrompt}\n{prompt}")])
+            inputPromptTokenCount = (await LLM_ENGINE.aio.models.count_tokens(model=LLM_MODEL_FOR_IMAGE_SCAN, contents=inputTokenCountRequestQuery)).total_tokens
+    print(f"Pre-Request Input Tokens: {inputPromptTokenCount}")
+    logMessage += f"\t\t + **Pre-Request Input Token Count:** `{inputPromptTokenCount:,} tokens`\n"
+    if inputPromptTokenCount > LLM_MODEL_INFORMATION[LLM_MODEL_FOR_IMAGE_SCAN]["Maximum Input Tokens"]:
+        segmentPDF = True
+        print(f"Request inputs will exceed {LLM_MODEL_FOR_IMAGE_SCAN} context windows!")
+        logMessage += f"\t\t + **Input Token Count Exceed {LLM_MODEL_FOR_IMAGE_SCAN} Context Window, scanning PDF by page segments**\n"
+
+    if segmentPDF:
+        print("Begin finding the most optimized PDF segment value for partial scan!")
+        contextWindowLimit = LLM_MODEL_INFORMATION[LLM_MODEL_FOR_IMAGE_SCAN][ "Maximum Input Tokens"]
+        pageSegment = PDFPageCount
+        segmentSize = PDFsize
+        while inputPromptTokenCount >= contextWindowLimit or pageSegment > 1000 or segmentSize > 50000000:
+            pageSegment = math.floor(pageSegment * 0.9)
+            print(f"Testing PDF segment value of {pageSegment} pages")
+            logMessage += f"\t\t + **Testing Input Token Count For Segment Value {pageSegment}**\n"
+            PDFWriter = PdfWriter()
+            for pageIndex in range(0, pageSegment):
+                PDFWriter.add_page(PDFReader.pages[pageIndex])
+            with io.BytesIO() as PDFBuffer:
+                PDFWriter.write(PDFBuffer)
+                PDFSegmentBytes = PDFBuffer.getvalue()
+            segmentSize = len(PDFSegmentBytes)
+            PDFSegmentBase64 = base64.b64encode(PDFSegmentBytes).decode("utf-8")
+            if LLM_MODEL_PROVIDER == "openai":
+                inputTokenCountRequestQuery = [{"role": "user", "content": [{"type": "input_file", "filename": f"{uuid.uuid4().hex[0:5]}.pdf", "file_data": f"data:application/pdf;base64,{PDFSegmentBase64}"}, {"type": "input_text", "text": prompt}]}]
+                inputPromptTokenCount = (await LLM_ENGINE.responses.input_tokens.count(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=inputTokenCountRequestQuery)).input_tokens
+            else:
+                inputTokenCountRequestQuery = types.Content(role="user", parts=[types.Part.from_bytes(data=PDFSegmentBytes, mime_type="application/pdf"), types.Part.from_text(text=f"{systemPrompt}\n{prompt}")])
+                inputPromptTokenCount = (await LLM_ENGINE.aio.models.count_tokens(model=LLM_MODEL_FOR_IMAGE_SCAN, contents=inputTokenCountRequestQuery)).total_tokens
+            print(f"Input Token Count For The Segment Value: {inputPromptTokenCount:,}")
+            print(f"Total Size For The Segment Value: {segmentSize:,} bytes")
+            logMessage += (f"\t\t\t + **Total Input Token Count:** `{inputPromptTokenCount:,}`\n"
+                           f"\t\t\t + **Total Size:** `{segmentSize:,} bytes`\n")
+
+        print(f"The optimal PDF segment value is: {pageSegment}")
+        logMessage += f"\t\t + **Optimal PDF segment value is:** {pageSegment:,}\n"
+        PDFBase64Datas = await asyncio.to_thread(_segmentPDFToBase64, PDFReader, PDFPageCount, pageSegment)
+    else:
+        PDFBase64Datas["Full PDF Pages"] = PDFBase64Data
+
+    print(f"Start scanning PDF frames with LLM model {LLM_MODEL_FOR_IMAGE_SCAN}")
     for segment, PDFBase64Data in PDFBase64Datas.items():
         print("\n----------------------------------------")
         print(f"Scanning PDF segment: {segment}")
         logMessage += f"\t\t\t + **PDF Segment: {segment}**\n"
         for retryAttempt in range(0, 3):
+
             print(f"Attempt #{retryAttempt + 1}")
             logMessage += f"\t\t\t + **LLM request attempt:** `{retryAttempt + 1}`\n"
             if LLM_MODEL_PROVIDER == "openai":
@@ -114,73 +168,62 @@ async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, st
             else:
                 requestQuery = [{"type": "document", "data": PDFBase64Data, "mime_type": "application/pdf"}, {"type": "text", "text": prompt}]
 
-            if LLM_MODEL_PROVIDER == "openai":
-                inputPromptTokenCount = (await LLM_ENGINE.responses.input_tokens.count(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=requestQuery)).input_tokens
-            else:
-                # STUPID FREAKING GEMINI DEVELOPER NOT ENABLE INLINE BASE64 TOKEN COUNT LIKE OPENAI
-                PDFBytes = base64.b64decode(PDFBase64Data, validate=True)
-                stupidGoogleDev = types.Content(role="user", parts=[types.Part.from_bytes(data=PDFBytes, mime_type="application/pdf"), types.Part.from_text(text=f"{systemPrompt}\n{prompt}")])
-                inputPromptTokenCount = (await LLM_ENGINE.aio.models.count_tokens(model=LLM_MODEL_FOR_IMAGE_SCAN, contents=stupidGoogleDev)).total_tokens
-
-            # Model Context Window Limit Check
-            print(f"Input Tokens: {inputPromptTokenCount}")
-            logMessage += f"\t\t\t + **Input Token Count:** `{inputPromptTokenCount:,} tokens`\n"
-            if inputPromptTokenCount > LLM_MODEL_INFORMATION[LLM_MODEL_FOR_IMAGE_SCAN]["Maximum Input Tokens"]:
-                logMessage += f"\t\t\t + **Input Token Count Exceed {LLM_MODEL_FOR_IMAGE_SCAN} Context Window!**\n"
-                return f"NEED MANUAL REVIEW::FILE CONTENT EXCEED {LLM_MODEL_FOR_IMAGE_SCAN} TOKEN LIMIT", logMessage
-            else:
-                try:
-                    if LLM_MODEL_PROVIDER == "openai":
-                        # https://developers.openai.com/api/reference/resources/responses/methods/create/
-                        response = await LLM_ENGINE.responses.create(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=requestQuery, max_output_tokens=2000, store=False)
-                        print(f"Output Tokens: {response.usage.output_tokens}")
-                        logMessage += f"\t\t\t + **Output Token Count:** `{response.usage.output_tokens:,} tokens`\n"
+            try:
+                if LLM_MODEL_PROVIDER == "openai":
+                    # https://developers.openai.com/api/reference/resources/responses/methods/create/
+                    response = await LLM_ENGINE.responses.create(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=requestQuery, max_output_tokens=2000, store=False)
+                    print(f"Input Tokens: {response.usage.input_tokens}")
+                    print(f"Output Tokens: {response.usage.output_tokens}")
+                    logMessage += (f"\t\t\t + **Input Token Count:** `{response.usage.input_tokens:,} tokens`\n"
+                                   f"\t\t\t + **Output Token Count:** `{response.usage.output_tokens:,} tokens`\n")
+                else:
+                    # https://aistudio.google.com/api-reference/interactions-api/create-interaction
+                    response = await LLM_ENGINE.aio.interactions.create(model=LLM_MODEL_FOR_IMAGE_SCAN, input=requestQuery, system_instruction=systemPrompt, generation_config={"max_output_tokens": 2000}, store=True)
+                    print(f"Input Tokens: {response.usage.total_input_tokens}")
+                    print(f"Output Tokens: {response.usage.total_output_tokens}")
+                    logMessage += (f"\t\t\t + **Input Token Count:** `{response.usage.total_input_tokens:,} tokens`\n"
+                                   f"\t\t\t + **Output Token Count:** `{response.usage.total_output_tokens:,} tokens`\n")
+                pdfScanResult = response.output_text
+                print(f"{LLM_MODEL_FOR_IMAGE_SCAN} image NSFW scan results: {pdfScanResult}")
+                totalCost = await calculateUsageCost(LLM_MODEL_FOR_IMAGE_SCAN, response)
+                print(f"Total Cost: ${totalCost}")
+                logMessage += f"\t\t\t + **Total Cost:** `${totalCost}`\n"
+                logMessage += f"\t\t\t + **PDF NSFW Scan Results:** `{pdfScanResult}`\n"
+                if pdfScanResult:
+                    if pdfScanResult.startswith(("Yes", "yes", "YES")):
+                        return pdfScanResult, logMessage # Return NSFW report upon an NSFW response
                     else:
-                        # https://aistudio.google.com/api-reference/interactions-api/create-interaction
-                        response = await LLM_ENGINE.aio.interactions.create(model=LLM_MODEL_FOR_IMAGE_SCAN, input=requestQuery, system_instruction=systemPrompt, generation_config={"max_output_tokens": 2000}, store=True)
-                        print(f"Output Tokens: {response.usage.total_output_tokens}")
-                        logMessage += f"\t\t\t + **Output Token Count:** `{response.usage.total_output_tokens:,} tokens`\n"
-                    pdfScanResult = response.output_text
-                    print(f"{LLM_MODEL_FOR_IMAGE_SCAN} image NSFW scan results: {pdfScanResult}")
-                    totalCost = await calculateUsageCost(LLM_MODEL_FOR_IMAGE_SCAN, response)
-                    print(f"Total Cost: ${totalCost}")
-                    logMessage += f"\t\t\t + **Total Cost:** `${totalCost}`\n"
-                    logMessage += f"\t\t\t + **PDF NSFW Scan Results:** `{pdfScanResult}`\n"
-                    if pdfScanResult:
-                        if pdfScanResult.startswith(("Yes", "yes", "YES")):
-                            return pdfScanResult, logMessage # Return NSFW report upon an NSFW response
-                        else:
-                            break
-                    else:
-                        return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} RETURN EMPTY RESPONSE", logMessage
+                        break
+                else:
+                    return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} RETURN EMPTY RESPONSE", logMessage
 
-                except (openai.RateLimitError, openai.APITimeoutError) as Error:
-                    print(f"Rate Limit/API Timeout Error: {Error}, attempt retry {retryAttempt + 1} in 1 minute")
-                    logMessage += f"\t\t\t + **Rate Limit Error:** `{Error}`\n"
+            except (openai.RateLimitError, openai.APITimeoutError) as Error:
+                print(f"Rate Limit/API Timeout Error: {Error}, attempt retry {retryAttempt + 1} in 1 minute")
+                logMessage += f"\t\t\t + **Rate Limit Error:** `{Error}`\n"
+                await asyncio.sleep(60)
+
+            except openai.BadRequestError as BadRequestError:
+                print(f"Bad Request Error: {BadRequestError}")
+                logMessage += f"\t\t\t + **Bad Request Error:** `{BadRequestError}`\n"
+                return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} API BAD REQUEST ERROR {BadRequestError}", logMessage
+
+            except errors.APIError as GeminiAPIError:
+                if GeminiAPIError.code == 429:
+                    print(f"Rate Limit Error: {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
+                    logMessage += f"\t\t\t + **Rate Limit Error:** `{GeminiAPIError.message}`\n"
                     await asyncio.sleep(60)
+                else:
+                    print(f"Error: {GeminiAPIError.message}")
+                    logMessage += f"\t\t\t + **LLM Request Error:** `{GeminiAPIError.message}`\n"
+                    return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} BAD REQUEST ERROR {GeminiAPIError.message}", logMessage
 
-                except openai.BadRequestError as BadRequestError:
-                    print(f"Bad Request Error: {BadRequestError}")
-                    logMessage += f"\t\t\t + **Bad Request Error:** `{BadRequestError}`\n"
-                    return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} API BAD REQUEST ERROR {BadRequestError}", logMessage
+            except Exception as e:
+                print(f"Receive Error: {e}")
+                logMessage += f"\t\t\t + **LLM Request Error:** `{e}`\n"
+                return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} ERROR {e}", logMessage
 
-                except errors.APIError as GeminiAPIError:
-                    if GeminiAPIError.code == 429:
-                        print(f"Rate Limit Error: {GeminiAPIError.message}, attempt retry {retryAttempt + 1} in 1 minute")
-                        logMessage += f"\t\t\t + **Rate Limit Error:** `{GeminiAPIError.message}`\n"
-                        await asyncio.sleep(60)
-                    else:
-                        print(f"Error: {GeminiAPIError.message}")
-                        logMessage += f"\t\t\t + **LLM Request Error:** `{GeminiAPIError.message}`\n"
-                        return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} BAD REQUEST ERROR {GeminiAPIError.message}", logMessage
-
-                except Exception as e:
-                    print(f"Receive Error: {e}")
-                    logMessage += f"\t\t\t + **LLM Request Error:** `{e}`\n"
-                    return f"NEED MANUAL REVIEW::Model {LLM_MODEL_FOR_IMAGE_SCAN} ERROR {e}", logMessage
-
-                finally:
-                    print("----------------------------------------\n")
+            finally:
+                print("----------------------------------------\n")
         if not pdfScanResult:
             print(f"Too Many Retry Attempts!")
             logMessage += f"\t\t\t + **Too Many Retry Attempts!**\n"

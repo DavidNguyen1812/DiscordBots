@@ -151,6 +151,7 @@ try:
         assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_IMAGE_SCAN in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_TEXT_SCAN in LLM_MODEL_INFORMATION.keys()
+    assert LLM_MODEL_FOR_WEB_SEARCH in LLM_MODEL_INFORMATION.keys()
 except AssertionError:
     raise AssertionError("LLM MODEL SELECTION ERROR: Please make sure your selected LLM model matched with their provider AND the model ID exist in LLM_MODEL_INFORMATION!")
 

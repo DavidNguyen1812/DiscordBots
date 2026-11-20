@@ -148,7 +148,7 @@ try:
         assert LLM_MODEL_FOR_TEXT_SCAN.startswith('gemini')
         assert LLM_MODEL_FOR_WEB_SEARCH.startswith('gemini')
         LLM_ENGINE = genai.Client(http_options={"api_version": "v1beta"}, api_key=os.environ.get("EMMANUEL_GEMENI_API"))
-    assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION in LLM_MODEL_INFORMATION.keys()
+        assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_IMAGE_SCAN in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_TEXT_SCAN in LLM_MODEL_INFORMATION.keys()
 except AssertionError:

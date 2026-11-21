@@ -287,7 +287,6 @@ async def hashAttachmentWithoutDownload(attachmentUrl: str, urlName: str) -> tup
                     return '', '', 0, None, True
             else:
                 downloadURL = attachmentUrl
-    print(downloadURL)
     async with Emmanuel.session.get(downloadURL, allow_redirects=False) as response:
         async for fileBytesContent in response.content.iter_chunked(CHUNK_SIZE):
             FullContentLength += len(fileBytesContent)

@@ -1,7 +1,4 @@
-from LLMConfigsModule import *
-from FileUtilitiesModule import *
 from WebSearchModule import *
-from AudioScanModule import *
 from ImageVideoGifPDFScanModule import *
 
 async def scanningTextOnlyWithLLM(textToBeScanned: str, retryAttempt: int) -> str:
@@ -859,7 +856,3 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                 await writingScanLog(logMessage)
                 await AdvanceBackTrackMessageScan(message)
             print("\n\n")
-
-
-# Module-local counter used by EmmanuelScan.
-FILE_DOWNLOAD_COUNTER = 0

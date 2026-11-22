@@ -1,5 +1,3 @@
-from LLMConfigsModule import *
-from FileUtilitiesModule import *
 from MainScanEngineModule import *
 from ImageVideoGifPDFScanModule import *
 
@@ -275,6 +273,7 @@ async def add_uncensored_member(ctx, member: discord.Member):
 @app_commands.describe(member="Please mention a member in the server!")
 @app_commands.guild_only()
 async def remove_uncensored_member(ctx, member: discord.Member):
+    await ctx.response.defer(ephemeral=True)
     if ctx.user.id == ctx.guild.owner.id or ctx.user.id == OWNER_DISCORD_USER_ID:
         await checkServerExistInConfigFile(str(ctx.guild.id))
         async with ConfigLock:

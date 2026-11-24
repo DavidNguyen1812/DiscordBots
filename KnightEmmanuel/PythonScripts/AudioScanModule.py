@@ -1,4 +1,8 @@
-from FileUtilitiesModule import *
+import wave, io, subprocess, aiofiles, asyncio, datetime, os, base64
+from google.genai import types
+from RuntimeConfigsModule import LLM_ENGINE, LLM_MODEL_PROVIDER, LLM_MODEL_FOR_AUDIO_TRANSCRIPTION
+from FileUtilitiesModule import calculateUsageCost
+
 
 def _getWaveMetadata(waveFilePath: str) -> tuple[int, int]:
     """
@@ -48,7 +52,7 @@ def _readWaveSegmentBytes(waveFilePath: str, segmentStartFrame: int, framesPerSe
     return segmentBuffer.getvalue(), segmentFrameCount
 
 
-async def NSFWScanAudio(audioPath: str, logMessage: str, video: bool=False) -> Tuple[bool, str, str]:  # Return True if Audio is NSFW!
+async def NSFWScanAudio(audioPath: str, logMessage: str, video: bool=False) -> tuple[bool, str, str]:  # Return True if Audio is NSFW!
     """
     Description: NSFW scan for audio file
     :param audioPath: Path to audio file on disk

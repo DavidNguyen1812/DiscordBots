@@ -55,7 +55,7 @@ async def scanOneURL(url: str, url_base_name: str, url_sha512_hash, message: dis
                 print("Checking User Current Uncensored Limit in the Server...")
                 async with ConfigLock:
                     if configuration.get(str(message.guild.id), ""):
-                        if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), 0) > 1:
+                        if configuration[str(message.guild.id)]["User-Uncensor-Limit"].get(str(message.author.id), 0) > 0:
                             print("User Uncensor Limit still valid! Terminating Scan Process...")
                             logMessage += (f"- **Scan Result:** `UNVERIFIED`\n"
                                            f"- **Reason:** `User uncensored value still valid to skip Emmanuel scan!`\n")

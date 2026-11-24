@@ -4,7 +4,6 @@ import socket
 from typing import Tuple
 from urllib.parse import unquote, urlsplit, urljoin, urlunsplit
 from aiohttp.abc import AbstractResolver
-from discord.ext import commands
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
@@ -16,6 +15,7 @@ import os
 import requests
 import random
 import time
+from RuntimeConfigsModule import Emmanuel
 
 load_dotenv()
 
@@ -89,20 +89,6 @@ ScrapeOPSResponse = requests.get(
 SCRAPEOPS_MOBILE_BROWSER_HEADERS = ScrapeOPSResponse.json().get('result', [])
 assert len(SCRAPEOPS_MOBILE_BROWSER_HEADERS) == 100
 print(f"Successfully retrieving 100 ScrapeOps Mobile Browser Headers!")
-
-
-"""Initialize aiohttp.ClientSession in setUpHook"""
-class EmmanuelBot(commands.Bot):
-    async def setup_hook(self):
-        self.session = aiohttp.ClientSession()
-        print("aiohttp ClientSession initialized.")
-
-    async def close(self):
-        await super().close()
-        await self.session.close()
-
-intents = discord.Intents.all()
-Emmanuel = EmmanuelBot(command_prefix='/', intents=intents)
 
 
 async def getTenorGifURL(gifURL: str) -> str:

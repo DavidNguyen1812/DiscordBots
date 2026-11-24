@@ -357,7 +357,7 @@ async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> tuple
     logMessage += "- **SCANNED FILE CONTENT PROGRESS:**\n"
     if mediaExt.endswith(SUPPORTED_PICTURE_FILE_FORMATS):
         print(f"Media content is an image file in format {mediaExt}")
-        if not mediaPath.endswith((".png", ".pdf", ".gif")):
+        if not mediaExt.endswith((".png", ".pdf", ".gif")):
             print(f"Converting the image format to PNG...")
             outPutPNGPath = mediaPath.replace(mediaExt, ".png")
             try:
@@ -371,7 +371,7 @@ async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> tuple
         else:
             print(f"Image already in PNG or PDF or GIF format!")
             logMessage += f"\t+ **Conversion from {mediaExt} to PNG:** `SKIPPED: Current File Format does not need conversion!`\n"
-        if mediaPath.endswith(".png"):
+        if mediaExt.endswith(".png"):
             print("Scanning PNG image with nudenet...")
             if await scanningImageWithNudenet(mediaPath):  # First check using nudenet
                 print(f"Nudenet detected NSFW image!")
@@ -447,7 +447,7 @@ async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> tuple
             print("Audio is clean!")
             logMessage += f"\t+ **Audio is CLEAN!**\n"
             return False, "", logMessage
-    if not mediaPath.endswith(".pdf"):
+    if not mediaExt.endswith(".pdf"):
         pdfPath = await asyncio.to_thread(PDFConversion, mediaPath)
         if pdfPath == "Conversion failed":
             print("Error converting media content to PDF frames!")

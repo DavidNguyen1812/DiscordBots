@@ -18,6 +18,8 @@ async def scanOneURL(url: str, url_base_name: str, url_sha512_hash, message: dis
         UrlScanStartTime = time.perf_counter()
         logMessage = (f"- **URL:** `{url}`\n"
                       f"- **URL SHA-512 Hash:** `{url_sha512_hash}`\n")
+         
+        isArchive = False
         try:
             async with hashedScanLock("url:" + url_sha512_hash):
 
@@ -139,6 +141,7 @@ async def scanOneURL(url: str, url_base_name: str, url_sha512_hash, message: dis
                                 """Checking URL content format to determine scan method"""
                                 if UrlContentExt.endswith(SUPPORTED_DISK_IMAGE_AND_ARCHIVE_FILE_FORMATS):
                                     print("URL content is an archive/disk image file!")
+                                    isArchive = True
                                     tempScanFolder = os.path.join(scanDir, "MainMountPoint") + os.sep
                                     archiveReportPath = f"{scanDir}/{uuid.uuid4().hex[:7]}archive_scan_report.json"
                                     archiveScanResult = await asyncio.to_thread(ArchivesDiskImagesBombAnalysisAndExtraction, [filePaths[url_base_name]], tempScanFolder, archiveReportPath, UrlContentHashed)
@@ -441,8 +444,9 @@ async def scanOneURL(url: str, url_base_name: str, url_sha512_hash, message: dis
         except TerminateURLScan:
             pass
         finally:
-            print(f"Total Scan duration: {time.perf_counter() - UrlScanStartTime:.2f}s")
-            ScanResult.logMessage += f"- **Total Scan Duration In Second(s):** {time.perf_counter() - UrlScanStartTime:.2f}s\n\n---\n\n"
+            if isArchive:
+                print(f"Total Scan duration: {time.perf_counter() - UrlScanStartTime:.2f}s")
+                ScanResult.logMessage += f"- **Total Scan Duration In Second(s):** {time.perf_counter() - UrlScanStartTime:.2f}s\n\n---\n\n"
         return ScanResult
 
 
@@ -455,7 +459,6 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
    :return: None
     """
 
-    global FILE_DOWNLOAD_COUNTER
     # Prioritize Executing commands first!
     await Emmanuel.process_commands(message)
 
@@ -497,7 +500,6 @@ async def EmmanuelScan(message: discord.message.Message, isEdit:bool=False, befo
                 for attachment in message.attachments:
                     logMessage += f"\t+ **File attachment name:** `{attachment.filename}`\n"
                     AttachmentUrls[attachment.url] = [attachment.filename, hashlib.sha512(attachment.url.split('?')[0].encode()).hexdigest()]
-                print(f"AttachmentUrls: {AttachmentUrls}")
             logMessage += "\n"
 
         if message.author.id in configuration[str(message.guild.id)]["Uncensored-members"]:

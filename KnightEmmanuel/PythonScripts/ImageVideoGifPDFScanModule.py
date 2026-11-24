@@ -1,6 +1,32 @@
-from LLMConfigsModule import *
-from FileUtilitiesModule import *
-from AudioScanModule import *
+import asyncio,os, io, base64, aiofiles, uuid, math, openai, cv2, subprocess, hashlib
+
+from nudenet import NudeDetector
+from pypdf import PdfReader, PdfWriter
+from PIL import Image
+from google.genai import types, errors
+from fpdf import FPDF
+
+from RuntimeConfigsModule import LLM_ENGINE, LLM_MODEL_INFORMATION, LLM_MODEL_PROVIDER, LLM_MODEL_FOR_IMAGE_SCAN, CLEANData, NSFWData, SUPPORTED_AUDIO_FILE_FORMATS, SUPPORTED_VIDEO_FILE_FORMATS, SUPPORTED_PICTURE_FILE_FORMATS
+from AudioScanModule import NSFWScanAudio
+from FileUtilitiesModule import calculateUsageCost, AddingNewCleanData, AddingNewNSFWData, CHUNK_SIZE
+
+
+"""----Nudenet Inappropriate Classes----"""
+SEXUAL_TAGS = [
+    "FEMALE_GENITALIA_COVERED",
+    "BUTTOCKS_EXPOSED",
+    "FEMALE_BREAST_EXPOSED",
+    "FEMALE_GENITALIA_EXPOSED",
+    "MALE_BREAST_EXPOSED",
+    "ANUS_EXPOSED",
+    "BELLY_EXPOSED",
+    "MALE_GENITALIA_EXPOSED",
+    "ANUS_COVERED",
+    "BUTTOCKS_COVERED",
+]
+
+"""----Initialize local Nudenet LLM----"""
+detector = NudeDetector()
 
 async def scanningImageWithNudenet(image: str) -> bool:
     """
@@ -70,7 +96,7 @@ IMPORTANT NOTE:
 OpenAI only accept up to 50 MB file data per Response API request.
 Google Gemini accept up to 100 MB file data per Interactions API request. For PDF, it's only 50 MB and 1,000 pages.
 '''
-async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, str]:
+async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->tuple[str, str]:
     """
     Description: Scanning PDF frames with a selected LLM model
     :param pdfPath: The path to the PDF file
@@ -128,25 +154,26 @@ async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, st
         while inputPromptTokenCount >= contextWindowLimit or pageSegment > 1000 or segmentSize > 50000000:
             pageSegment = math.floor(pageSegment * 0.9)
             print(f"Testing PDF segment value of {pageSegment} pages")
-            logMessage += f"\t\t + **Testing Input Token Count For Segment Value {pageSegment}**\n"
-            PDFWriter = PdfWriter()
-            for pageIndex in range(0, pageSegment):
-                PDFWriter.add_page(PDFReader.pages[pageIndex])
-            with io.BytesIO() as PDFBuffer:
-                PDFWriter.write(PDFBuffer)
-                PDFSegmentBytes = PDFBuffer.getvalue()
-            segmentSize = len(PDFSegmentBytes)
-            PDFSegmentBase64 = base64.b64encode(PDFSegmentBytes).decode("utf-8")
-            if LLM_MODEL_PROVIDER == "openai":
-                inputTokenCountRequestQuery = [{"role": "user", "content": [{"type": "input_file", "filename": f"{uuid.uuid4().hex[0:5]}.pdf", "file_data": f"data:application/pdf;base64,{PDFSegmentBase64}"}, {"type": "input_text", "text": prompt}]}]
-                inputPromptTokenCount = (await LLM_ENGINE.responses.input_tokens.count(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=inputTokenCountRequestQuery)).input_tokens
-            else:
-                inputTokenCountRequestQuery = types.Content(role="user", parts=[types.Part.from_bytes(data=PDFSegmentBytes, mime_type="application/pdf"), types.Part.from_text(text=f"{systemPrompt}\n{prompt}")])
-                inputPromptTokenCount = (await LLM_ENGINE.aio.models.count_tokens(model=LLM_MODEL_FOR_IMAGE_SCAN, contents=inputTokenCountRequestQuery)).total_tokens
-            print(f"Input Token Count For The Segment Value: {inputPromptTokenCount:,}")
-            print(f"Total Size For The Segment Value: {segmentSize:,} bytes")
-            logMessage += (f"\t\t\t + **Total Input Token Count:** `{inputPromptTokenCount:,}`\n"
-                           f"\t\t\t + **Total Size:** `{segmentSize:,} bytes`\n")
+            if (LLM_MODEL_PROVIDER == "google-gemini" and pageSegment < 1000) or LLM_MODEL_PROVIDER == "openai":
+                logMessage += f"\t\t + **Testing Input Token Count For Segment Value {pageSegment}**\n"
+                PDFWriter = PdfWriter()
+                for pageIndex in range(0, pageSegment):
+                    PDFWriter.add_page(PDFReader.pages[pageIndex])
+                with io.BytesIO() as PDFBuffer:
+                    PDFWriter.write(PDFBuffer)
+                    PDFSegmentBytes = PDFBuffer.getvalue()
+                segmentSize = len(PDFSegmentBytes)
+                PDFSegmentBase64 = base64.b64encode(PDFSegmentBytes).decode("utf-8")
+                if LLM_MODEL_PROVIDER == "openai":
+                    inputTokenCountRequestQuery = [{"role": "user", "content": [{"type": "input_file", "filename": f"{uuid.uuid4().hex[0:5]}.pdf", "file_data": f"data:application/pdf;base64,{PDFSegmentBase64}"}, {"type": "input_text", "text": prompt}]}]
+                    inputPromptTokenCount = (await LLM_ENGINE.responses.input_tokens.count(model=LLM_MODEL_FOR_IMAGE_SCAN, instructions=systemPrompt, input=inputTokenCountRequestQuery)).input_tokens
+                else:
+                    inputTokenCountRequestQuery = types.Content(role="user", parts=[types.Part.from_bytes(data=PDFSegmentBytes, mime_type="application/pdf"), types.Part.from_text(text=f"{systemPrompt}\n{prompt}")])
+                    inputPromptTokenCount = (await LLM_ENGINE.aio.models.count_tokens(model=LLM_MODEL_FOR_IMAGE_SCAN, contents=inputTokenCountRequestQuery)).total_tokens
+                print(f"Input Token Count For The Segment Value: {inputPromptTokenCount:,}")
+                print(f"Total Size For The Segment Value: {segmentSize:,} bytes")
+                logMessage += (f"\t\t\t + **Total Input Token Count:** `{inputPromptTokenCount:,}`\n"
+                               f"\t\t\t + **Total Size:** `{segmentSize:,} bytes`\n")
 
         print(f"The optimal PDF segment value is: {pageSegment}")
         logMessage += f"\t\t + **Optimal PDF segment value is:** {pageSegment:,}\n"
@@ -159,6 +186,7 @@ async def scanningPDFPagesWithLLM(pdfPath: str, logMessage: str) ->Tuple[str, st
         print("\n----------------------------------------")
         print(f"Scanning PDF segment: {segment}")
         logMessage += f"\t\t\t + **PDF Segment: {segment}**\n"
+        pdfScanResult = ""
         for retryAttempt in range(0, 3):
 
             print(f"Attempt #{retryAttempt + 1}")
@@ -318,7 +346,7 @@ def AsciiDocumentToPDFConversion(fileData: bytes, pdfpath) -> bool:
 
 
 # Return True if NSFW
-async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> Tuple[bool, str, str]:
+async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> tuple[bool, str, str]:
     """
     Description: Scanning Media Files (Image, PDF, Video, and Audio)
     :param mediaExt: The extension of the media file
@@ -425,6 +453,7 @@ async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> Tuple
             print("Error converting media content to PDF frames!")
             logMessage += f"\t+ **Conversion to PDF File:** `ERROR`\n"
             return False, f"NEED MANUAL REVIEW::Error converting media content to PDF frames!", logMessage
+        print("Conversion succeeded!")
         logMessage += f"\t+ **Conversion to PDF File:** `SUCCESS`\n"
     else:
         pdfPath = mediaPath

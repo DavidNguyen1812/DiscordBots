@@ -1,6 +1,14 @@
-from FileUtilitiesModule import *
+from RuntimeConfigsModule import LLM_MODEL_FOR_WEB_SEARCH, LLM_ENGINE, LLM_MODEL_PROVIDER
+from FileUtilitiesModule import calculateUsageCost
+from seleniumwire2 import webdriver
+from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.service import Service
+from selenium.common import TimeoutException
 
-def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> Tuple[int, bytes]:
+"""Setting Path to Chrome Driver Binary"""
+# service = Service("/usr/bin/chromedriver")
+
+def SeleniumHTMLRetrieval(browserHeader: dict, url: str) -> tuple[int, bytes]:
     """
     Description: Opening Headless Selenium browser to fetch url response content with customized browser header
     :param browserHeader: Customized browser header

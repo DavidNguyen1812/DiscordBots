@@ -1,5 +1,14 @@
-from MainScanEngineModule import *
-from ImageVideoGifPDFScanModule import *
+from FileUtilitiesModule import plotBarCharts, plotModelCalls, checkServerExistInConfigFile, AddingNewNSFWData, AddingNewCleanData
+from MainScanEngineModule import EmmanuelScan
+from RuntimeConfigsModule import *
+import json, time, asyncio, os, discord, aiofiles, datetime
+import pandas as pd
+
+from discord.ext import tasks
+from discord import app_commands
+from typing import Literal
+from zoneinfo import ZoneInfo
+
 
 # These values are updated by reset_user_uncensor_value_and_update_llm_usage.
 ct = time.ctime(time.time()).split()
@@ -390,8 +399,8 @@ async def uncensored_channels(ctx):
 @app_commands.describe(sha_512="Provide the SHA512 hash", nsfw="Is the content NSFW or not?", reason="Provide a details reason")
 async def update_emmanuel_scan_database(ctx, sha_512: str, nsfw: Literal["No", "Yes"], reason: str):
     await ctx.response.defer(ephemeral=True)
-    contents =  PENDING_MANUAL_REVIEW_CONTENT.get(sha_512, [])
-    if contents:
+    contents =  PENDING_MANUAL_REVIEW_CONTENT.get(sha_512, None)
+    if contents is not None:
         hashes = [sha_512] + contents
         PENDING_MANUAL_REVIEW_CONTENT.pop(sha_512, None)
         for h in hashes:
@@ -400,7 +409,7 @@ async def update_emmanuel_scan_database(ctx, sha_512: str, nsfw: Literal["No", "
             else:
                 await AddingNewNSFWData(h, reason)
         async with PendingReviewLock:
-            async with aiofiles.open(PENDING_MANUAL_REVIEW_CONTENT, "w") as file:
+            async with aiofiles.open(PENDING_REVIEW_HASHES, "w") as file:
                 await file.write(json.dumps(PENDING_MANUAL_REVIEW_CONTENT, indent=4))
         await ctx.followup.send(f"The provided SHA-512 hash has been updated as {'clean' if nsfw == 'No' else 'NSFW'} in Emmanuel scan database!")
     else:

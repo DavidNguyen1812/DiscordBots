@@ -6,9 +6,6 @@ import gzip
 import rarfile
 import bz2
 import lzma
-import filetype
-import magic
-import mimetypes
 import hashlib
 import uuid
 import json
@@ -16,31 +13,10 @@ import re
 import signal
 import tempfile
 import time
-import requests
 from dataclasses import dataclass, field
+from RuntimeConfigsModule import ALL_SCANNABLE_FILE_FORMATS, SUPPORTED_DISK_IMAGE_FORMATS, SUPPORTED_DISK_IMAGE_AND_ARCHIVE_FILE_FORMATS
+from FileUtilitiesModule import checkingRealFileExtension
 
-
-"""Define all file extensions Emmanuel will scan"""
-
-SUPPORTED_PICTURE_FILE_FORMATS = (".jpg", ".png", ".jpeg", ".raw", ".pdf", ".bmp", ".webp", ".tiff", ".tif", ".ico", ".icns", ".avif",
-                                 ".odd", ".gif", ".heic")
-
-SUPPORTED_VIDEO_FILE_FORMATS = (".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".flv", ".mpeg", ".mpg", ".ts", ".wmv", ".dv", ".mts",
-                                ".m2ts", ".vob", ".ogv")
-
-SUPPORTED_AUDIO_FILE_FORMATS = (".mp3", ".wav", ".oga", ".ogg", ".flac", ".weba", ".aac", ".ac3", ".aif", ".aiff", ".aifc", ".amr",
-                                ".au", ".caf", ".dss", ".m4a", ".m4b", ".wma", ".opus")
-
-SUPPORTED_ARCHIVE_FILE_FORMATS = (".zip", ".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.lzma", ".tgz", ".tbz2", ".txz", ".gz", ".rar",
-                                  ".bz2", ".xz", ".lzma")
-
-SUPPORTED_DISK_IMAGE_FORMATS = (".dmg", ".iso", ".img", ".vhd", ".nrg", ".vhdx", ".vmdk", ".qcow", ".qcow2", ".udf")
-
-SUPPORTED_DISK_IMAGE_AND_ARCHIVE_FILE_FORMATS = SUPPORTED_DISK_IMAGE_FORMATS + SUPPORTED_ARCHIVE_FILE_FORMATS
-
-SUPPORTED_ASCII_READABLE_FILE_FORMATS =  (".txt", ".html", ".json", ".yaml", ".xml", ".sh", ".zsh", ".c", ".java", "ASCII document or script files")
-
-ALL_SCANNABLE_FILE_FORMATS = SUPPORTED_PICTURE_FILE_FORMATS + SUPPORTED_VIDEO_FILE_FORMATS + SUPPORTED_AUDIO_FILE_FORMATS + SUPPORTED_DISK_IMAGE_AND_ARCHIVE_FILE_FORMATS + SUPPORTED_ASCII_READABLE_FILE_FORMATS
 
 '''Rule policy set up'''
 NESTED_ARCHIVE_SIZE_LIMIT = 1_000_000_000 # Only allow for 1 GB nested archive.
@@ -141,159 +117,6 @@ def _PathTransversalAttackDetection(filepath: str) -> list:
     if not PathParts or any(p in ('.', '..') for p in PathParts):
         raise ExtractionSafetyError('Path Transversal Attack', f'Unsafe path: {filepath!r}')
     return PathParts
-
-
-def checkingRealFileExtension(fileContent: bytes, fname: str, verbose: bool = True):
-    """Checking extension by it bytes content in RAM"""
-    if verbose:
-        print(f"Starting Python-Magic module...")
-    mime = magic.from_buffer(fileContent, mime=True)
-    Ext = mimetypes.guess_extension(mime)
-    if Ext:
-        if Ext == ".bin":
-            if fileContent[1:4] == b'\64\73\73':
-                if verbose:
-                    print(f"Detected file extension .dss")
-                return '.dss'
-            if fileContent.startswith(b'PK'):
-                if verbose:
-                    print(f"Detected file extension .zip")
-                return '.zip'
-            if fileContent.startswith(b'caff'):
-                if verbose:
-                    print(f"Detected file extension .caf")
-                return '.caf'
-            if len(fileContent) > 512:
-                Last512bytes = fileContent[-512:]
-                if b'conectix' in Last512bytes:
-                    if verbose:
-                        print(f"Detected file extension .vhd")
-                    return '.vhd'
-                if b'koly' in Last512bytes or Last512bytes.startswith(b'EFI PART') or fileContent.startswith(b'EFI PART'):
-                    if verbose:
-                        print(f"Detected file extension .dmg")
-                    return '.dmg'
-                else:
-                    if verbose:
-                        print(f"Python-Magic detect file extension .bin")
-                    return ".bin"
-        if Ext == ".webm" and fname.endswith(".weba"):
-            if verbose:
-                print(f"Detected file extension .weba")
-            return ".weba"
-        elif Ext == ".webm" and fname.endswith(".wmv"):
-            if verbose:
-                print(f"Detected file extension .wmv")
-            return ".wmv"
-        elif Ext == ".wmv" and fname.endswith(".wma"):
-            if verbose:
-                print(f"Detected file extension .wma")
-            return ".wma"
-        elif Ext == ".ogv" and fname.endswith(".ogg"):
-            if verbose:
-                print(f"Detected file extension .ogg")
-            return ".ogg"
-        elif Ext == ".asf" and fname.endswith(".wmv"):
-            if verbose:
-                print(f"Detected file extension .wmv")
-            return ".wmv"
-        elif Ext == ".asf" and fname.endswith(".wma"):
-            if verbose:
-                print(f"Detected file extension .wma")
-            return ".wma"
-        if Ext.endswith((".xz", ".bz2", ".gz")) and fname.endswith((".tar", ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2", ".txz")):
-            Ext = f".{'.'.join(fname.split(".")[1:])}"
-            if verbose:
-                print(f"Detected extension {Ext}")
-        else:
-            if verbose:
-                print(f"Python-Magic detect file extension {Ext}")
-        return Ext
-    else:
-        if verbose:
-            print(f"Python-Magic can't determine file extension!")
-        print("Manual inspecting content header bytes....")
-        if fileContent.startswith(
-                (b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xcf\xfa\xed\xfe',
-                 b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca')):
-            if verbose:
-                print("File extension is Mach-O executable!")
-            return "Mach-O executable"
-        if fileContent.startswith(b'\x7f\x45\x4c\x46'):
-            if verbose:
-                print("File extension is ELF (Executable and Linkable Format)!")
-            return "ELF executable"
-        if fileContent.startswith(b'QFI\xfb'):
-            if verbose:
-                print(f"Detected file extension .qcow2")
-            return ".qcow2"
-        if fileContent.startswith(b'vhdxfile'):
-            if verbose:
-                print(f"Detected file extension .vhdx")
-            return ".vhdx"
-        if fileContent.startswith(b'KDMV'):
-            if verbose:
-                print(f"Detected file extension .vmdk")
-            return ".vmdk"
-        if len(fileContent) >= 32768:
-            if fileContent[32768:32768 + 5].startswith((b"NSR02", b"NSR03")):
-                if verbose:
-                    print(f"Detected file extension .udf")
-                return '.udf'
-        try:
-            if fileContent.decode("ascii").isascii():
-                if verbose:
-                    print(f"ASCII file detected")
-                return ".txt"
-        except UnicodeDecodeError:
-            if verbose:
-                print("Manual inspection can't determine file extension!")
-                print(f"Starting filetype module...")
-            Ext = filetype.guess(fileContent)
-            if Ext:
-                if verbose:
-                    print(f"Filetype detected file extension {Ext.extension}")
-                return f".{Ext.extension}"
-            else:
-                first100BytesHex = fileContent[:100].hex()
-                if first100BytesHex.startswith("5d0000"):
-                    if verbose:
-                        print(f"Detected file extension .lzma")
-                    return ".lzma"
-                else:
-                    try:
-                        # https://filesignature.org/api
-                        if verbose:
-                            print(f"filetype module can't determine file extension!")
-                            print(f"Starting filesignature.org /identify search...")
-                        response = requests.get("https://filesignature.org/api/v1/identify", params={"hex": first100BytesHex}, timeout=30)
-                        response.raise_for_status()
-                        result = response.json()
-                        if not result.get("success"):
-                            raise ValueError(result.get("error", "File identification failed"))
-                        else:
-                            analysisData = result.get("data", {})
-                            if analysisData:
-                                analysisDataVerdict = analysisData.get("matches", [])
-                                if analysisDataVerdict:
-                                    analysisDataVerdict = analysisDataVerdict[0]
-                                    fileExtension = analysisDataVerdict.get("ext", "")
-                                    if fileExtension:
-                                        if verbose:
-                                            print(f"filesignature.org detected file extension {fileExtension}")
-                                        return f".{fileExtension}"
-                                    else:
-                                        if verbose:
-                                            print(f"filesignature.org can't determine file extension!")
-                                else:
-                                    raise ValueError("Empty Final Analysis Verdict Data")
-                            else:
-                                raise ValueError("Empty Analysis Data")
-                    except Exception as e:
-                        print(f"Error: {str(e)}")
-        if verbose:
-            print(f"File extension can not be determined!")
-        return "Can't be determined"
 
 
 def _runOSCommandWithLimit(Command, timeout, maxOutput=MAX_TERMINAL_OUTPUT_SIZE_IN_MEMORY, outputPath=None, ctx=None):

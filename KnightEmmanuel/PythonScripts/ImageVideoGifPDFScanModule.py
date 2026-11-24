@@ -1,5 +1,6 @@
 import asyncio,os, io, base64, aiofiles, uuid, math, openai, cv2, subprocess, hashlib
 
+from asgiref import timeout
 from nudenet import NudeDetector
 from pypdf import PdfReader, PdfWriter
 from PIL import Image
@@ -359,9 +360,10 @@ async def ScanningMedia(mediaExt: str, mediaPath: str, logMessage: str) -> tuple
         print(f"Media content is an image file in format {mediaExt}")
         if not mediaExt.endswith((".png", ".pdf", ".gif")):
             print(f"Converting the image format to PNG...")
-            outPutPNGPath = mediaPath.replace(mediaExt, ".png")
+            outPutPNGPath = f"{uuid.uuid4().hex[0:5]}{mediaPath.replace(mediaExt, '.png')}"
             try:
-                await asyncio.to_thread(subprocess.run, ["ffmpeg", "-i", mediaPath, outPutPNGPath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                print(f"Conversion successful!")
+                await asyncio.to_thread(subprocess.run, ["ffmpeg", "-i", mediaPath, outPutPNGPath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
                 logMessage += f"\t+ **Conversion from {mediaExt} to PNG:** `SUCCESS`\n"
             except Exception as PNGConversionError:
                 print(f"Error: {PNGConversionError}\nError Converting the image format to PNG! Terminating Scan Process!")

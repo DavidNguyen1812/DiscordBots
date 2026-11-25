@@ -69,7 +69,7 @@ This repository contains three independently deployable Discord bots, each desig
 
 ### Overview
 
-**Knight Emmanuel** is an automated NSFW content moderation bot designed to monitor Discord server text messages and media file attachments. It employs a multi-layered detection pipeline combining the **OpenAI LLM Vision API** and the open-source pre-trained **NudeNet** model to identify and remediate explicit content in real time.
+**Knight Emmanuel** is an automated NSFW content moderation bot designed to monitor Discord server text messages and media file attachments. It employs a multi-layered detection pipeline supports the **OpenAI LLM Vision API** and **Google Gemini API** and the open-source pre-trained **NudeNet** model to identify and remediate explicit content in real time.
 
 ---
 
@@ -127,7 +127,7 @@ This repository contains three independently deployable Discord bots, each desig
 
 9. **Server Owner Access Control Commands** — Provides application commands enabling the server or bot owner to configure which members and channels are subject to Emmanuel's monitoring.
 
-10. **LLM API Usage Tracking** — Records and aggregates OpenAI API usage metrics for cost monitoring and audit purposes.
+10. **LLM API Usage Tracking** — Records and aggregates OpenAI and Google Gemini API usage metrics for cost monitoring and audit purposes.
 
 ---
 
@@ -141,9 +141,9 @@ This repository contains three independently deployable Discord bots, each desig
 | `/uncensored_members` | Server / Bot Owner | Lists all server members currently on the server's uncensored allowlist |
 | `/add_uncensored_member` | Server / Bot Owner | Adds a server member to the uncensored allowlist, exempting them from content monitoring |
 | `/remove_uncensored_member` | Server / Bot Owner | Removes a server member from the uncensored allowlist |
+| `/uncensored_channels` | Server / Bot Owner | Lists all server channels currently on the uncensored allowlist |
 | `/add_uncensored_channel` | Server / Bot Owner | Adds a server channel to the uncensored allowlist, excluding it from real-time monitoring |
 | `/remove_uncensored_channel` | Server / Bot Owner | Removes a server channel from the uncensored allowlist |
-| `/uncensored_channels` | Server / Bot Owner | Lists all server channels currently on the uncensored allowlist |
 
 ---
 

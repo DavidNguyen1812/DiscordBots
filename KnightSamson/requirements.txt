@@ -1,0 +1,9 @@
+discord-py
+python-dotenv
+openai
+google-genai
+aiofiles
+aiocsv
+numpy
+pandas
+matplotlib

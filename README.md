@@ -28,12 +28,13 @@ This repository contains three independently deployable Discord bots, each desig
 ├── KnightEmmanuel/                         # NSFW Content Detection Bot
 │   ├── Files/
 │   │   ├── Configuration/
+│   │   │.  ├── PendingReviewContentHashes.json # Store URL/Attachment content hashes awaiting for manual review
 │   │   │   └── EmmanuelConfig.json         # Tracks monitored members, channels, and daily uncensor limits
 │   │   ├── LLM Usages/
 │   │   │   ├── LLMMonthlyUsage.csv         # Monthly LLM API usage metrics
 │   │   │   └── LLMYearlyUsage.csv          # Yearly LLM API usage metrics
 │   │   ├── Log/
-│   │   │   └── EventLogs.txt               # Timestamped monitoring event log
+│   │   │   └── ScanLogs.md                 # Timestamped monitoring event log
 │   │   └── WordLists/
 │   │       ├── CleanData.json              # SHA-512 hashes of file content verified as clean
 │   │       ├── NSFWData.json               # SHA-512 hashes of file content flagged as NSFW

@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from dataclasses import dataclass
 from typing import Literal
 from google import genai
+from google.genai.types import HttpOptions, HttpRetryOptions
 
 
 """Getting Important File Paths"""
@@ -84,13 +85,13 @@ try:
         assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION == "gpt-transcribe"
         assert LLM_MODEL_FOR_TEXT_SCAN.startswith('gpt')
         assert LLM_MODEL_FOR_WEB_SEARCH.startswith('gpt')
-        LLM_ENGINE = AsyncOpenAI(api_key=os.environ.get("EMMANUEL_OPENAI_API"))
+        LLM_ENGINE = AsyncOpenAI(api_key=os.environ.get("EMMANUEL_OPENAI_API"), timeout=300, max_retries=0)
     elif LLM_MODEL_PROVIDER == "google-gemini":
         assert LLM_MODEL_FOR_IMAGE_SCAN.startswith('gemini')
         assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION == "gemini-3.5-transcribe"
         assert LLM_MODEL_FOR_TEXT_SCAN.startswith('gemini')
         assert LLM_MODEL_FOR_WEB_SEARCH.startswith('gemini')
-        LLM_ENGINE = genai.Client(http_options={"api_version": "v1beta"}, api_key=os.environ.get("EMMANUEL_GEMENI_API"))
+        LLM_ENGINE = genai.Client(api_key=os.environ.get("EMMANUEL_GEMENI_API"), http_options=HttpOptions(timeout=300000, api_version='v1beta', retry_options=HttpRetryOptions(attempts=0)))
         assert LLM_MODEL_FOR_AUDIO_TRANSCRIPTION in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_IMAGE_SCAN in LLM_MODEL_INFORMATION.keys()
     assert LLM_MODEL_FOR_TEXT_SCAN in LLM_MODEL_INFORMATION.keys()

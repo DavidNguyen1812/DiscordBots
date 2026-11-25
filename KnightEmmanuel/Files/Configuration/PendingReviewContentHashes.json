@@ -1,0 +1,10 @@
+# This is just a sample! Please reset this JSON file to {}
+{
+  "URL SHA-512 Hash 1":  [
+    "URL File Content SHA-512 Hash 1",
+    "URL Archive File Content SHA-512 Hash"
+  ],
+  "URL SHA-512 Hash 2":  [
+      "URL File Content SHA-512 Hash 2"
+    ]
+}

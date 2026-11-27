@@ -67,7 +67,7 @@ async def NSFWScanAudio(audioPath: str, logMessage: str, video: bool=False) -> t
             print("Extracting Audio from video file to WAV file format...")
         else:
             print("Converting Audio to WAV file format...")
-        waveFilePath = f"{os.path.dirname(audioName)}/{audioName}.wav"
+        waveFilePath = f"{os.path.dirname(audioPath)}/{audioName}.wav"
         try:
             await asyncio.to_thread(subprocess.run, ["ffmpeg", "-i", audioPath, "-acodec", "pcm_s16le", waveFilePath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
             print("WAV conversion successful!")
